@@ -1,4 +1,8 @@
+module SampleTypesTests
+
 using SampleTypes
-using Base.Test
+using BaseTestNext
 
 include("DummySampleStream.jl")
+
+end
