@@ -1,12 +1,13 @@
-const DEFAULT_SR = 48000
-const DEFAULT_T = Float32
-
-const DummyMonoStream = DummySampleStream{1, 1, DEFAULT_SR, DEFAULT_T}
-const DummyStereoStream = DummySampleStream{2, 2, DEFAULT_SR, DEFAULT_T}
-const StereoBuf = TimeSampleBuf{2, DEFAULT_SR, DEFAULT_T}
-const MonoBuf = TimeSampleBuf{1, DEFAULT_SR, DEFAULT_T}
-
 @testset "DummySampleStream Tests" begin
+
+    const DEFAULT_SR = 48000
+    const DEFAULT_T = Float32
+
+    const DummyMonoStream = DummySampleStream{1, 1, DEFAULT_SR, DEFAULT_T}
+    const DummyStereoStream = DummySampleStream{2, 2, DEFAULT_SR, DEFAULT_T}
+    const StereoBuf = TimeSampleBuf{2, DEFAULT_SR, DEFAULT_T}
+    const MonoBuf = TimeSampleBuf{1, DEFAULT_SR, DEFAULT_T}
+
     @testset "simulate_input adds to buffer" begin
         stream = DummyStereoStream()
         data = rand(DEFAULT_T, (64, 2))
