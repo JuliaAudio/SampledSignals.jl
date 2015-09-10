@@ -10,7 +10,7 @@ export SampleBuf, TimeSampleBuf, FrequencySampleBuf
 export SampleStream, read, write
 export DSPNode
 # re-export the useful units
-export ns, ms, µs, s, Hz, MHz, GHz, THz
+export ns, ms, µs, s, Hz, kHz, MHz, GHz, THz
 
 export DummySampleStream, simulate_input
 
