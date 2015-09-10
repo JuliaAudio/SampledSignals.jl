@@ -42,6 +42,6 @@ const MonoBuf = TimeSampleBuf{1, DEFAULT_SR, DEFAULT_T}
         data = rand(DEFAULT_T, (DEFAULT_SR, 2))
         simulate_input(stream, data)
         buf = read(stream, 0.5s)
-        @test buf.data == data[1:(DEFAULT_SR/2), :]
+        @test buf.data == data[1:round(Int, DEFAULT_SR/2), :]
     end
 end
