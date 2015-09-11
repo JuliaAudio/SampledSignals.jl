@@ -8,3 +8,7 @@ Subtypes should implement
 * write
 """
 abstract SampleStream{IN, OUT, SR, T <: Real}
+
+# audio interface methods
+
+samplerate{IN, OUT, SR, T}(stream::SampleStream{IN, OUT, SR, T}) = SR

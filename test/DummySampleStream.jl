@@ -58,4 +58,9 @@
         buf = read(stream, 0.5s)
         @test buf.data == data[1:round(Int, DEFAULT_SR/2), :]
     end
+
+    @testset "supports samplerate" begin
+        stream = DummyStereoStream()
+        @test samplerate(stream) == DEFAULT_SR
+    end
 end

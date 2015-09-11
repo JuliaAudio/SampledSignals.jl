@@ -17,6 +17,8 @@ function simulate_input{IN, OUT, SR, T}(stream::DummySampleStream{IN, OUT, SR, T
     stream.inbuf = vcat(stream.inbuf, data)
 end
 
+# stream interface methods
+
 import Base.write
 """
 Writes the sample buffer to the sample stream. If no other writes have been
