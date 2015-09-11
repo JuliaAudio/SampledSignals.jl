@@ -22,6 +22,19 @@
         @test vec(stream.inbuf) == data
     end
 
+    @testset "simulate_input throws error on wrong channel count" begin
+        stream = DummyStereoStream()
+        data = rand(DEFAULT_T, 64, 1)
+        try
+            simulate_input(stream, data)
+            # must throw an exception
+            @test false
+        catch ex
+            @test typeof(ex) == ErrorException
+            @test ex.msg == "Simulated data channel count must match stream input count"
+        end
+    end
+
     @testset "write writes to outbuf" begin
         stream = DummyStereoStream()
         buf = StereoBuf(convert(Array{DEFAULT_T}, randn(32, 2)))

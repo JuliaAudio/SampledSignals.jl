@@ -10,14 +10,10 @@ buffer, so that when client code reads from the stream they receive this data.
 This will also wake up any tasks that are blocked waiting for data from the
 stream.
 """
-function simulate_input{IN, OUT, SR, T}(stream::DummySampleStream{IN, OUT, SR, T}, data::Array{T, 2})
+function simulate_input{IN, OUT, SR, T}(stream::DummySampleStream{IN, OUT, SR, T}, data::Array{T})
     if size(data, 2) != IN
         error("Simulated data channel count must match stream input count")
     end
-    stream.inbuf = vcat(stream.inbuf, data)
-end
-
-function simulate_input{OUT, SR, T}(stream::DummySampleStream{1, OUT, SR, T}, data::Vector{T})
     stream.inbuf = vcat(stream.inbuf, data)
 end
 
