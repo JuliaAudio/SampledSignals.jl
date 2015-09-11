@@ -29,10 +29,15 @@ end
 FrequencySampleBuf{T}(arr::AbstractArray{T, 2}, SR::Real) = FrequencySampleBuf{size(arr, 2), SR, T}(arr)
 FrequencySampleBuf{T}(arr::AbstractArray{T, 1}, SR::Real) = FrequencySampleBuf{1, SR, T}(reshape(arr, (length(arr), 1)))
 
+# audio methods
+samplerate{N, SR, T}(buf::SampleBuf{N, SR, T}) = SR
+
+
 # AbstractArray interface methods
 Base.size(buf::SampleBuf) = size(buf.data)
 Base.linearindexing{T <: SampleBuf}(::Type{T}) = Base.LinearFast()
 Base.getindex(buf::SampleBuf, i::Int) = buf.data[i];
+# Base.getindex{BT <: SampleBuf{N, SR, T}}(buf::BT, r::Range) = BT(buf.data[r], SR)
 function Base.setindex!{N, SR, T}(buf::SampleBuf{N, SR, T}, val, i::Int)
     buf.data[i] = val
 end
