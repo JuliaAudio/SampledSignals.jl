@@ -13,6 +13,8 @@ type TimeSampleBuf{N, SR, T} <: SampleBuf{N, SR, T}
     data::Array{T, 2}
 end
 
+TimeSampleBuf{T}(arr::AbstractArray{T, 2}, SR::Real) = TimeSampleBuf{size(arr, 2), SR, T}(arr)
+
 # function TimeSampleBuf{SR}(arr::Array{T, 2})
 #     channels = size(arr, 2)
 #     TimeSampleBuf{channels, SR, T}(arr)
@@ -23,9 +25,12 @@ type FrequencySampleBuf{N, SR, T} <: SampleBuf{N, SR, T}
     data::Array{T, 2}
 end
 
+FrequencySampleBuf{T}(arr::AbstractArray{T, 2}, SR::Real) = FrequencySampleBuf{size(arr, 2), SR, T}(arr)
+
+# AbstractArray interface methods
 Base.size(buf::SampleBuf) = size(buf.data)
-Base.linearindexing(T::Type{SampleBuf}) = Base.LinearFast()
+Base.linearindexing{T <: SampleBuf}(::Type{T}) = Base.LinearFast()
 Base.getindex(buf::SampleBuf, i::Int) = buf.data[i];
-function Base.setindex!{N, SR, T}(buf::SampleBuf{N, SR, T}, val::T, i::Int)
+function Base.setindex!{N, SR, T}(buf::SampleBuf{N, SR, T}, val, i::Int)
     buf.data[i] = val
 end
