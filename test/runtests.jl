@@ -3,7 +3,9 @@ module SampleTypesTests
 using SampleTypes
 using BaseTestNext
 
-include("DummySampleStream.jl")
-include("SampleBuf.jl")
+@testset "SampleTypes Tests" begin
+    include("DummySampleStream.jl")
+    include("SampleBuf.jl")
+end
 
 end

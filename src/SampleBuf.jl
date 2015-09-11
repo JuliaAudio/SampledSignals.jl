@@ -14,6 +14,7 @@ type TimeSampleBuf{N, SR, T} <: SampleBuf{N, SR, T}
 end
 
 TimeSampleBuf{T}(arr::AbstractArray{T, 2}, SR::Real) = TimeSampleBuf{size(arr, 2), SR, T}(arr)
+TimeSampleBuf{T}(arr::AbstractArray{T, 1}, SR::Real) = TimeSampleBuf{1, SR, T}(reshape(arr, (length(arr), 1)))
 
 # function TimeSampleBuf{SR}(arr::Array{T, 2})
 #     channels = size(arr, 2)
@@ -26,6 +27,7 @@ type FrequencySampleBuf{N, SR, T} <: SampleBuf{N, SR, T}
 end
 
 FrequencySampleBuf{T}(arr::AbstractArray{T, 2}, SR::Real) = FrequencySampleBuf{size(arr, 2), SR, T}(arr)
+FrequencySampleBuf{T}(arr::AbstractArray{T, 1}, SR::Real) = FrequencySampleBuf{1, SR, T}(reshape(arr, (length(arr), 1)))
 
 # AbstractArray interface methods
 Base.size(buf::SampleBuf) = size(buf.data)
