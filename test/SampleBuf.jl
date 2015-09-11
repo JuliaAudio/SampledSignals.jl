@@ -33,20 +33,20 @@
         @test typeof(monofreqbuf) == FrequencySampleBuf{1, TEST_SR, TEST_T}
     end
 
-    # @testset "supports equality" begin
-    #     arr1 = rand(TEST_T, (64, 2))
-    #     arr2 = arr1 + 1
-    #     arr3 = arr1[:, 1]
-    #     buf1 = TimeSampleBuf(arr1, TEST_SR)
-    #     buf2 = TimeSampleBuf(arr1, TEST_SR)
-    #     buf3 = TimeSampleBuf(arr1, TEST_SR+1)
-    #     buf4 = TimeSampleBuf(arr2, TEST_SR)
-    #     buf5 = TimeSampleBuf(arr3, TEST_SR)
-    #     @test buf1 == buf2
-    #     @test buf2 != buf3
-    #     @test buf2 != buf4
-    #     @test buf2 != buf5
-    # end
+    @testset "supports equality" begin
+        arr1 = rand(TEST_T, (64, 2))
+        arr2 = arr1 + 1
+        arr3 = arr1[:, 1]
+        buf1 = TimeSampleBuf(arr1, TEST_SR)
+        buf2 = TimeSampleBuf(arr1, TEST_SR)
+        buf3 = TimeSampleBuf(arr1, TEST_SR+1)
+        buf4 = TimeSampleBuf(arr2, TEST_SR)
+        buf5 = TimeSampleBuf(arr3, TEST_SR)
+        @test buf1 == buf2
+        @test buf2 != buf3
+        @test buf2 != buf4
+        @test buf2 != buf5
+    end
 
     # @testset "TimeSampleBufs can be range-indexed in seconds" begin
     #     # array with 1s of audio

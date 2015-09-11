@@ -36,3 +36,7 @@ Base.getindex(buf::SampleBuf, i::Int) = buf.data[i];
 function Base.setindex!{N, SR, T}(buf::SampleBuf{N, SR, T}, val, i::Int)
     buf.data[i] = val
 end
+
+# equality
+import Base.==
+=={N1, N2, SR1, SR2, T1, T2}(buf1::SampleBuf{N1, SR1, T1}, buf2::SampleBuf{N2, SR2, T2}) = (SR1 == SR2 && buf1.data == buf2.data)
