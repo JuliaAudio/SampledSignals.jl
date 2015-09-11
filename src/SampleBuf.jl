@@ -31,6 +31,7 @@ FrequencySampleBuf{T}(arr::AbstractArray{T, 1}, SR::Real) = FrequencySampleBuf{1
 
 # audio methods
 samplerate{N, SR, T}(buf::SampleBuf{N, SR, T}) = SR
+nchannels{N, SR, T}(buf::SampleBuf{N, SR, T}) = N
 
 
 # AbstractArray interface methods

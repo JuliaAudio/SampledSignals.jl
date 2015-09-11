@@ -3,9 +3,10 @@
     TEST_T = Float32
     const StereoBuf = TimeSampleBuf{2, TEST_SR, TEST_T}
 
-    @testset "Can get sample rate" begin
+    @testset "supports audio interface" begin
         buf = StereoBuf(zeros(TEST_T, 64, 2))
         @test samplerate(buf) == TEST_SR
+        @test nchannels(buf) == 2
     end
 
     @testset "SampleBuf supports size()" begin

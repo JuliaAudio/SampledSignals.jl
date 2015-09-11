@@ -7,14 +7,14 @@ using SIUnits.ShortUnits: ns, ms, µs, s, Hz, kHz, MHz, GHz, THz
 typealias RealTime{T <: Real} quantity(T, Second)
 
 export SampleBuf, TimeSampleBuf, FrequencySampleBuf
-export SampleStream, read, write
+export SampleSouce, SampleSink, read, write
+export DummySampleSource, DummySampleSink, simulate_input
 export DSPNode
 # general methods for types in SampleTypes
-export samplerate
+export samplerate, nchannels
 # re-export the useful units
 export ns, ms, µs, s, Hz, kHz, MHz, GHz, THz
 
-export DummySampleStream, simulate_input
 
 include("SampleBuf.jl")
 include("SampleStream.jl")

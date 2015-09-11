@@ -1,14 +1,13 @@
 """
-Represents an O-output, I-input sample stream, which could be a physical device
-like a sound card, a network audio stream, audio file, etc.
-
-Subtypes should implement
-
-* read
-* write
+Represents a sample stream, which could be a physical device like a sound card,
+or a network audio stream, audio file, etc.
 """
-abstract SampleStream{IN, OUT, SR, T <: Real}
+abstract SampleSource{N, SR, T <: Real}
+abstract SampleSink{N, SR, T <: Real}
 
 # audio interface methods
 
-samplerate{IN, OUT, SR, T}(stream::SampleStream{IN, OUT, SR, T}) = SR
+samplerate{N, SR, T}(stream::SampleSource{N, SR, T}) = SR
+samplerate{N, SR, T}(stream::SampleSink{N, SR, T}) = SR
+nchannels{N, SR, T}(stream::SampleSource{N, SR, T}) = N
+nchannels{N, SR, T}(stream::SampleSink{N, SR, T}) = N

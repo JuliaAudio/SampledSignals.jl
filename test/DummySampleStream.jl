@@ -3,30 +3,32 @@
     const DEFAULT_SR = 48000
     const DEFAULT_T = Float32
 
-    const DummyMonoStream = DummySampleStream{1, 1, DEFAULT_SR, DEFAULT_T}
-    const DummyStereoStream = DummySampleStream{2, 2, DEFAULT_SR, DEFAULT_T}
+    const DummyMonoSource = DummySampleSource{1, DEFAULT_SR, DEFAULT_T}
+    const DummyMonoSink = DummySampleSink{1, DEFAULT_SR, DEFAULT_T}
+    const DummyStereoSource = DummySampleSource{2, DEFAULT_SR, DEFAULT_T}
+    const DummyStereoSink = DummySampleSink{2, DEFAULT_SR, DEFAULT_T}
     const StereoBuf = TimeSampleBuf{2, DEFAULT_SR, DEFAULT_T}
     const MonoBuf = TimeSampleBuf{1, DEFAULT_SR, DEFAULT_T}
 
     @testset "simulate_input adds to buffer" begin
-        stream = DummyStereoStream()
+        source = DummyStereoSource()
         data = rand(DEFAULT_T, (64, 2))
-        simulate_input(stream, data)
-        @test stream.inbuf == data
+        simulate_input(source, data)
+        @test source.buf == data
     end
 
     @testset "simulate_input works with vector" begin
-        stream = DummyMonoStream()
+        source = DummyMonoSource()
         data = rand(DEFAULT_T, 64)
-        simulate_input(stream, data)
-        @test vec(stream.inbuf) == data
+        simulate_input(source, data)
+        @test vec(source.buf) == data
     end
 
     @testset "simulate_input throws error on wrong channel count" begin
-        stream = DummyStereoStream()
+        source = DummyStereoSource()
         data = rand(DEFAULT_T, 64, 1)
         try
-            simulate_input(stream, data)
+            simulate_input(source, data)
             # must throw an exception
             @test false
         catch ex
@@ -35,32 +37,36 @@
         end
     end
 
-    @testset "write writes to outbuf" begin
-        stream = DummyStereoStream()
+    @testset "write writes to buf" begin
+        sink = DummyStereoSink()
         buf = StereoBuf(convert(Array{DEFAULT_T}, randn(32, 2)))
-        write(stream, buf)
-        @test stream.outbuf == buf.data
+        write(sink, buf)
+        @test sink.buf == buf.data
     end
 
-    @testset "read reads from inbuf" begin
-        stream = DummyStereoStream()
+    @testset "read reads from buf" begin
+        source = DummyStereoSource()
         data = rand(DEFAULT_T, (64, 2))
-        simulate_input(stream, data)
-        buf = read(stream, 64)
+        simulate_input(source, data)
+        buf = read(source, 64)
         @test buf.data == data
     end
 
     @testset "read can read in seconds" begin
-        stream = DummyStereoStream()
+        source = DummyStereoSource()
         # fill with 1s of data
         data = rand(DEFAULT_T, (DEFAULT_SR, 2))
-        simulate_input(stream, data)
-        buf = read(stream, 0.5s)
+        simulate_input(source, data)
+        buf = read(source, 0.5s)
         @test buf.data == data[1:round(Int, DEFAULT_SR/2), :]
     end
 
-    @testset "supports samplerate" begin
-        stream = DummyStereoStream()
-        @test samplerate(stream) == DEFAULT_SR
+    @testset "supports audio interface" begin
+        source = DummyStereoSource()
+        @test samplerate(source) == DEFAULT_SR
+        @test nchannels(source) == 2
+        sink = DummyStereoSink()
+        @test samplerate(sink) == DEFAULT_SR
+        @test nchannels(sink) == 2
     end
 end
