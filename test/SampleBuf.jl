@@ -8,11 +8,25 @@
         @test size(buf) == (64, 2)
     end
 
-    @testset "TimeSampleBuf can be indexed with 1D indices" begin
-        buf = StereoBuf(zeros(TEST_T, 64, 2))
-        buf[15, 2] = 1.5
-        @test buf[20] == 0.0
-        @test buf[64+15] == 1.5
+    @testset "SampleBuf can be indexed with 1D indices" begin
+        arr = reshape(TEST_T[1:16;], (8, 2))
+        buf1 = TimeSampleBuf(arr, TEST_SR)
+        buf1[5, 1] = 2.5
+        buf1[5, 2] = 1.5
+        @test buf1[5] == 2.5
+        @test buf1[8+5] == 1.5
+        # linear indexing gives you a mono buffer
+        @test typeof(buf1[6:12]) == TimeSampleBuf{1, TEST_SR, TEST_T}
+        @test buf1[6:12] == TimeSampleBuf(TEST_T[6:12;], TEST_SR)
+
+        buf2 = FrequencySampleBuf(arr, TEST_SR)
+        buf2[5, 1] = 2.5
+        buf2[5, 2] = 1.5
+        @test buf2[5] == 2.5
+        @test buf2[8+5] == 1.5
+        # linear indexing gives you a mono buffer
+        @test typeof(buf1[6:12]) == FrequencySampleBuf{1, TEST_SR, TEST_T}
+        @test buf2[6:12] == TimeSampleBuf(TEST_T[6:12;], TEST_SR)
     end
 
     @testset "TimeSampleBuf can be indexed with 2D indices" begin
@@ -49,7 +63,7 @@
     end
 
     # @testset "TimeSampleBufs can be range-indexed in seconds" begin
-    #     # array with 1s of audio
+    #     # array with 1sec of audio
     #     arr = rand(TEST_T, (TEST_SR, 2))
     #     buf = TimeSampleBuf(arr, TEST_SR)
     #     expected_arr = arr[round(Int, TEST_SR*0.25):round(Int, TEST_SR*0.5), :]
