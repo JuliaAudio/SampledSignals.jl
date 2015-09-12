@@ -23,8 +23,8 @@
         @test buf1[5] == 2.5
         @test buf1[8+5] == 1.5
         # linear indexing gives you a mono buffer
-        # @test typeof(buf1[6:12]) == TimeSampleBuf{1, TEST_SR, TEST_T}
-        # @test buf1[6:12] == TimeSampleBuf(TEST_T[6:12;], TEST_SR)
+        @test typeof(buf1[6:12]) == TimeSampleBuf{1, TEST_SR, TEST_T}
+        @test buf1[6:12] == TimeSampleBuf(TEST_T[6:12;], TEST_SR)
 
         buf2 = FrequencySampleBuf(arr, TEST_SR)
         buf2[5, 1] = 2.5
@@ -32,8 +32,8 @@
         @test buf2[5] == 2.5
         @test buf2[8+5] == 1.5
         # linear indexing gives you a mono buffer
-        # @test typeof(buf1[6:12]) == FrequencySampleBuf{1, TEST_SR, TEST_T}
-        # @test buf2[6:12] == TimeSampleBuf(TEST_T[6:12;], TEST_SR)
+        @test typeof(buf2[6:12]) == FrequencySampleBuf{1, TEST_SR, TEST_T}
+        @test buf2[6:12] == FrequencySampleBuf(TEST_T[6:12;], TEST_SR)
     end
 
     @testset "TimeSampleBuf can be indexed with 2D indices" begin
