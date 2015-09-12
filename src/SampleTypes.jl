@@ -1,8 +1,7 @@
 module SampleTypes
 
 using SIUnits
-# TODO: add kHz once my PR is merged into SIUnits
-using SIUnits.ShortUnits: ns, ms, µs, s, Hz, MHz, GHz, THz
+using SIUnits.ShortUnits: ns, ms, µs, s, Hz, kHz, MHz, GHz, THz
 
 """A Real amount of time, measured in seconds"""
 typealias RealTime{T <: Real} quantity(T, Second)
@@ -14,8 +13,7 @@ export DSPNode
 # general methods for types in SampleTypes
 export samplerate, nchannels
 # re-export the useful units
-# TODO: add kHz once my PR is merged into SIUnits
-export ns, ms, µs, s, Hz, MHz, GHz, THz
+export ns, ms, µs, s, Hz, kHz, MHz, GHz, THz
 
 
 include("SampleBuf.jl")
