@@ -3,44 +3,54 @@
     TEST_T = Float32
     const StereoBuf = TimeSampleBuf{2, TEST_SR, TEST_T}
 
-    @testset "supports audio interface" begin
+    @testset "Supports audio interface" begin
         buf = StereoBuf(zeros(TEST_T, 64, 2))
         @test samplerate(buf) == TEST_SR
         @test nchannels(buf) == 2
     end
 
-    @testset "SampleBuf supports size()" begin
+    @testset "Supports size()" begin
         buf = StereoBuf(zeros(TEST_T, 64, 2))
         @test size(buf) == (64, 2)
     end
 
-    @testset "SampleBuf can be indexed with 1D indices" begin
+    @testset "Can be indexed with 1D indices" begin
         arr = reshape(TEST_T[1:16;], (8, 2))
-        buf1 = TimeSampleBuf(arr, TEST_SR)
-        buf1[5:9]
-        buf1[5, 1] = 2.5
-        buf1[5, 2] = 1.5
-        @test buf1[5] == 2.5
-        @test buf1[8+5] == 1.5
-        # linear indexing gives you a mono buffer
-        @test typeof(buf1[6:12]) == TimeSampleBuf{1, TEST_SR, TEST_T}
-        @test buf1[6:12] == TimeSampleBuf(TEST_T[6:12;], TEST_SR)
+        buf = TimeSampleBuf(arr, TEST_SR)
+        buf[12] = 1.5
+        @test buf[12] == 1.5
 
-        buf2 = FrequencySampleBuf(arr, TEST_SR)
-        buf2[5, 1] = 2.5
-        buf2[5, 2] = 1.5
-        @test buf2[5] == 2.5
-        @test buf2[8+5] == 1.5
-        # linear indexing gives you a mono buffer
-        @test typeof(buf2[6:12]) == FrequencySampleBuf{1, TEST_SR, TEST_T}
-        @test buf2[6:12] == FrequencySampleBuf(TEST_T[6:12;], TEST_SR)
+        arr = reshape(TEST_T[1:16;], (8, 2))
+        buf = FrequencySampleBuf(arr, TEST_SR)
+        buf[12] = 1.5
+        @test buf[12] == 1.5
     end
 
-    @testset "TimeSampleBuf can be indexed with 2D indices" begin
-        buf = StereoBuf(zeros(TEST_T, 64, 2))
-        buf[15, 2] = 1.5
-        @test buf[15, 1] == 0.0
-        @test buf[15, 2] == 1.5
+    @testset "Can be indexed with 2D indices" begin
+        arr = reshape(TEST_T[1:16;], (8, 2))
+        buf = TimeSampleBuf(arr, TEST_SR)
+        buf[5, 2] = 1.5
+        @test buf[5, 2] == 1.5
+
+        arr = reshape(TEST_T[1:16;], (8, 2))
+        buf = FrequencySampleBuf(arr, TEST_SR)
+        buf[5, 2] = 1.5
+        @test buf[5, 2] == 1.5
+    end
+
+    @testset "SampleBuf can be indexed with 1D ranges" begin
+        arr = reshape(TEST_T[1:16;], (8, 2))
+        buf1 = TimeSampleBuf(arr, TEST_SR)
+        # linear indexing gives you a mono buffer
+        slice = buf1[6:12]
+        @test typeof(slice) == TimeSampleBuf{1, TEST_SR, TEST_T}
+        @test slice == TimeSampleBuf(TEST_T[6:12;], TEST_SR)
+
+        buf2 = FrequencySampleBuf(arr, TEST_SR)
+        # linear indexing gives you a mono buffer
+        slice = buf2[6:12]
+        @test typeof(slice) == FrequencySampleBuf{1, TEST_SR, TEST_T}
+        @test slice == FrequencySampleBuf(TEST_T[6:12;], TEST_SR)
     end
 
     @testset "Can get type params from contained array" begin
