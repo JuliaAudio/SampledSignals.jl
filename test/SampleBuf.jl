@@ -117,13 +117,14 @@
         @test buf[3:6, 1] == buf[3:6, 1:1]
     end
 
-    # @testset "TimeSampleBufs can be range-indexed in seconds" begin
-    #     # array with 1sec of audio
-    #     arr = rand(TEST_T, (TEST_SR, 2))
-    #     buf = TimeSampleBuf(arr, TEST_SR)
-    #     expected_arr = arr[round(Int, TEST_SR*0.25):round(Int, TEST_SR*0.5), :]
-    #     @test buf[0.25s:0.5s, :] == TimeSampleBuf(expected_arr)
-    # end
+    @testset "TimeSampleBufs can be indexed in seconds" begin
+        # array with 10ms of audio
+        arr = rand(TEST_T, (round(Int, 0.01*TEST_SR), 2))
+        buf = TimeSampleBuf(arr, TEST_SR)
+        testtime = 0.005s
+        expected_idx = round(Int, 0.005 * TEST_SR)
+        @test buf[testtime] == arr[expected_idx]
+    end
 
     @testset "Can get type params from contained array" begin
         timebuf = TimeSampleBuf(Array(TEST_T, 32, 2), TEST_SR)

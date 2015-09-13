@@ -33,22 +33,33 @@ FrequencySampleBuf{T}(arr::AbstractArray{T, 1}, SR::Real) = FrequencySampleBuf{1
 samplerate{N, SR, T}(buf::SampleBuf{N, SR, T}) = SR
 nchannels{N, SR, T}(buf::SampleBuf{N, SR, T}) = N
 
+# took some good ideas from @mbauman's AxisArrays package
+typealias Idx Union(Colon,Int,Array{Int,1},Range{Int})
+_idx(buf::SampleBuf, i::Int) = i
+_idx(buf::TimeSampleBuf, t::RealTime) = round(Int, t.val*samplerate(buf))
 
 # AbstractArray interface methods
 Base.size(buf::SampleBuf) = size(buf.data)
 Base.linearindexing{T <: SampleBuf}(::Type{T}) = Base.LinearFast()
-Base.getindex(buf::SampleBuf, i::Int) = buf.data[i];
+Base.getindex(buf::TimeSampleBuf, i::Int) = buf.data[i];
+Base.getindex(buf::FrequencySampleBuf, i::Int) = buf.data[i];
+Base.getindex(buf::TimeSampleBuf, t::RealTime) = buf.data[_idx(buf, t)];
 # also define 2D indexing so it doesn't get caught by the I... case below
 Base.getindex(buf::TimeSampleBuf, i::Int, j::Int) = buf.data[i, j];
 Base.getindex(buf::FrequencySampleBuf, i::Int, j::Int) = buf.data[i, j];
 # we define the range indexing here so that we can wrap the result in the
 # appropriate SampleBuf type. Otherwise you just get a bare array out
-Base.getindex(buf::TimeSampleBuf, I...) = TimeSampleBuf(buf.data[I...], samplerate(buf))
-Base.getindex(buf::FrequencySampleBuf, I...) = FrequencySampleBuf(buf.data[I...], samplerate(buf))
-function Base.setindex!{N, SR, T}(buf::SampleBuf{N, SR, T}, val, i::Int)
+Base.getindex(buf::TimeSampleBuf, I::Idx...) = TimeSampleBuf(buf.data[I...], samplerate(buf))
+Base.getindex(buf::FrequencySampleBuf, I::Idx...) = FrequencySampleBuf(buf.data[I...], samplerate(buf))
+# this should catch indexing with seconds
+Base.getindex(buf::TimeSampleBuf, I...) = TimeSampleBuf(buf.data[[_idx(buf, i) for i in I]...], samplerate(buf))
+Base.getindex(buf::TimeSampleBuf, I::Idx...) = TimeSampleBuf(buf.data[I...], samplerate(buf))
+Base.getindex(buf::FrequencySampleBuf, I...) = FrequencySampleBuf(buf.data[map(_idx, I)...], samplerate(buf))
+Base.getindex(buf::FrequencySampleBuf, I::Idx...) = FrequencySampleBuf(buf.data[I...], samplerate(buf))
+function Base.setindex!(buf::SampleBuf, val, i::Int)
     buf.data[i] = val
 end
 
 # equality
 import Base.==
-=={N1, N2, SR1, SR2, T1, T2}(buf1::SampleBuf{N1, SR1, T1}, buf2::SampleBuf{N2, SR2, T2}) = (SR1 == SR2 && buf1.data == buf2.data)
+==(buf1::SampleBuf, buf2::SampleBuf) = (samplerate(buf1) == samplerate(buf2) && buf1.data == buf2.data)
