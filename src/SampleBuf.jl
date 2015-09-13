@@ -38,6 +38,9 @@ nchannels{N, SR, T}(buf::SampleBuf{N, SR, T}) = N
 Base.size(buf::SampleBuf) = size(buf.data)
 Base.linearindexing{T <: SampleBuf}(::Type{T}) = Base.LinearFast()
 Base.getindex(buf::SampleBuf, i::Int) = buf.data[i];
+# also define 2D indexing so it doesn't get caught by the I... case below
+Base.getindex(buf::TimeSampleBuf, i::Int, j::Int) = buf.data[i, j];
+Base.getindex(buf::FrequencySampleBuf, i::Int, j::Int) = buf.data[i, j];
 # we define the range indexing here so that we can wrap the result in the
 # appropriate SampleBuf type. Otherwise you just get a bare array out
 Base.getindex(buf::TimeSampleBuf, I...) = TimeSampleBuf(buf.data[I...], samplerate(buf))
