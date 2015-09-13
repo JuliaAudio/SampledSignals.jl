@@ -53,6 +53,19 @@
         @test slice == FrequencySampleBuf(TEST_T[6:12;], TEST_SR)
     end
 
+    @testset "can be indexed with 2D ranges" begin
+        arr = reshape(TEST_T[1:16;], (8, 2))
+        buf = TimeSampleBuf(arr, TEST_SR)
+        slice = buf[3:6, 1:2]
+        @test typeof(slice) == TimeSampleBuf{2, TEST_SR, TEST_T}
+        @test slice == TimeSampleBuf(TEST_T[3:6 11:14], TEST_SR)
+
+        buf = FrequencySampleBuf(arr, TEST_SR)
+        slice = buf[3:6, 1:2]
+        @test typeof(slice) == FrequencySampleBuf{2, TEST_SR, TEST_T}
+        @test slice == FrequencySampleBuf(TEST_T[3:6 11:14], TEST_SR)
+    end
+
     @testset "Can get type params from contained array" begin
         timebuf = TimeSampleBuf(Array(TEST_T, 32, 2), TEST_SR)
         @test typeof(timebuf) == TimeSampleBuf{2, TEST_SR, TEST_T}

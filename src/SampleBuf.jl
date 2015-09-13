@@ -42,6 +42,8 @@ Base.getindex(buf::SampleBuf, i::Int) = buf.data[i];
 # appropriate SampleBuf type. Otherwise you just get a bare array out
 Base.getindex(buf::TimeSampleBuf, r::Range) = TimeSampleBuf(buf.data[r], samplerate(buf))
 Base.getindex(buf::FrequencySampleBuf, r::Range) = FrequencySampleBuf(buf.data[r], samplerate(buf))
+Base.getindex(buf::TimeSampleBuf, r1::Range, r2::Range) = TimeSampleBuf(buf.data[r1, r2], samplerate(buf))
+Base.getindex(buf::FrequencySampleBuf, r1::Range, r2::Range) = FrequencySampleBuf(buf.data[r1, r2], samplerate(buf))
 function Base.setindex!{N, SR, T}(buf::SampleBuf{N, SR, T}, val, i::Int)
     buf.data[i] = val
 end
