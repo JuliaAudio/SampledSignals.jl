@@ -7,6 +7,7 @@ using BaseTestNext
 @testset "SampleTypes Tests" begin
     include("DummySampleStream.jl")
     include("SampleBuf.jl")
+    include("Intervals.jl")
 end
 
 end

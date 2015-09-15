@@ -117,13 +117,12 @@
         @test buf[3:6, 1] == buf[3:6, 1:1]
     end
 
+    _idx(buf::SampleBuf, val::FloatingPoint) = round(Int, val * samplerate(buf))
     @testset "TimeSampleBufs can be indexed in seconds" begin
         # array with 10ms of audio
         arr = rand(TEST_T, (round(Int, 0.01*TEST_SR), 2))
         buf = TimeSampleBuf(arr, TEST_SR)
-        testtime = 0.005s
-        expected_idx = round(Int, 0.005 * TEST_SR)
-        @test buf[testtime] == arr[expected_idx]
+        @test buf[0.005s] == arr[_idx(buf, 0.005)]
     end
 
     @testset "Can get type params from contained array" begin

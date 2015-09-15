@@ -12,12 +12,14 @@ export SampleBuf, TimeSampleBuf, FrequencySampleBuf
 export SampleSouce, SampleSink, read, write
 export DummySampleSource, DummySampleSink, simulate_input
 export DSPNode
+export Interval, ..
 # general methods for types in SampleTypes
 export samplerate, nchannels
 # re-export the useful units
 export ns, ms, µs, s, Hz, kHz, MHz, GHz, THz
 
 
+include("Intervals.jl")
 include("SampleBuf.jl")
 include("SampleStream.jl")
 include("DummySampleStream.jl")
