@@ -1,4 +1,4 @@
-# This is copied wholesale from @mbauman's AxisArrays package
+# This is copied from @mbauman's AxisArrays package, with some things removed
 
 @doc """
 An Interval represents all values between and including its two endpoints.
@@ -79,40 +79,12 @@ Base.promote_rule{T<:Scalar}(::Type{Interval{T}}, ::Type{T}) = Interval{T}
 Base.promote_rule{T,S<:Scalar}(::Type{Interval{T}}, ::Type{S}) = Interval{promote_type(T,S)}
 Base.promote_rule{T,S}(::Type{Interval{T}}, ::Type{Interval{S}}) = Interval{promote_type(T,S)}
 
-import Base: isless, <=, ==, +, -, *, /, ^
-# TODO: Do I want 0..2 < 1..2 ? Should the upper bound be <=?
-# TODO: Is this a total ordering? (antisymmetric, transitive, total)? I think so
-isless(a::Interval, b::Interval) = isless(a.lo, b.lo) && isless(a.hi, b.hi)
-# The default definition for <= assumes a strict total order (<=(x,y) = !(y < x))
-<=(a::Interval, b::Interval) = a.lo <= b.lo && a.hi <= b.hi
-==(a::Interval, b::Interval) = a.hi == b.hi && a.lo == b.lo
+import Base: ==, +, -, *, /, ^
+==(a::Interval, b::Interval) = a.lo == b.lo && a.hi == b.hi
 const _interval_hash = UInt == UInt64 ? 0x1588c274e0a33ad4 : 0x1e3f7252
 Base.hash(a::Interval, h::UInt) = hash(a.lo, hash(a.hi, hash(_interval_hash, h)))
-+(a::Interval) = a
-+(a::Interval, b::Interval) = Interval(a.lo + b.lo, a.hi + b.hi)
--(a::Interval) = Interval(-a.hi, -a.lo)
--(a::Interval, b::Interval) = a + (-b)
-for f in (:(*), :(/))
-    # For a general monotonic operator, we compute the operation over all
-    # combinations of the endpoints and return the widest interval
-    @eval function $(f)(a::Interval, b::Interval)
-        w = $(f)(a.lo, b.lo)
-        x = $(f)(a.lo, b.hi)
-        y = $(f)(a.hi, b.lo)
-        z = $(f)(a.hi, b.hi)
-        Interval(min(w,x,y,z), max(w,x,y,z))
-    end
-end
 
 Base.in(a, b::Interval) = b.lo <= a <= b.hi
 Base.in(a::Interval, b::Interval) = b.lo <= a.lo && a.hi <= b.hi
 Base.minimum(a::Interval) = a.lo
 Base.maximum(a::Interval) = a.hi
-# Extend the promoting operators to include Intervals. The comparison operators
-# (<, <=, and ==) are a pain since they are non-promoting fallbacks that call
-# isless, !(y < x) (which is wrong), and ===. So implementing promotion with
-# Union{T, Interval} causes stack overflows for the base types. This is safer:
-for f in (:isless, :(<=), :(==), :(+), :(-), :(*), :(/))
-    @eval $(f)(x::Interval, y::Scalar) = $(f)(promote(x,y)...)
-    @eval $(f)(x::Scalar, y::Interval) = $(f)(promote(x,y)...)
-end

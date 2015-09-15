@@ -11,18 +11,8 @@
         @test 1.2..5 == Interval{Float64}(1.2, 5.0)
         @test_throws ArgumentError Interval("Hello", 45.6)
     end
-    @testset "Comparisons" begin
+    @testset "Equality" begin
         @test Interval{Float64}(1.2, 5.6) == Interval{Float64}(1.2, 5.6)
-        @test 1..2 < 3..4
-        @test !(3..4 < 1..2)
-        @test 3..4 > 1..2
-        @test 3..4 < 5
-        @test 3..4 > 2
-        @test !(2..4 < 3)
-        @test !(2..4 > 3)
-    end
-    @testset "Arithmetic" begin
-        @test (2..5) + (3..6) == (5..11)
     end
     @testset "Minimums and Maximums" begin
         @test minimum(1..5) == 1
