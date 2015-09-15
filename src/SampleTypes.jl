@@ -19,7 +19,7 @@ export samplerate, nchannels
 export ns, ms, µs, s, Hz, kHz, MHz, GHz, THz
 
 
-include("Intervals.jl")
+include("Interval.jl")
 include("SampleBuf.jl")
 include("SampleStream.jl")
 include("DummySampleStream.jl")
