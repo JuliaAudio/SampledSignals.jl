@@ -22,4 +22,21 @@
         @test 4 in 1..6
         @test !(8 in 1..6)
     end
+    @testset "Conversions" begin
+        function convscalar()
+            i::Interval{Int} = 4
+            i
+        end
+        @test convscalar() == Interval{Int}(4, 4)
+        function convscalar_withconv()
+            i::Interval{Float64} = 4
+            i
+        end
+        @test convscalar_withconv() == Interval{Float64}(4.0, 4.0)
+        function convinterval()
+            i::Interval{Float64} = Interval{Int}(4, 4)
+            i
+        end
+        @test convinterval() == Interval{Float64}(4.0, 4.0)
+    end
 end

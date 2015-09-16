@@ -50,10 +50,9 @@ function Interval{T,S}(a::T, b::S)
 end
 const .. = Interval
 
-# unused and untested
-# Base.convert{T}(::Type{Interval{T}}, x::T) = Interval{T}(x,x)
-# Base.convert{T,S}(::Type{Interval{T}}, x::S) = (y=convert(T, x); Interval{T}(y,y))
-# Base.convert{T}(::Type{Interval{T}}, w::Interval) = Interval{T}(convert(T, w.lo), convert(T, w.hi))
+Base.convert{T}(::Type{Interval{T}}, x::T) = Interval{T}(x,x)
+Base.convert{T,S}(::Type{Interval{T}}, x::S) = (y=convert(T, x); Interval{T}(y,y))
+Base.convert{T}(::Type{Interval{T}}, w::Interval) = Interval{T}(convert(T, w.lo), convert(T, w.hi))
 
 # Promotion rules for "promiscuous" types like Intervals and SIUnits, which both
 # simply wrap any Number, are often ambiguous. That is, which type should "win"
