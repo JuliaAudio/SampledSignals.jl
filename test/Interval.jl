@@ -21,6 +21,17 @@
     @testset "Containment" begin
         @test 4 in 1..6
         @test !(8 in 1..6)
+        @test 3..4 in 1..5
+        @test !(1..3 in 2..4)
+    end
+    @testset "Hashing" begin
+        d = Dict{Interval{Int}, Int}()
+        d[1..3] = 1
+        d[2..4] = 2
+        d[1..4] = 3
+        @test d[1..3] == 1
+        @test d[2..4] == 2
+        @test d[1..4] == 3
     end
     @testset "Conversions" begin
         function convscalar()
@@ -52,8 +63,4 @@
         i2 = Interval{Float64}(3.0, 5.0)
         @test promote(i1, i2) == (Interval{Float64}(2.0, 6.0), Interval{Float64}(3.0, 5.0))
     end
-    # i = Int(4)
-    # interval = Interval{Int}(3, 5)
-    # promote_type(Int, Interval{Int})
-    # promote_type(Interval{Int}, Int)
 end
