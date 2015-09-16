@@ -39,4 +39,21 @@
         end
         @test convinterval() == Interval{Float64}(4.0, 4.0)
     end
+    @testset "Promotions" begin
+        i = Int(4)
+        interval = Interval{Int}(3, 5)
+        @test promote(i, interval) == (Interval{Int}(4, 4), Interval{Int}(3, 5))
+
+        i = Int(4)
+        interval = Interval{Float64}(3.0, 5.0)
+        @test promote(i, interval) == (Interval{Float64}(4.0, 4.0), Interval{Float64}(3.0, 5.0))
+
+        i1 = Interval{Int}(2, 6)
+        i2 = Interval{Float64}(3.0, 5.0)
+        @test promote(i1, i2) == (Interval{Float64}(2.0, 6.0), Interval{Float64}(3.0, 5.0))
+    end
+    # i = Int(4)
+    # interval = Interval{Int}(3, 5)
+    # promote_type(Int, Interval{Int})
+    # promote_type(Interval{Int}, Int)
 end
