@@ -15,31 +15,31 @@
     end
 
     @testset "Can be indexed with 1D indices" begin
-        arr = reshape(TEST_T[1:16;], (8, 2))
+        arr = TEST_T[1:8 9:16]
         buf = TimeSampleBuf(arr, TEST_SR)
         buf[12] = 1.5
         @test buf[12] == 1.5
 
-        arr = reshape(TEST_T[1:16;], (8, 2))
+        arr = TEST_T[1:8 9:16]
         buf = FrequencySampleBuf(arr, TEST_SR)
         buf[12] = 1.5
         @test buf[12] == 1.5
     end
 
     @testset "Can be indexed with 2D indices" begin
-        arr = reshape(TEST_T[1:16;], (8, 2))
+        arr = TEST_T[1:8 9:16]
         buf = TimeSampleBuf(arr, TEST_SR)
         buf[5, 2] = 1.5
         @test buf[5, 2] == 1.5
 
-        arr = reshape(TEST_T[1:16;], (8, 2))
+        arr = TEST_T[1:8 9:16]
         buf = FrequencySampleBuf(arr, TEST_SR)
         buf[5, 2] = 1.5
         @test buf[5, 2] == 1.5
     end
 
     @testset "SampleBuf can be indexed with 1D ranges" begin
-        arr = reshape(TEST_T[1:16;], (8, 2))
+        arr = TEST_T[1:8 9:16]
         buf = TimeSampleBuf(arr, TEST_SR)
         # linear indexing gives you a mono buffer
         slice = buf[6:12]
