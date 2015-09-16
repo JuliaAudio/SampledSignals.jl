@@ -38,7 +38,7 @@
         @test buf[5, 2] == 1.5
     end
 
-    @testset "SampleBuf can be indexed with 1D ranges" begin
+    @testset "Can be indexed with 1D ranges" begin
         arr = TEST_T[1:8 9:16]
         buf = TimeSampleBuf(arr, TEST_SR)
         # linear indexing gives you a mono buffer
@@ -90,7 +90,7 @@
         @test slice == FrequencySampleBuf(TEST_T[1:8 9:16], TEST_SR)
     end
 
-    @testset "can be sliced into 1D" begin
+    @testset "can be sliced in 1D" begin
         arr = TEST_T[1:8 9:16]
         buf = TimeSampleBuf(arr, TEST_SR)
         slice = buf[6, 1:2]
@@ -117,14 +117,23 @@
         @test buf[3:6, 1] == buf[3:6, 1:1]
     end
 
-    _idx(buf::SampleBuf, val::FloatingPoint) = round(Int, val * samplerate(buf))
     @testset "TimeSampleBufs can be indexed in seconds" begin
         # array with 10ms of audio
         arr = rand(TEST_T, (round(Int, 0.01*TEST_SR), 2))
         buf = TimeSampleBuf(arr, TEST_SR)
-        @test buf[0.005s] == arr[_idx(buf, 0.005)]
+        @test buf[0.005s] == arr[240]
+        @test buf[0.005s, 1] == arr[240, 1]
+        @test buf[0.005s, 2] == arr[240, 2]
     end
 
+    # @testset "FrequencySampleBufs can be indexed in Hz" begin
+    #     arr = rand(TEST_T, 512, 2)
+    #     buf = FrequencySampleBuf(arr, TEST_SR)
+    #     @test buf[843.75Hz] == arr[10]
+    #     @test buf[843.75Hz, 1] == arr[10, 1]
+    #     @test buf[843.75Hz, 2] == arr[10, 2]
+    # end
+    # 
     @testset "Can get type params from contained array" begin
         timebuf = TimeSampleBuf(Array(TEST_T, 32, 2), TEST_SR)
         @test typeof(timebuf) == TimeSampleBuf{2, TEST_SR, TEST_T}
