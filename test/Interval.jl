@@ -7,6 +7,16 @@
         # this test fails
         # @test Interval(4.5) == (4.5..4.5)
     end
+    @testset "Works for SIUnits" begin
+        @test 2s in 1s..3s
+    end
+    @testset "Display" begin
+        i = 5..7
+        io = IOBuffer()
+        print(io, i)
+        @test takebuf_string(io) == "5..7"
+    end
+
     @testset "Promotion Rules" begin
         @test 1.2..5 == Interval{Float64}(1.2, 5.0)
         @test_throws ArgumentError Interval("Hello", 45.6)

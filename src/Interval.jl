@@ -1,4 +1,5 @@
 # This is copied from @mbauman's AxisArrays package, with some things removed
+# and a few small things added
 
 @doc """
 An Interval represents all values between and including its two endpoints.
@@ -49,6 +50,8 @@ function Interval{T,S}(a::T, b::S)
     Interval{R}(promote(a,b)...)
 end
 const .. = Interval
+
+Base.print(io::IO, i::Interval) = print(io, "$(i.lo)..$(i.hi)")
 
 Base.convert{T}(::Type{Interval{T}}, x::T) = Interval{T}(x,x)
 Base.convert{T,S}(::Type{Interval{T}}, x::S) = (y=convert(T, x); Interval{T}(y,y))
