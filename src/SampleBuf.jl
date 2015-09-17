@@ -43,8 +43,8 @@ _idx(buf::FrequencySampleBuf, val::Real) = round(Int, val * size(buf, 1) / sampl
 # AbstractArray interface methods
 Base.size(buf::SampleBuf) = size(buf.data)
 Base.linearindexing{T <: SampleBuf}(::Type{T}) = Base.LinearFast()
-Base.getindex(buf::TimeSampleBuf, i::Integer) = buf.data[i];
-Base.getindex(buf::FrequencySampleBuf, i::Integer) = buf.data[i];
+Base.getindex(buf::TimeSampleBuf, i::Int) = buf.data[i];
+Base.getindex(buf::FrequencySampleBuf, i::Int) = buf.data[i];
 
 # also define 2D indexing so it doesn't get caught by the I... case below
 Base.getindex(buf::TimeSampleBuf, i::Int, j::Int) = buf.data[i, j];
