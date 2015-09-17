@@ -18,7 +18,6 @@ typealias Idx Union(Colon,Int,Array{Int,1},Range{Int})
 # AbstractArray interface methods
 Base.size(buf::SampleBuf) = size(buf.data)
 Base.linearindexing{T <: SampleBuf}(::Type{T}) = Base.LinearFast()
-Base.getindex(buf::SampleBuf, i::Int) = buf.data[i];
 
 # also define 2D indexing so it doesn't get caught by the I... case below
 Base.getindex(buf::SampleBuf, i::Int, j::Int) = buf.data[i, j];
