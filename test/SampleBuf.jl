@@ -14,6 +14,33 @@
         @test size(buf) == (64, 2)
     end
 
+    @testset "Can get type params from contained array" begin
+        timebuf = TimeSampleBuf(Array(TEST_T, 32, 2), TEST_SR)
+        @test typeof(timebuf) == TimeSampleBuf{2, TEST_SR, TEST_T}
+        monotimebuf = TimeSampleBuf(Array(TEST_T, 32), TEST_SR)
+        @test typeof(monotimebuf) == TimeSampleBuf{1, TEST_SR, TEST_T}
+        freqbuf = FrequencySampleBuf(Array(TEST_T, 32, 2), TEST_SR)
+        @test typeof(freqbuf) == FrequencySampleBuf{2, TEST_SR, TEST_T}
+        monofreqbuf = FrequencySampleBuf(Array(TEST_T, 32), TEST_SR)
+        @test typeof(monofreqbuf) == FrequencySampleBuf{1, TEST_SR, TEST_T}
+    end
+
+    @testset "supports equality" begin
+        arr1 = rand(TEST_T, (64, 2))
+        arr2 = arr1 + 1
+        arr3 = arr1[:, 1]
+        buf1 = TimeSampleBuf(arr1, TEST_SR)
+        buf2 = TimeSampleBuf(arr1, TEST_SR)
+        buf3 = TimeSampleBuf(arr1, TEST_SR+1)
+        buf4 = TimeSampleBuf(arr2, TEST_SR)
+        buf5 = TimeSampleBuf(arr3, TEST_SR)
+        @test buf1 == buf2
+        @test buf2 != buf3
+        @test buf2 != buf4
+        @test buf2 != buf5
+    end
+
+
     @testset "Can be indexed with 1D indices" begin
         arr = TEST_T[1:8 9:16]
         buf = TimeSampleBuf(arr, TEST_SR)
@@ -132,32 +159,6 @@
         @test buf[843.75Hz] == arr[10]
         @test buf[843.75Hz, 1] == arr[10, 1]
         @test buf[843.75Hz, 2] == arr[10, 2]
-    end
-
-    @testset "Can get type params from contained array" begin
-        timebuf = TimeSampleBuf(Array(TEST_T, 32, 2), TEST_SR)
-        @test typeof(timebuf) == TimeSampleBuf{2, TEST_SR, TEST_T}
-        monotimebuf = TimeSampleBuf(Array(TEST_T, 32), TEST_SR)
-        @test typeof(monotimebuf) == TimeSampleBuf{1, TEST_SR, TEST_T}
-        freqbuf = FrequencySampleBuf(Array(TEST_T, 32, 2), TEST_SR)
-        @test typeof(freqbuf) == FrequencySampleBuf{2, TEST_SR, TEST_T}
-        monofreqbuf = FrequencySampleBuf(Array(TEST_T, 32), TEST_SR)
-        @test typeof(monofreqbuf) == FrequencySampleBuf{1, TEST_SR, TEST_T}
-    end
-
-    @testset "supports equality" begin
-        arr1 = rand(TEST_T, (64, 2))
-        arr2 = arr1 + 1
-        arr3 = arr1[:, 1]
-        buf1 = TimeSampleBuf(arr1, TEST_SR)
-        buf2 = TimeSampleBuf(arr1, TEST_SR)
-        buf3 = TimeSampleBuf(arr1, TEST_SR+1)
-        buf4 = TimeSampleBuf(arr2, TEST_SR)
-        buf5 = TimeSampleBuf(arr3, TEST_SR)
-        @test buf1 == buf2
-        @test buf2 != buf3
-        @test buf2 != buf4
-        @test buf2 != buf5
     end
 
 end
