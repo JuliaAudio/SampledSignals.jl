@@ -38,7 +38,7 @@ typealias Idx Union(Colon,Int,Array{Int,1},Range{Int})
 _idx(buf::TimeSampleBuf, t::RealTime) = round(Int, t.val*samplerate(buf))
 # convert a frequency in Hz to an index, assuming the frequency buffer
 # represents an N-point DFT of a signal sampled at SR Hz
-_idx(buf::FrequencySampleBuf, val::Real) = round(Int, val * size(buf, 1) / samplerate(buf)) + 1
+_idx(buf::FrequencySampleBuf, f::RealFrequency) = round(Int, f.val * size(buf, 1) / samplerate(buf)) + 1
 
 # AbstractArray interface methods
 Base.size(buf::SampleBuf) = size(buf.data)
@@ -58,6 +58,8 @@ Base.getindex(buf::FrequencySampleBuf, I::Idx...) = FrequencySampleBuf(buf.data[
 # this should catch indexing with seconds
 Base.getindex(buf::TimeSampleBuf, t::RealTime) = buf.data[_idx(buf, t)];
 Base.getindex(buf::TimeSampleBuf, t::RealTime, ch::Integer) = buf.data[_idx(buf, t), ch]
+Base.getindex(buf::FrequencySampleBuf, t::RealFrequency) = buf.data[_idx(buf, t)];
+Base.getindex(buf::FrequencySampleBuf, t::RealFrequency, ch::Integer) = buf.data[_idx(buf, t), ch]
 # Base.getindex(buf::TimeSampleBuf, I...) = TimeSampleBuf(buf.data[[_idx(buf, i) for i in I]...], samplerate(buf))
 # Base.getindex(buf::TimeSampleBuf, I::Idx...) = TimeSampleBuf(buf.data[I...], samplerate(buf))
 # Base.getindex(buf::FrequencySampleBuf, I...) = FrequencySampleBuf(buf.data[map(_idx, I)...], samplerate(buf))

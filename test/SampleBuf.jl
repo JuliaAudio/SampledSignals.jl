@@ -126,14 +126,14 @@
         @test buf[0.005s, 2] == arr[240, 2]
     end
 
-    # @testset "FrequencySampleBufs can be indexed in Hz" begin
-    #     arr = rand(TEST_T, 512, 2)
-    #     buf = FrequencySampleBuf(arr, TEST_SR)
-    #     @test buf[843.75Hz] == arr[10]
-    #     @test buf[843.75Hz, 1] == arr[10, 1]
-    #     @test buf[843.75Hz, 2] == arr[10, 2]
-    # end
-    #
+    @testset "FrequencySampleBufs can be indexed in Hz" begin
+        arr = rand(TEST_T, 512, 2)
+        buf = FrequencySampleBuf(arr, TEST_SR)
+        @test buf[843.75Hz] == arr[10]
+        @test buf[843.75Hz, 1] == arr[10, 1]
+        @test buf[843.75Hz, 2] == arr[10, 2]
+    end
+
     @testset "Can get type params from contained array" begin
         timebuf = TimeSampleBuf(Array(TEST_T, 32, 2), TEST_SR)
         @test typeof(timebuf) == TimeSampleBuf{2, TEST_SR, TEST_T}
