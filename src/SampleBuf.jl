@@ -18,9 +18,13 @@ typealias Idx Union(Colon,Int,Array{Int,1},Range{Int})
 # AbstractArray interface methods
 Base.size(buf::SampleBuf) = size(buf.data)
 Base.linearindexing{T <: SampleBuf}(::Type{T}) = Base.LinearFast()
-
+Base.getindex(buf::SampleBuf, i::Int) = buf.data[i];
+# we have to implement checksize because we always create a 2D buffer even when
+# indexed with a linear range (a 1-channel buffer)
+Base.checksize{SR, T, N}(A::SampleBuf{1, SR, T}, I::AbstractArray{Bool, N}) = length(A) == sum(I) || throw(DimensionMismatch("index 1 selects $(sum(I)) elements, but length(A) = $(length(A))"))
+Base.checksize{SR, T}(A::SampleBuf{1, SR, T}, I::AbstractArray) = length(A) == length(I) || throw(DimensionMismatch("index 1 has size $(size(I)), but size(A) = $(size(A))"))
 # also define 2D indexing so it doesn't get caught by the I... case below
-Base.getindex(buf::SampleBuf, i::Int, j::Int) = buf.data[i, j];
+# Base.getindex(buf::SampleBuf, i::Int, j::Int) = buf.data[i, j];
 
 # this should catch indexing with seconds
 Base.getindex(buf::SampleBuf, t::RealTime) = buf.data[_idx(buf, t)];
@@ -37,6 +41,7 @@ end
 
 # equality
 import Base.==
+# TODO: make sure types of buf1 and buf2 are the same
 ==(buf1::SampleBuf, buf2::SampleBuf) = (samplerate(buf1) == samplerate(buf2) && buf1.data == buf2.data)
 
 
@@ -47,12 +52,13 @@ end
 
 TimeSampleBuf{T}(arr::AbstractArray{T, 2}, SR::Real) = TimeSampleBuf{size(arr, 2), SR, T}(arr)
 TimeSampleBuf{T}(arr::AbstractArray{T, 1}, SR::Real) = TimeSampleBuf{1, SR, T}(reshape(arr, (length(arr), 1)))
+Base.similar{T}(buf::TimeSampleBuf, ::Type{T}, dims::Dims) = TimeSampleBuf(Array(T, dims), samplerate(buf))
 _idx(buf::TimeSampleBuf, t::RealTime) = round(Int, t.val*samplerate(buf))
 # we have to define this to avoid ambiguity between getindex(::TimeSampleBuf, ::Idx) and getindex(::SampleBuf, Int)
-Base.getindex{N, SR, T <: Number}(buf::TimeSampleBuf{N, SR, T}, i::Int) = buf.data[i]
+# Base.getindex{N, SR, T <: Number}(buf::TimeSampleBuf{N, SR, T}, i::Int) = buf.data[i]
 # we define the range indexing here so that we can wrap the result in the
 # appropriate SampleBuf type. Otherwise you just get a bare array out
-Base.getindex(buf::TimeSampleBuf, I::Idx...) = TimeSampleBuf(buf.data[I...], samplerate(buf))
+# Base.getindex(buf::TimeSampleBuf, I::Idx...) = TimeSampleBuf(buf.data[I...], samplerate(buf))
 
 
 # function TimeSampleBuf{SR}(arr::Array{T, 2})
@@ -67,11 +73,12 @@ end
 
 FrequencySampleBuf{T}(arr::AbstractArray{T, 2}, SR::Real) = FrequencySampleBuf{size(arr, 2), SR, T}(arr)
 FrequencySampleBuf{T}(arr::AbstractArray{T, 1}, SR::Real) = FrequencySampleBuf{1, SR, T}(reshape(arr, (length(arr), 1)))
+Base.similar{T}(buf::FrequencySampleBuf, ::Type{T}, dims::Dims) = FrequencySampleBuf(Array(T, dims), samplerate(buf))
 # convert a frequency in Hz to an index, assuming the frequency buffer
 # represents an N-point DFT of a signal sampled at SR Hz
 _idx(buf::FrequencySampleBuf, f::RealFrequency) = round(Int, f.val * size(buf, 1) / samplerate(buf)) + 1
 # we have to define this to avoid ambiguity between getindex(::TimeSampleBuf, ::Idx) and getindex(::SampleBuf, Int)
-Base.getindex{N, SR, T <: Number}(buf::FrequencySampleBuf{N, SR, T}, i::Int) = buf.data[i]
+# Base.getindex{N, SR, T <: Number}(buf::FrequencySampleBuf{N, SR, T}, i::Int) = buf.data[i]
 # we define the range indexing here so that we can wrap the result in the
 # appropriate SampleBuf type. Otherwise you just get a bare array out
-Base.getindex(buf::FrequencySampleBuf, I::Idx...) = FrequencySampleBuf(buf.data[I...], samplerate(buf))
+# Base.getindex(buf::FrequencySampleBuf, I::Idx...) = FrequencySampleBuf(buf.data[I...], samplerate(buf))
