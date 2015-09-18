@@ -20,21 +20,21 @@ Base.size(buf::SampleBuf) = size(buf.data)
 Base.linearindexing{T <: SampleBuf}(::Type{T}) = Base.LinearFast()
 Base.getindex(buf::SampleBuf, i::Int) = buf.data[i];
 # we have to implement checksize because we always create a 2D buffer even when
-# indexed with a linear range (a 1-channel buffer)
-Base.checksize{SR, T, N}(A::SampleBuf{1, SR, T}, I::AbstractArray{Bool, N}) = length(A) == sum(I) || throw(DimensionMismatch("index 1 selects $(sum(I)) elements, but length(A) = $(length(A))"))
-Base.checksize{SR, T}(A::SampleBuf{1, SR, T}, I::AbstractArray) = length(A) == length(I) || throw(DimensionMismatch("index 1 has size $(size(I)), but size(A) = $(size(A))"))
-# also define 2D indexing so it doesn't get caught by the I... case below
-# Base.getindex(buf::SampleBuf, i::Int, j::Int) = buf.data[i, j];
+# indexed with a linear range (returning a 1-channel buffer). Defining for the
+# Bool case is just to resolve dispatch ambiguity
+function Base.checksize{SR, T, N}(A::SampleBuf{1, SR, T}, I::AbstractArray{Bool, N})
+    if length(A) != sum(I)
+        throw(DimensionMismatch("index 1 selects $(sum(I)) elements, but length(A) = $(length(A))"))
+    end
+    nothing
+end
+function Base.checksize{SR, T}(A::SampleBuf{1, SR, T}, I::AbstractArray)
+    if length(A) != length(I)
+        throw(DimensionMismatch("index 1 has size $(size(I)), but size(A) = $(size(A))"))
+    end
+    nothing
+end
 
-# this should catch indexing with seconds
-Base.getindex(buf::SampleBuf, t::RealTime) = buf.data[_idx(buf, t)];
-Base.getindex(buf::SampleBuf, t::RealFrequency) = buf.data[_idx(buf, t)];
-Base.getindex(buf::SampleBuf, t::RealTime, ch::Integer) = buf.data[_idx(buf, t), ch]
-Base.getindex(buf::SampleBuf, t::RealFrequency, ch::Integer) = buf.data[_idx(buf, t), ch]
-# Base.getindex(buf::TimeSampleBuf, I...) = TimeSampleBuf(buf.data[[_idx(buf, i) for i in I]...], samplerate(buf))
-# Base.getindex(buf::TimeSampleBuf, I::Idx...) = TimeSampleBuf(buf.data[I...], samplerate(buf))
-# Base.getindex(buf::FrequencySampleBuf, I...) = FrequencySampleBuf(buf.data[map(_idx, I)...], samplerate(buf))
-# Base.getindex(buf::FrequencySampleBuf, I::Idx...) = FrequencySampleBuf(buf.data[I...], samplerate(buf))
 function Base.setindex!(buf::SampleBuf, val, i::Int)
     buf.data[i] = val
 end
@@ -53,18 +53,10 @@ end
 TimeSampleBuf{T}(arr::AbstractArray{T, 2}, SR::Real) = TimeSampleBuf{size(arr, 2), SR, T}(arr)
 TimeSampleBuf{T}(arr::AbstractArray{T, 1}, SR::Real) = TimeSampleBuf{1, SR, T}(reshape(arr, (length(arr), 1)))
 Base.similar{T}(buf::TimeSampleBuf, ::Type{T}, dims::Dims) = TimeSampleBuf(Array(T, dims), samplerate(buf))
-_idx(buf::TimeSampleBuf, t::RealTime) = round(Int, t.val*samplerate(buf))
-# we have to define this to avoid ambiguity between getindex(::TimeSampleBuf, ::Idx) and getindex(::SampleBuf, Int)
-# Base.getindex{N, SR, T <: Number}(buf::TimeSampleBuf{N, SR, T}, i::Int) = buf.data[i]
-# we define the range indexing here so that we can wrap the result in the
-# appropriate SampleBuf type. Otherwise you just get a bare array out
-# Base.getindex(buf::TimeSampleBuf, I::Idx...) = TimeSampleBuf(buf.data[I...], samplerate(buf))
+Base.getindex(buf::SampleBuf, t::RealTime) = buf.data[unitidx(buf, t)];
+Base.getindex(buf::SampleBuf, t::RealTime, ch::Integer) = buf.data[unitidx(buf, t), ch]
+unitidx(buf::TimeSampleBuf, t::RealTime) = round(Int, t.val*samplerate(buf))
 
-
-# function TimeSampleBuf{SR}(arr::Array{T, 2})
-#     channels = size(arr, 2)
-#     TimeSampleBuf{channels, SR, T}(arr)
-# end
 
 "A frequency-domain signal. See SampleBuf for details"
 immutable FrequencySampleBuf{N, SR, T} <: SampleBuf{N, SR, T}
@@ -74,11 +66,8 @@ end
 FrequencySampleBuf{T}(arr::AbstractArray{T, 2}, SR::Real) = FrequencySampleBuf{size(arr, 2), SR, T}(arr)
 FrequencySampleBuf{T}(arr::AbstractArray{T, 1}, SR::Real) = FrequencySampleBuf{1, SR, T}(reshape(arr, (length(arr), 1)))
 Base.similar{T}(buf::FrequencySampleBuf, ::Type{T}, dims::Dims) = FrequencySampleBuf(Array(T, dims), samplerate(buf))
+Base.getindex(buf::SampleBuf, t::RealFrequency) = buf.data[unitidx(buf, t)];
+Base.getindex(buf::SampleBuf, t::RealFrequency, ch::Integer) = buf.data[unitidx(buf, t), ch]
 # convert a frequency in Hz to an index, assuming the frequency buffer
 # represents an N-point DFT of a signal sampled at SR Hz
-_idx(buf::FrequencySampleBuf, f::RealFrequency) = round(Int, f.val * size(buf, 1) / samplerate(buf)) + 1
-# we have to define this to avoid ambiguity between getindex(::TimeSampleBuf, ::Idx) and getindex(::SampleBuf, Int)
-# Base.getindex{N, SR, T <: Number}(buf::FrequencySampleBuf{N, SR, T}, i::Int) = buf.data[i]
-# we define the range indexing here so that we can wrap the result in the
-# appropriate SampleBuf type. Otherwise you just get a bare array out
-# Base.getindex(buf::FrequencySampleBuf, I::Idx...) = FrequencySampleBuf(buf.data[I...], samplerate(buf))
+unitidx(buf::FrequencySampleBuf, f::RealFrequency) = round(Int, f.val * size(buf, 1) / samplerate(buf)) + 1
