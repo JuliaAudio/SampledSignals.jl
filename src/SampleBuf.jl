@@ -34,6 +34,9 @@ function Base.checksize{SR, T}(A::SampleBuf{1, SR, T}, I::AbstractArray)
     end
     nothing
 end
+# individual subtypes implement unitidx to convert physical units into indices
+Base.getindex(buf::SampleBuf, v::SIUnits.SIQuantity) = buf.data[unitidx(buf, v)]
+Base.getindex(buf::SampleBuf, v::SIUnits.SIQuantity, ch::Integer) = buf.data[unitidx(buf, v), ch]
 
 function Base.setindex!(buf::SampleBuf, val, i::Int)
     buf.data[i] = val
@@ -53,8 +56,6 @@ end
 TimeSampleBuf{T}(arr::AbstractArray{T, 2}, SR::Real) = TimeSampleBuf{size(arr, 2), SR, T}(arr)
 TimeSampleBuf{T}(arr::AbstractArray{T, 1}, SR::Real) = TimeSampleBuf{1, SR, T}(reshape(arr, (length(arr), 1)))
 Base.similar{T}(buf::TimeSampleBuf, ::Type{T}, dims::Dims) = TimeSampleBuf(Array(T, dims), samplerate(buf))
-Base.getindex(buf::SampleBuf, t::RealTime) = buf.data[unitidx(buf, t)];
-Base.getindex(buf::SampleBuf, t::RealTime, ch::Integer) = buf.data[unitidx(buf, t), ch]
 unitidx(buf::TimeSampleBuf, t::RealTime) = round(Int, t.val*samplerate(buf))
 
 
@@ -66,8 +67,6 @@ end
 FrequencySampleBuf{T}(arr::AbstractArray{T, 2}, SR::Real) = FrequencySampleBuf{size(arr, 2), SR, T}(arr)
 FrequencySampleBuf{T}(arr::AbstractArray{T, 1}, SR::Real) = FrequencySampleBuf{1, SR, T}(reshape(arr, (length(arr), 1)))
 Base.similar{T}(buf::FrequencySampleBuf, ::Type{T}, dims::Dims) = FrequencySampleBuf(Array(T, dims), samplerate(buf))
-Base.getindex(buf::SampleBuf, t::RealFrequency) = buf.data[unitidx(buf, t)];
-Base.getindex(buf::SampleBuf, t::RealFrequency, ch::Integer) = buf.data[unitidx(buf, t), ch]
 # convert a frequency in Hz to an index, assuming the frequency buffer
 # represents an N-point DFT of a signal sampled at SR Hz
 unitidx(buf::FrequencySampleBuf, f::RealFrequency) = round(Int, f.val * size(buf, 1) / samplerate(buf)) + 1
