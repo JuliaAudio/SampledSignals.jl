@@ -13,7 +13,7 @@ samplerate{N, SR, T}(buf::SampleBuf{N, SR, T}) = SR
 nchannels{N, SR, T}(buf::SampleBuf{N, SR, T}) = N
 
 # took some good ideas from @mbauman's AxisArrays package
-typealias Idx Union(Colon,Int,Array{Int,1},Range{Int})
+typealias Idx Union{Colon,Int,Array{Int,1},Range{Int}}
 
 # AbstractArray interface methods
 Base.size(buf::SampleBuf) = size(buf.data)
