@@ -37,9 +37,13 @@ function Base.checksize{SR, T}(A::SampleBuf{1, SR, T}, I::AbstractArray)
     end
     nothing
 end
+
+Base.getindex{T <: Integer}(buf::SampleBuf, I::Interval{T}) = buf[I.lo:I.hi]
+Base.getindex{T <: Integer}(buf::SampleBuf, I::Interval{T}, ch::Integer) = buf[I.lo:I.hi, ch]
 # individual subtypes implement unitidx to convert physical units into indices
 Base.getindex(buf::SampleBuf, v::SIUnits.SIQuantity) = buf.data[unitidx(buf, v)]
 Base.getindex(buf::SampleBuf, v::SIUnits.SIQuantity, ch::Integer) = buf.data[unitidx(buf, v), ch]
+Base.getindex{T <: SIUnits.SIQuantity}(buf::SampleBuf, v::Interval{T}) = buf[unitidx(buf, v.lo)..unitidx(buf, v.hi)]
 
 function Base.setindex!(buf::SampleBuf, val, i::Int)
     buf.data[i] = val
