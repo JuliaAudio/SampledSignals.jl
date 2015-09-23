@@ -144,6 +144,24 @@
         @test buf[3:6, 1] == buf[3:6, 1:1]
     end
 
+    @testset "Can be indexed with bool arrays" begin
+        arr = TEST_T[1:8;]
+        buf = TimeSampleBuf(arr, TEST_SR)
+        idxs = falses(length(buf))
+        idxs[[1, 3, 5]] = true
+        arr[idxs]
+        @test buf[idxs] == TimeSampleBuf(arr[idxs], TEST_SR)
+    end
+
+    @testset "Checksize works" begin
+        arr = TEST_T[1:8;]
+        buf = TimeSampleBuf(arr, TEST_SR)
+        @test_throws DimensionMismatch Base.checksize(buf, zeros(4))
+        @test Base.checksize(buf, trues(size(buf))) == nothing
+        @test_throws DimensionMismatch Base.checksize(buf, falses(4))
+    end
+
+
     @testset "TimeSampleBufs can be indexed in seconds" begin
         # array with 10ms of audio
         arr = rand(TEST_T, (round(Int, 0.01*TEST_SR), 2))

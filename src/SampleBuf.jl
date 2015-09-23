@@ -19,6 +19,9 @@ typealias Idx Union{Colon,Int,Array{Int,1},Range{Int}}
 Base.size(buf::SampleBuf) = size(buf.data)
 Base.linearindexing{T <: SampleBuf}(::Type{T}) = Base.LinearFast()
 Base.getindex(buf::SampleBuf, i::Int) = buf.data[i];
+# need to implement the AbstractVector{Bool} method because the default implementation
+# doesn't use checkindex so it throws
+Base.getindex(buf::SampleBuf, I::AbstractVector{Bool}) = buf[find(I)]
 # we have to implement checksize because we always create a 2D buffer even when
 # indexed with a linear range (returning a 1-channel buffer). Defining for the
 # Bool case is just to resolve dispatch ambiguity
