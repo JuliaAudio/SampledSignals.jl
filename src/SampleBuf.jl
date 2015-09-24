@@ -40,11 +40,13 @@ end
 
 Base.getindex{T <: Integer}(buf::SampleBuf, I::Interval{T}) = buf[I.lo:I.hi]
 Base.getindex{T <: Integer}(buf::SampleBuf, I::Interval{T}, ch::Integer) = buf[I.lo:I.hi, ch]
+Base.getindex{T <: Integer}(buf::SampleBuf, I::Interval{T}, ch::Range) = buf[I.lo:I.hi, ch]
 # individual subtypes implement unitidx to convert physical units into indices
 Base.getindex(buf::SampleBuf, v::SIUnits.SIQuantity) = buf.data[unitidx(buf, v)]
 Base.getindex(buf::SampleBuf, v::SIUnits.SIQuantity, ch::Integer) = buf.data[unitidx(buf, v), ch]
 Base.getindex{T <: SIUnits.SIQuantity}(buf::SampleBuf, v::Interval{T}) = buf[unitidx(buf, v.lo)..unitidx(buf, v.hi)]
-Base.getindex{T <: SIUnits.SIQuantity}(buf::SampleBuf, v::Interval{T}, ch::Integer) = buf[unitidx(buf, v.lo)..unitidx(buf, v.hi)]
+Base.getindex{T <: SIUnits.SIQuantity}(buf::SampleBuf, v::Interval{T}, ch::Integer) = buf[unitidx(buf, v.lo)..unitidx(buf, v.hi), ch]
+Base.getindex{T <: SIUnits.SIQuantity}(buf::SampleBuf, v::Interval{T}, ch::Range) = buf[unitidx(buf, v.lo)..unitidx(buf, v.hi), ch]
 
 function Base.setindex!(buf::SampleBuf, val, i::Int)
     buf.data[i] = val

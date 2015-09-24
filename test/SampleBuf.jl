@@ -191,7 +191,8 @@
         @test buf[0.005s, 1] == arr[240, 1]
         @test buf[0.005s, 2] == arr[240, 2]
         @test buf[0.004s..0.005s] == TimeSampleBuf(arr[192:240], TEST_SR)
-        @test buf[0.004s..0.005s, 1] == TimeSampleBuf(arr[192:240], TEST_SR)
+        @test buf[0.004s..0.005s, 2] == TimeSampleBuf(arr[192:240, 2], TEST_SR)
+        @test buf[0.004s..0.005s, 1:2] == TimeSampleBuf(arr[192:240, 1:2], TEST_SR)
     end
 
     @testset "FrequencySampleBufs can be indexed in Hz" begin
