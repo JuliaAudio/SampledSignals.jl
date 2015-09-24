@@ -150,16 +150,19 @@
         # linear indexing gives you a mono buffer
         slice = buf[6..12]
         @test typeof(slice) == TimeSampleBuf{1, TEST_SR, TEST_T}
-        @test slice == TimeSampleBuf(TEST_T[6:12;], TEST_SR)
-        # slice = buf[2..6, 1]
-        # @test typeof(slice) == TimeSampleBuf{1, TEST_SR, TEST_T}
-        # @test slice == TimeSampleBuf(TEST_T[2:6, 1], TEST_SR)
+        @test slice == TimeSampleBuf(arr[6:12], TEST_SR)
+        slice = buf[2..6, 1]
+        @test typeof(slice) == TimeSampleBuf{1, TEST_SR, TEST_T}
+        @test slice == TimeSampleBuf(arr[2:6, 1], TEST_SR)
 
         buf = FrequencySampleBuf(arr, TEST_SR)
         # linear indexing gives you a mono buffer
+        slice = buf[6..12]
+        @test typeof(slice) == FrequencySampleBuf{1, TEST_SR, TEST_T}
+        @test slice == FrequencySampleBuf(arr[6:12], TEST_SR)
         slice = buf[2..6, 1]
         @test typeof(slice) == FrequencySampleBuf{1, TEST_SR, TEST_T}
-        @test slice == FrequencySampleBuf(TEST_T[2:6, 1], TEST_SR)
+        @test slice == FrequencySampleBuf(arr[2:6, 1], TEST_SR)
     end
 
     @testset "Can be indexed with bool arrays" begin
@@ -187,7 +190,8 @@
         @test buf[0.005s] == arr[240]
         @test buf[0.005s, 1] == arr[240, 1]
         @test buf[0.005s, 2] == arr[240, 2]
-        # @test buf[0.004s..0.005s] == TimeSampleBuf(arr[192:240], TEST_SR)
+        @test buf[0.004s..0.005s] == TimeSampleBuf(arr[192:240], TEST_SR)
+        @test buf[0.004s..0.005s, 1] == TimeSampleBuf(arr[192:240], TEST_SR)
     end
 
     @testset "FrequencySampleBufs can be indexed in Hz" begin
