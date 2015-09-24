@@ -79,7 +79,10 @@ end
 # equality
 import Base.==
 # TODO: make sure types of buf1 and buf2 are the same
-==(buf1::SampleBuf, buf2::SampleBuf) = (samplerate(buf1) == samplerate(buf2) && buf1.data == buf2.data)
+==(buf1::SampleBuf, buf2::SampleBuf) =
+    typeof(buf1) == typeof(buf2) &&
+    samplerate(buf1) == samplerate(buf2) &&
+    buf1.data == buf2.data
 
 
 "A time-domain signal. See `SampleBuf` for details"

@@ -34,10 +34,12 @@
         buf3 = TimeSampleBuf(arr1, TEST_SR+1)
         buf4 = TimeSampleBuf(arr2, TEST_SR)
         buf5 = TimeSampleBuf(arr3, TEST_SR)
+        buf6 = FrequencySampleBuf(arr1, TEST_SR)
         @test buf1 == buf2
         @test buf2 != buf3
         @test buf2 != buf4
         @test buf2 != buf5
+        @test buf1 != buf6
     end
 
 
@@ -214,5 +216,15 @@
         @test buf[843.75Hz] == arr[10]
         @test buf[843.75Hz, 1] == arr[10, 1]
         @test buf[843.75Hz, 2] == arr[10, 2]
+    end
+
+    @testset "Supports arithmetic" begin
+        arr1 = rand(TEST_T, 512, 2)
+        arr2 = rand(TEST_T, 512, 2)
+        buf1 = TimeSampleBuf(arr1, TEST_SR)
+        buf2 = TimeSampleBuf(arr2, TEST_SR)
+
+        @test buf1 + 1 == TimeSampleBuf(arr1 + 1, TEST_SR)
+        @test buf1 + buf2 == TimeSampleBuf(arr1 + arr2, TEST_SR)
     end
 end
