@@ -12,16 +12,50 @@ abstract SampleBuf{N, SR, T <: Number} <: AbstractArray{T, 2}
 samplerate{N, SR, T}(buf::SampleBuf{N, SR, T}) = SR
 nchannels{N, SR, T}(buf::SampleBuf{N, SR, T}) = N
 
-# took some good ideas from @mbauman's AxisArrays package
-typealias Idx Union{Colon,Int,Array{Int,1},Range{Int}}
+# the index types that Base knows how to handle
+typealias BuiltinIdx Union{Int,
+                           Colon,
+                           Vector{Int},
+                           Vector{Bool},
+                           Range{Int}}
+# the index types that will need conversion to built-in index types. Each of
+# these needs a `toindex` method defined for it
+typealias ConvertIdx{T1 <: SIUnits.SIQuantity, T2 <: Int} Union{T1,
+                                                           # Vector{T1}, # not supporting vectors of SIQuantities (yes?)
+                                                           # Range{T1}, # not supporting ranges (yet?)
+                                                           Interval{T2},
+                                                           Interval{T1}}
+
+"""
+    toindex(buf::SampleBuf, I)
+
+Convert the given index value to one that Base knows how to use natively for
+indexing
+"""
+function toindex end
+
+# individual SIQuantities conversions should be defined by SampleBuf subtypes
+toindex(buf::SampleBuf, i::SIUnits.SIQuantity) = throw(ArgumentError("$(typeof(i)) indexing not defined for $(typeof(buf))"))
+# indexing by vectors of SIQuantities not yet supported
+# toindex{T <: SIUnits.SIQuantity}(buf::SampleBuf, I::Vector{T}) = Int[toindex(buf, i) for i in I]
+toindex(buf::SampleBuf, I::Interval{Int}) = I.lo:I.hi
+toindex{T <: SIUnits.SIQuantity}(buf::SampleBuf, I::Interval{T}) = toindex(buf, I.lo):toindex(buf, I.hi)
 
 # AbstractArray interface methods
 Base.size(buf::SampleBuf) = size(buf.data)
 Base.linearindexing{T <: SampleBuf}(::Type{T}) = Base.LinearFast()
+# this is the fundamental indexing operation needed for the AbstractArray interface
 Base.getindex(buf::SampleBuf, i::Int) = buf.data[i];
 # need to implement the AbstractVector{Bool} method because the default implementation
 # doesn't use checkindex so it throws
 Base.getindex(buf::SampleBuf, I::AbstractVector{Bool}) = buf[find(I)]
+# now we implement the methods that need to convert indices. luckily we only
+# need to support up to 2D
+Base.getindex(buf::SampleBuf, I::ConvertIdx) = buf[toindex(buf, I)]
+Base.getindex(buf::SampleBuf, I1::ConvertIdx, I2::BuiltinIdx) = buf[toindex(buf, I1), I2]
+Base.getindex(buf::SampleBuf, I1::BuiltinIdx, I2::ConvertIdx) = buf[I1, toindex(buf, I2)]
+Base.getindex(buf::SampleBuf, I1::ConvertIdx, I2::ConvertIdx) = buf[toindex(buf, I1), toindex(buf, I2)]
+
 # we have to implement checksize because we always create a 2D buffer even when
 # indexed with a linear range (returning a 1-channel buffer). Defining for the
 # Bool case is just to resolve dispatch ambiguity
@@ -38,16 +72,6 @@ function Base.checksize{SR, T}(A::SampleBuf{1, SR, T}, I::AbstractArray)
     nothing
 end
 
-Base.getindex{T <: Integer}(buf::SampleBuf, I::Interval{T}) = buf[I.lo:I.hi]
-Base.getindex{T <: Integer}(buf::SampleBuf, I::Interval{T}, ch::Integer) = buf[I.lo:I.hi, ch]
-Base.getindex{T <: Integer}(buf::SampleBuf, I::Interval{T}, ch::Range) = buf[I.lo:I.hi, ch]
-# individual subtypes implement unitidx to convert physical units into indices
-Base.getindex(buf::SampleBuf, v::SIUnits.SIQuantity) = buf.data[unitidx(buf, v)]
-Base.getindex(buf::SampleBuf, v::SIUnits.SIQuantity, ch::Integer) = buf.data[unitidx(buf, v), ch]
-Base.getindex{T <: SIUnits.SIQuantity}(buf::SampleBuf, v::Interval{T}) = buf[unitidx(buf, v.lo)..unitidx(buf, v.hi)]
-Base.getindex{T <: SIUnits.SIQuantity}(buf::SampleBuf, v::Interval{T}, ch::Integer) = buf[unitidx(buf, v.lo)..unitidx(buf, v.hi), ch]
-Base.getindex{T <: SIUnits.SIQuantity}(buf::SampleBuf, v::Interval{T}, ch::Range) = buf[unitidx(buf, v.lo)..unitidx(buf, v.hi), ch]
-
 function Base.setindex!(buf::SampleBuf, val, i::Int)
     buf.data[i] = val
 end
@@ -58,7 +82,7 @@ import Base.==
 ==(buf1::SampleBuf, buf2::SampleBuf) = (samplerate(buf1) == samplerate(buf2) && buf1.data == buf2.data)
 
 
-"A time-domain signal. See SampleBuf for details"
+"A time-domain signal. See `SampleBuf` for details"
 immutable TimeSampleBuf{N, SR, T} <: SampleBuf{N, SR, T}
     data::Array{T, 2}
 end
@@ -66,10 +90,10 @@ end
 TimeSampleBuf{T}(arr::AbstractArray{T, 2}, SR::Real) = TimeSampleBuf{size(arr, 2), SR, T}(arr)
 TimeSampleBuf{T}(arr::AbstractArray{T, 1}, SR::Real) = TimeSampleBuf{1, SR, T}(reshape(arr, (length(arr), 1)))
 Base.similar{T}(buf::TimeSampleBuf, ::Type{T}, dims::Dims) = TimeSampleBuf(Array(T, dims), samplerate(buf))
-unitidx(buf::TimeSampleBuf, t::RealTime) = round(Int, t.val*samplerate(buf))
+toindex(buf::TimeSampleBuf, t::RealTime) = round(Int, t.val*samplerate(buf))
 
 
-"A frequency-domain signal. See SampleBuf for details"
+"A frequency-domain signal. See `SampleBuf` for details"
 immutable FrequencySampleBuf{N, SR, T} <: SampleBuf{N, SR, T}
     data::Array{T, 2}
 end
@@ -79,4 +103,4 @@ FrequencySampleBuf{T}(arr::AbstractArray{T, 1}, SR::Real) = FrequencySampleBuf{1
 Base.similar{T}(buf::FrequencySampleBuf, ::Type{T}, dims::Dims) = FrequencySampleBuf(Array(T, dims), samplerate(buf))
 # convert a frequency in Hz to an index, assuming the frequency buffer
 # represents an N-point DFT of a signal sampled at SR Hz
-unitidx(buf::FrequencySampleBuf, f::RealFrequency) = round(Int, f.val * size(buf, 1) / samplerate(buf)) + 1
+toindex(buf::FrequencySampleBuf, f::RealFrequency) = round(Int, f.val * size(buf, 1) / samplerate(buf)) + 1

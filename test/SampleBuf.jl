@@ -144,7 +144,7 @@
         @test buf[3:6, 1] == buf[3:6, 1:1]
     end
 
-    @testset "can be index with Intervals" begin
+    @testset "can be indexed with Intervals" begin
         arr = TEST_T[1:8 9:16]
         buf = TimeSampleBuf(arr, TEST_SR)
         # linear indexing gives you a mono buffer
@@ -154,6 +154,12 @@
         slice = buf[2..6, 1]
         @test typeof(slice) == TimeSampleBuf{1, TEST_SR, TEST_T}
         @test slice == TimeSampleBuf(arr[2:6, 1], TEST_SR)
+        slice = buf[2, 1..2]
+        @test typeof(slice) == TimeSampleBuf{2, TEST_SR, TEST_T}
+        @test slice == TimeSampleBuf(arr[2, 1:2], TEST_SR)
+        slice = buf[2..6, 1..2]
+        @test typeof(slice) == TimeSampleBuf{2, TEST_SR, TEST_T}
+        @test slice == TimeSampleBuf(arr[2:6, 1:2], TEST_SR)
 
         buf = FrequencySampleBuf(arr, TEST_SR)
         # linear indexing gives you a mono buffer
@@ -182,6 +188,13 @@
         @test_throws DimensionMismatch Base.checksize(buf, falses(4))
     end
 
+
+    import SIUnits
+    @testset "Invalid units throw an error" begin
+        arr = rand(TEST_T, (round(Int, 0.01*TEST_SR), 2))
+        buf = TimeSampleBuf(arr, TEST_SR)
+        @test_throws ArgumentError buf[1*SIUnits.Ampere]
+    end
 
     @testset "TimeSampleBufs can be indexed in seconds" begin
         # array with 10ms of audio

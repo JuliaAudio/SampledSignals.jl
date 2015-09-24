@@ -6,12 +6,12 @@ else
     using BaseTestNext
 end
 
-try
+# try
     @testset "SampleTypes Tests" begin
         include("DummySampleStream.jl")
         include("SampleBuf.jl")
         include("Interval.jl")
     end
-catch err
-    exit(-1)
-end
+# catch err
+#     exit(-1)
+# end
