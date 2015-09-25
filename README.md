@@ -57,7 +57,7 @@ plot(domain(x), x)
 
 ### AbstractSampleBuf
 
-`AbstractSampleBuf` is an abstract type representing multichannel, regularly-sampled data, providing handy indexing operations. It subtypes AbstractArray and should be drop-in compatible with raw arrays. The two main advantages are that it is sample-rate aware and that it supports indexing with real-world units like seconds or hertz (depending on the domain). To create a custom subtype of `AbstractSampleBuf` you only need to define `Base.similar` so that the result of indexing operations and arithmetic will be wrapped correctly and `SampleTypes.toindex` which defines how a unit quantity should be mapped to an index. The rest of the methods are defined on AbstractSampleBuf so they should Just Work.
+`AbstractSampleBuf` is an abstract type representing multichannel, regularly-sampled data, providing handy indexing operations. It subtypes AbstractArray and should be drop-in compatible with raw arrays, with the exception that indexing with a linear range will result in a 2D Nx1 result instead of a 1D Vector. The two main advantages of SampleBufs are they are sample-rate aware and that they support indexing with real-world units like seconds or hertz (depending on the domain). To create a custom subtype of `AbstractSampleBuf` you only need to define `Base.similar` so that the result of indexing operations and arithmetic will be wrapped correctly and `SampleTypes.toindex` which defines how a unit quantity should be mapped to an index. The rest of the methods are defined on `AbstractSampleBuf` so they should Just Work.
 
 SampleTypes also implements two concrete `AbstractSampleBuf` subtypes for commonly-used domains:
 
