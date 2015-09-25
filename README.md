@@ -66,11 +66,11 @@ SampleTypes also implements two concrete `AbstractSampleBuf` subtypes for common
 
 ## SampleSource
 
-A source of samples, which might for instance represent a microphone input. The `read` method just gives you a single frame (an 1xN N-channel `TimeSampleBuf`), but you can also read an integer number of samples or an amount of time given in seconds.
+A source of samples, which might for instance represent a microphone input. The `read` method just gives you a single frame (an 1xN N-channel `TimeSampleBuf`), but you can also read an integer number of samples or an amount of time given in seconds. This package includes the `DummySampleSource` concrete type that is useful for testing the stream interface.
 
 ## SampleSink
 
-A sink for samples to be written to, for instance representing your laptop speakers.
+A sink for samples to be written to, for instance representing your laptop speakers. The main method used here is `write` which writes a `SampleBuf` to a `SampleSink`. This package includes the `DummySampleSink` concrete type that is useful for testing the stream interface.
 
 ## Sticky Design Issues
 
