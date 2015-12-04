@@ -190,8 +190,6 @@
         @test_throws DimensionMismatch Base.checksize(buf, falses(4))
     end
 
-
-    import SIUnits
     @testset "Invalid units throw an error" begin
         arr = rand(TEST_T, (round(Int, 0.01*TEST_SR), 2))
         buf = TimeSampleBuf(arr, TEST_SR)
