@@ -1,12 +1,18 @@
 @testset "SampleBuf Tests" begin
-    TEST_SR = 48000
+    TEST_SR = 48000//1
     TEST_T = Float32
     const StereoBuf = TimeSampleBuf{2, TEST_SR, TEST_T}
+    const StereoFBuf = FrequencySampleBuf{2, TEST_SR, TEST_T}
 
     @testset "Supports audio interface" begin
-        buf = StereoBuf(zeros(TEST_T, 64, 2))
-        @test samplerate(buf) == TEST_SR
-        @test nchannels(buf) == 2
+        tbuf = StereoBuf(zeros(TEST_T, 64, 2))
+        fbuf = StereoFBuf(zeros(TEST_T, 64, 2))
+        @test samplerate(tbuf) == TEST_SR
+        @test nchannels(tbuf) == 2
+        @test nframes(tbuf) == 64
+        @test samplerate(fbuf) == TEST_SR
+        @test nchannels(fbuf) == 2
+        @test nframes(fbuf) == 64
     end
 
     @testset "Supports size()" begin
@@ -227,5 +233,18 @@
 
         @test buf1 + 1 == TimeSampleBuf(arr1 + 1, TEST_SR)
         @test buf1 + buf2 == TimeSampleBuf(arr1 + arr2, TEST_SR)
+    end
+
+    @testset "FFT of TimeSampleBuf gives FrequencySampleBuf" begin
+        arr = rand(TEST_T, 512)
+        buf = TimeSampleBuf(arr, TEST_SR)
+        spec = fft(buf)
+        @test typeof(spec) == FrequencySampleBuf{1, 512//TEST_SR, Complex{TEST_T}}
+        @test spec == FrequencySampleBuf(fft(arr), 512//TEST_SR)
+        buf2 = ifft(spec)
+        # TODO: real time signals should become symmetric spectra, and then
+        # back to real time signals with ifft
+        @test typeof(buf2) == TimeSampleBuf{1, TEST_SR, Complex{TEST_T}}
+        @test isapprox(buf2, buf)
     end
 end

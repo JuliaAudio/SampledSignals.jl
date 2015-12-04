@@ -8,9 +8,15 @@ TimeSampleBuf{2, 44100, Float32}.
 """
 abstract SampleBuf{N, SR, T <: Number} <: AbstractArray{T, 2}
 
+# terminology:
+# sample - a single value representing the amplitude of 1 channel at some point in time (or frequency)
+# channel - a set of samples running in parallel
+# frame - a collection of samples from each channel that were sampled simultaneously
+
 # audio methods
-samplerate{N, SR, T}(buf::SampleBuf{N, SR, T}) = SR
-nchannels{N, SR, T}(buf::SampleBuf{N, SR, T}) = N
+samplerate{N, SR, T}(::SampleBuf{N, SR, T}) = SR
+nchannels{N, SR, T}(::SampleBuf{N, SR, T}) = N
+nframes(buf::SampleBuf) = size(buf.data, 1)
 
 # the index types that Base knows how to handle
 typealias BuiltinIdx Union{Int,
@@ -83,6 +89,10 @@ import Base.==
     samplerate(buf1) == samplerate(buf2) &&
     buf1.data == buf2.data
 
+# Concrete SampleBuf types
+
+# it's important to define Base.similar so that range-indexing returns the
+# right type, instead of just a bare array
 
 "A time-domain signal. See `SampleBuf` for details"
 immutable TimeSampleBuf{N, SR, T} <: SampleBuf{N, SR, T}
@@ -106,3 +116,6 @@ Base.similar{T}(buf::FrequencySampleBuf, ::Type{T}, dims::Dims) = FrequencySampl
 # convert a frequency in Hz to an index. This assumes the buffer represents
 # a spectrum (i.e. the result of an FFT) with the first bin representing 0Hz
 toindex(buf::FrequencySampleBuf, f::RealFrequency) = round(Int, f.val * samplerate(buf)) + 1
+
+Base.fft(buf::TimeSampleBuf) = FrequencySampleBuf(fft(buf.data), nframes(buf)//samplerate(buf))
+Base.ifft(buf::FrequencySampleBuf) = TimeSampleBuf(ifft(buf.data), nframes(buf)//samplerate(buf))
