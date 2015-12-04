@@ -200,17 +200,20 @@
         # array with 10ms of audio
         arr = rand(TEST_T, (round(Int, 0.01*TEST_SR), 2))
         buf = TimeSampleBuf(arr, TEST_SR)
-        @test buf[0.005s] == arr[240]
-        @test buf[0.005s, 1] == arr[240, 1]
-        @test buf[0.005s, 2] == arr[240, 2]
-        @test buf[0.004s..0.005s] == TimeSampleBuf(arr[192:240], TEST_SR)
-        @test buf[0.004s..0.005s, 2] == TimeSampleBuf(arr[192:240, 2], TEST_SR)
-        @test buf[0.004s..0.005s, 1:2] == TimeSampleBuf(arr[192:240, 1:2], TEST_SR)
+        @test buf[0.0s] == arr[1]
+        @test buf[0.005s] == arr[241]
+        @test buf[0.005s, 1] == arr[241, 1]
+        @test buf[0.005s, 2] == arr[241, 2]
+        @test buf[0.004s..0.005s] == TimeSampleBuf(arr[193:241], TEST_SR)
+        @test buf[0.004s..0.005s, 2] == TimeSampleBuf(arr[193:241, 2], TEST_SR)
+        @test buf[0.004s..0.005s, 1:2] == TimeSampleBuf(arr[193:241, 1:2], TEST_SR)
     end
 
     @testset "FrequencySampleBufs can be indexed in Hz" begin
-        arr = rand(TEST_T, 512, 2)
-        buf = FrequencySampleBuf(arr, TEST_SR)
+        N = 512
+        arr = rand(TEST_T, N, 2)
+        buf = FrequencySampleBuf(arr, N / TEST_SR)
+        @test buf[0.0Hz] == arr[1]
         @test buf[843.75Hz] == arr[10]
         @test buf[843.75Hz, 1] == arr[10, 1]
         @test buf[843.75Hz, 2] == arr[10, 2]

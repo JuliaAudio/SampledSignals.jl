@@ -4,7 +4,7 @@ samples and N channels. Signals in the time domain are represented by the
 concrete type TimeSampleBuf and frequency-domain signals are represented by
 FrequencySampleBuf. So a 1-second stereo audio buffer sampled at 44100Hz with
 32-bit floating-point samples in the time domain would have the type
-TimeSampleBuf{2, 44100.0, Float32}.
+TimeSampleBuf{2, 44100, Float32}.
 """
 abstract SampleBuf{N, SR, T <: Number} <: AbstractArray{T, 2}
 
@@ -21,7 +21,7 @@ typealias BuiltinIdx Union{Int,
 # the index types that will need conversion to built-in index types. Each of
 # these needs a `toindex` method defined for it
 typealias ConvertIdx{T1 <: SIUnits.SIQuantity, T2 <: Int} Union{T1,
-                                                           # Vector{T1}, # not supporting vectors of SIQuantities (yes?)
+                                                           # Vector{T1}, # not supporting vectors of SIQuantities (yet?)
                                                            # Range{T1}, # not supporting ranges (yet?)
                                                            Interval{T2},
                                                            Interval{T1}}
@@ -78,7 +78,6 @@ end
 
 # equality
 import Base.==
-# TODO: make sure types of buf1 and buf2 are the same
 ==(buf1::SampleBuf, buf2::SampleBuf) =
     typeof(buf1) == typeof(buf2) &&
     samplerate(buf1) == samplerate(buf2) &&
@@ -93,7 +92,7 @@ end
 TimeSampleBuf{T}(arr::AbstractArray{T, 2}, SR::Real) = TimeSampleBuf{size(arr, 2), SR, T}(arr)
 TimeSampleBuf{T}(arr::AbstractArray{T, 1}, SR::Real) = TimeSampleBuf{1, SR, T}(reshape(arr, (length(arr), 1)))
 Base.similar{T}(buf::TimeSampleBuf, ::Type{T}, dims::Dims) = TimeSampleBuf(Array(T, dims), samplerate(buf))
-toindex(buf::TimeSampleBuf, t::RealTime) = round(Int, t.val*samplerate(buf))
+toindex(buf::TimeSampleBuf, t::RealTime) = round(Int, t.val*samplerate(buf)) + 1
 
 
 "A frequency-domain signal. See `SampleBuf` for details"
@@ -104,6 +103,6 @@ end
 FrequencySampleBuf{T}(arr::AbstractArray{T, 2}, SR::Real) = FrequencySampleBuf{size(arr, 2), SR, T}(arr)
 FrequencySampleBuf{T}(arr::AbstractArray{T, 1}, SR::Real) = FrequencySampleBuf{1, SR, T}(reshape(arr, (length(arr), 1)))
 Base.similar{T}(buf::FrequencySampleBuf, ::Type{T}, dims::Dims) = FrequencySampleBuf(Array(T, dims), samplerate(buf))
-# convert a frequency in Hz to an index, assuming the frequency buffer
-# represents an N-point DFT of a signal sampled at SR Hz
-toindex(buf::FrequencySampleBuf, f::RealFrequency) = round(Int, f.val * size(buf, 1) / samplerate(buf)) + 1
+# convert a frequency in Hz to an index. This assumes the buffer represents
+# a spectrum (i.e. the result of an FFT) with the first bin representing 0Hz
+toindex(buf::FrequencySampleBuf, f::RealFrequency) = round(Int, f.val * samplerate(buf)) + 1
