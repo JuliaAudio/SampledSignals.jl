@@ -18,12 +18,13 @@ samplerate{N, SR, T}(::SampleBuf{N, SR, T}) = SR
 nchannels{N, SR, T}(::SampleBuf{N, SR, T}) = N
 nframes(buf::SampleBuf) = size(buf.data, 1)
 
-# the index types that Base knows how to handle
-typealias BuiltinIdx Union{Int,
-                           Colon,
+# the index types that Base knows how to handle. Separate out those that index
+# multiple results
+typealias BuiltinMultiIdx Union{Colon,
                            Vector{Int},
                            Vector{Bool},
                            Range{Int}}
+typealias BuiltinIdx Union{Int, BuiltinMultiIdx}
 # the index types that will need conversion to built-in index types. Each of
 # these needs a `toindex` method defined for it
 typealias ConvertIdx{T1 <: SIUnits.SIQuantity, T2 <: Int} Union{T1,
@@ -61,6 +62,11 @@ Base.getindex(buf::SampleBuf, I::ConvertIdx) = buf[toindex(buf, I)]
 Base.getindex(buf::SampleBuf, I1::ConvertIdx, I2::BuiltinIdx) = buf[toindex(buf, I1), I2]
 Base.getindex(buf::SampleBuf, I1::BuiltinIdx, I2::ConvertIdx) = buf[I1, toindex(buf, I2)]
 Base.getindex(buf::SampleBuf, I1::ConvertIdx, I2::ConvertIdx) = buf[toindex(buf, I1), toindex(buf, I2)]
+
+# In Julia 0.5 scalar indices are now dropped, so by default indexing buf[5,
+# 1:2] gives you a 2-frame single-channel buffer instead of a 1-frame
+# two-channel buffer. The following getindex method defeats the index dropping
+Base.getindex(buf::SampleBuf, I1::Int, I2::BuiltinMultiIdx) = buf[I1:I1, I2]
 
 # we have to implement checksize because we always create a 2D buffer even when
 # indexed with a linear range (returning a 1-channel buffer). Defining for the

@@ -164,7 +164,8 @@
         @test slice == TimeSampleBuf(arr[2:6, 1], TEST_SR)
         slice = buf[2, 1..2]
         @test typeof(slice) == TimeSampleBuf{2, TEST_SR, TEST_T}
-        @test slice == TimeSampleBuf(arr[2, 1:2], TEST_SR)
+        # 0.5 array indexing drops scalar indices, so we use 2:2 instead of 2
+        @test slice == TimeSampleBuf(arr[2:2, 1:2], TEST_SR)
         slice = buf[2..6, 1..2]
         @test typeof(slice) == TimeSampleBuf{2, TEST_SR, TEST_T}
         @test slice == TimeSampleBuf(arr[2:6, 1:2], TEST_SR)
