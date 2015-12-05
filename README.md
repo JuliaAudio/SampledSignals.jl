@@ -6,60 +6,17 @@
 
 SampleTypes is a collection of types intended to be used on multichannel sampled signals like audio or radio data, to provide better interoperability between packages that read data from files or streams, DSP packages, and output and display packages.
 
-SampleTypes provides several types to stream and store sampled data: `AbstractSampleBuf`, `TimeSampleBuf`, `FrequencySampleBuf`, `SampleSource`, `SampleSink` and also an `Interval` type that can be used to represent contiguous ranges using a convenient `a..b` syntax, this feature is copied mostly from the [AxisArrays](https://github.com/mbauman/AxisArrays.jl) package, which also inspired much of the implementation of this package.
+SampleTypes provides several types to stream and store sampled data: `SampleBuf`, `TimeSampleBuf`, `FrequencySampleBuf`, `SampleSource`, `SampleSink` and also an `Interval` type that can be used to represent contiguous ranges using a convenient `a..b` syntax, this feature is copied mostly from the [AxisArrays](https://github.com/mbauman/AxisArrays.jl) package, which also inspired much of the implementation of this package.
 
 We also use the [SIUnits](https://github.com/keno/SIUnits.jl) package to enable indexing using real-world units like seconds or hertz. `SampleTypes` re-exports the relevant `SIUnits` units (`ns`, `ms`, `µs`, `s`, `Hz`, `kHz`, `MHz`, `GHz`, `THz`) so you don't need to import `SIUnits` explicitly.
 
-## Examples
-
-These examples use the [LibSndFile](https://github.com/ssfrr/LibSndFile.jl) library which enables reading and writing from a variety of audio file formats using `SampleTypes` types and also integrates with the `FileIO` `load` and `save` API.
-
-**Read ogg file, write first 1024 samples of the first channel to new wav file**
-```julia
-x = load("myfile.ogg")
-save("myfile_short.wav", x[1:1024])
-```
-
-**Read file, write the first second of all channels to a new file**
-```julia
-x = load("myfile.ogg")
-save("myfile_short.wav", x[0s..1s, :])
-```
-
-**Read stereo file, write mono mix**
-```julia
-x = load("myfile.wav")
-save("myfile_mono.wav", x[:, 1] + x[:, 2])
-```
-
-**Plot an the left channel**
-```julia
-x = load("myfile.wav")
-plot(x[:, 1]) # plots with samples on the x axis
-plot(domain(x), x[:, 1]) # plots with time on the x axis
-```
-
-**Plot the frequency response of the left channel**
-```julia
-x = load("myfile.wav")
-f = fft(x) # returns a FrequencySampleBuf
-plot(domain(x), x[:, 1]) # plots with frequency on the x axis
-```
-
-**Load a long file as a stream and plot the left channel from 2s to 3s**
-```julia
-s = load("myfile.ogg", streaming=true)
-x = read(s, 4s)[2s..3s, 1]
-plot(domain(x), x)
-```
-
 ## Types
 
-### AbstractSampleBuf
+### SampleBuf
 
-`AbstractSampleBuf` is an abstract type representing multichannel, regularly-sampled data, providing handy indexing operations. It subtypes AbstractArray and should be drop-in compatible with raw arrays, with the exception that indexing with a linear range will result in a 2D Nx1 result instead of a 1D Vector. The two main advantages of SampleBufs are they are sample-rate aware and that they support indexing with real-world units like seconds or hertz (depending on the domain). To create a custom subtype of `AbstractSampleBuf` you only need to define `Base.similar` so that the result of indexing operations and arithmetic will be wrapped correctly and `SampleTypes.toindex` which defines how a unit quantity should be mapped to an index. The rest of the methods are defined on `AbstractSampleBuf` so they should Just Work.
+`SampleBuf` is an abstract type representing multichannel, regularly-sampled data, providing handy indexing operations. It subtypes AbstractArray and should be drop-in compatible with raw arrays, with the exception that indexing with a linear range will result in a 2D Nx1 result instead of a 1D Vector. Also when the first index is a scalar (such as `buf[35, 1:2]`) the returned object will be a 1-frame 2-channel buffer, instead of dropping the scalar-index axis. The two main advantages of SampleBufs are they are sample-rate aware and that they support indexing with real-world units like seconds or hertz (depending on the domain). To create a custom subtype of `SampleBuf` you only need to define `Base.similar` so that the result of indexing operations and arithmetic will be wrapped correctly and `SampleTypes.toindex` which defines how a unit quantity should be mapped to an index. The rest of the methods are defined on `SampleBuf` so they should Just Work.
 
-SampleTypes also implements two concrete `AbstractSampleBuf` subtypes for commonly-used domains:
+SampleTypes also implements two concrete `SampleBuf` subtypes for commonly-used domains:
 
 * `TimeSampleBuf`, which supports indexing in seconds
 * `FrequencySampleBuf` which supports indexing in hertz
