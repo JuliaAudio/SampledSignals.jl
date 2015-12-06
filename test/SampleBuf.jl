@@ -13,6 +13,8 @@
         @test samplerate(fbuf) == TEST_SR
         @test nchannels(fbuf) == 2
         @test nframes(fbuf) == 64
+        @test domain(tbuf) == collect((0:63)/TEST_SR) * s
+        @test domain(fbuf) == collect((0:63)/TEST_SR) * Hz
     end
 
     @testset "Supports size()" begin

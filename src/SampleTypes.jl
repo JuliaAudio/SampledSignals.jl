@@ -14,7 +14,7 @@ export DummySampleSource, DummySampleSink, simulate_input
 export DSPNode
 export Interval, ..
 # general methods for types in SampleTypes
-export samplerate, nchannels, nframes
+export samplerate, nchannels, nframes, domain
 # re-export the useful units
 export ns, ms, µs, s, Hz, kHz, MHz, GHz, THz
 
