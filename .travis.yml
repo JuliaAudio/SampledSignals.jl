@@ -9,10 +9,8 @@ julia:
   - nightly
 notifications:
   email: false
-after_success:
-  - julia -e 'cd(Pkg.dir("SampleTypes")); Pkg.add("Coverage"); using Coverage; Codecov.submit(process_folder())'
-# uncomment the following lines to override the default test script
 script:
  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
- # currently requires SIUnits master
- - julia -e 'Pkg.clone("https://github.com/IainNZ/BaseTestNext.jl.git"); Pkg.add("SIUnits"); Pkg.checkout("SIUnits"); Pkg.clone(pwd()); Pkg.build("SampleTypes"); Pkg.test("SampleTypes"; coverage=true)'
+ - julia -e 'VERSION < v"0.5.0-" && Pkg.add("BaseTestNext"); Pkg.clone(pwd()); Pkg.build("SampleTypes"); Pkg.test("SampleTypes"; coverage=true)'
+after_success:
+  - julia -e 'cd(Pkg.dir("SampleTypes")); Pkg.add("Coverage"); using Coverage; Codecov.submit(process_folder())'
