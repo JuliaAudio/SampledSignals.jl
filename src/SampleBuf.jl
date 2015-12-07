@@ -112,7 +112,7 @@ TimeSampleBuf{T}(arr::AbstractArray{T, 1}, SR::Real) = TimeSampleBuf{1, SR, T}(r
 Base.similar{T}(buf::TimeSampleBuf, ::Type{T}, dims::Dims) = TimeSampleBuf(Array(T, dims), samplerate(buf))
 toindex(buf::TimeSampleBuf, t::RealTime) = round(Int, t.val*samplerate(buf)) + 1
 # TODO: we shouldn't need the `collect` once SIUnits supports LinSpace
-domain(buf::TimeSampleBuf) = collect((0:(nframes(buf)-1)) / samplerate(buf)) * s
+domain(buf::TimeSampleBuf) = collect(0:(nframes(buf)-1)) / samplerate(buf) * s
 
 
 "A frequency-domain signal. See `SampleBuf` for details"
@@ -126,7 +126,7 @@ Base.similar{T}(buf::FrequencySampleBuf, ::Type{T}, dims::Dims) = FrequencySampl
 # convert a frequency in Hz to an index. This assumes the buffer represents
 # a spectrum (i.e. the result of an FFT) with the first bin representing 0Hz
 toindex(buf::FrequencySampleBuf, f::RealFrequency) = round(Int, f.val * samplerate(buf)) + 1
-domain(buf::FrequencySampleBuf) = collect(((0:nframes(buf)-1)) / samplerate(buf)) * Hz
+domain(buf::FrequencySampleBuf) = collect(0:(nframes(buf)-1)) / samplerate(buf) * Hz
 
 Base.fft(buf::TimeSampleBuf) = FrequencySampleBuf(fft(buf.data), nframes(buf)//samplerate(buf))
 Base.ifft(buf::FrequencySampleBuf) = TimeSampleBuf(ifft(buf.data), nframes(buf)//samplerate(buf))
