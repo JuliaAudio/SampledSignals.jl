@@ -9,7 +9,7 @@ typealias RealTime{T <: Real} quantity(T, Second)
 typealias RealFrequency{T <: Real} quantity(T, Hertz)
 
 export SampleBuf, TimeSampleBuf, FrequencySampleBuf
-export SampleSouce, SampleSink, read, write
+export SampleSource, SampleSink, read, write
 export DummySampleSource, DummySampleSink, simulate_input
 export DSPNode
 export Interval, ..
