@@ -46,7 +46,3 @@ function read{N, SR, T}(src::DummySampleSource{N, SR, T}, samples::Integer)
     src.buf = src.buf[(samples+1):end, :]
     TimeSampleBuf{N, SR, T}(retdata)
 end
-function read{N, SR, T}(src::DummySampleSource{N, SR, T}, seconds::RealTime)
-    samples = round(Int, seconds.val * SR)
-    read(src, samples)
-end

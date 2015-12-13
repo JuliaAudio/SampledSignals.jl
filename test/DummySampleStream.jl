@@ -57,8 +57,8 @@
         # fill with 1s of data
         data = rand(DEFAULT_T, (DEFAULT_SR, 2))
         simulate_input(source, data)
-        buf = read(source, 0.5s)
-        @test buf.data == data[1:round(Int, DEFAULT_SR/2), :]
+        buf = read(source, 0.0005s)
+        @test buf.data == data[1:round(Int, 0.0005*DEFAULT_SR), :]
     end
 
     @testset "supports audio interface" begin
@@ -68,5 +68,6 @@
         sink = DummyStereoSink()
         @test samplerate(sink) == DEFAULT_SR
         @test nchannels(sink) == 2
+        @test eltype(source) == DEFAULT_T
     end
 end
