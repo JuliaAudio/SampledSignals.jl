@@ -1,6 +1,7 @@
 # SampleTypes
 
-[![Build Status](https://travis-ci.org/ssfrr/SampleTypes.jl.svg?branch=master)] (https://travis-ci.org/ssfrr/SampleTypes.jl) [![codecov.io] (http://codecov.io/github/ssfrr/SampleTypes.jl/coverage.svg?branch=master)] (http://codecov.io/github/ssfrr/SampleTypes.jl?branch=master)
+[![Build Status](https://travis-ci.org/JuliaAudio/SampleTypes.jl.svg?branch=master)] (https://travis-ci.org/JuliaAudio/SampleTypes.jl)
+[![codecov.io] (http://codecov.io/github/JuliaAudio/SampleTypes.jl/coverage.svg?branch=master)] (http://codecov.io/github/JuliaAudio/SampleTypes.jl?branch=master)
 
 **Note - this is very much a work in progress and not ready for public use**
 
