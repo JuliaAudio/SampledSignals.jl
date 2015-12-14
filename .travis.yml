@@ -11,6 +11,6 @@ notifications:
   email: false
 script:
  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
- - julia -e 'VERSION < v"0.5.0-" && Pkg.add("BaseTestNext"); Pkg.clone(pwd()); Pkg.build("SampleTypes"); Pkg.test("SampleTypes"; coverage=true)'
+ - julia -e 'Pkg.clone(pwd()); Pkg.build("SampleTypes"); Pkg.test("SampleTypes"; coverage=true)'
 after_success:
   - julia -e 'cd(Pkg.dir("SampleTypes")); Pkg.add("Coverage"); using Coverage; Codecov.submit(process_folder())'
