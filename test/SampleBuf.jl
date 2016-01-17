@@ -198,6 +198,14 @@
         @test Base.checksize(buf, trues(size(buf))) == nothing
         @test_throws DimensionMismatch Base.checksize(buf, falses(4))
     end
+    
+    @testset "Channel pointer" begin
+        arr = rand(Float64, 10, 4)
+        buf = TimeSampleBuf(arr, TEST_SR)
+        for ch in 1:4
+            @test unsafe_load(channelptr(buf, ch)) == arr[1, ch]
+        end
+    end
 
     @testset "Invalid units throw an error" begin
         arr = rand(TEST_T, (round(Int, 0.01*TEST_SR), 2))

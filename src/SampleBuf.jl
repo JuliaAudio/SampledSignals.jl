@@ -18,6 +18,12 @@ samplerate{N, SR, T}(::SampleBuf{N, SR, T}) = SR
 nchannels{N, SR, T}(::SampleBuf{N, SR, T}) = N
 nframes(buf::SampleBuf) = size(buf.data, 1)
 
+"""Get a pointer to the underlying data for the buffer. Will return a Ptr{T},
+where T is the element type of the buffer"""
+channelptr{N, SR, T}(buf::SampleBuf{N, SR, T}, channel) =
+    pointer(buf.data) + (channel-1)*nframes(buf) * sizeof(T)
+
+
 # the index types that Base knows how to handle. Separate out those that index
 # multiple results
 typealias BuiltinMultiIdx Union{Colon,
@@ -47,6 +53,9 @@ toindex(buf::SampleBuf, i::SIUnits.SIQuantity) = throw(ArgumentError("$(typeof(i
 # toindex{T <: SIUnits.SIQuantity}(buf::SampleBuf, I::Vector{T}) = Int[toindex(buf, i) for i in I]
 toindex(buf::SampleBuf, I::Interval{Int}) = I.lo:I.hi
 toindex{T <: SIUnits.SIQuantity}(buf::SampleBuf, I::Interval{T}) = toindex(buf, I.lo):toindex(buf, I.hi)
+
+# access the underlying data pointer, useful for passing to C libraries to
+# fill in the data
 
 # AbstractArray interface methods
 Base.size(buf::SampleBuf) = size(buf.data)
