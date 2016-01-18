@@ -9,6 +9,7 @@ using SIUnits.ShortUnits: ns, ms, µs, s, Hz, kHz, MHz, GHz, THz
 typealias RealTime{T <: Real} quantity(T, Second)
 """A Real frequency, measured in Hz"""
 typealias RealFrequency{T <: Real} quantity(T, Hertz)
+typealias SampleRate Rational{UInt}
 
 export SampleBuf, TimeSampleBuf, FrequencySampleBuf
 export SampleSource, SampleSink, read, write

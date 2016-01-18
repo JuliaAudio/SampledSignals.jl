@@ -207,6 +207,15 @@
         end
     end
 
+    @testset "Nice syntax for creating buffers" begin
+        buf = SampleBuf(Float32, TEST_SR, 100, 2)
+        @test nchannels(buf) == 2
+        @test nframes(buf) == 100
+        @test eltype(buf) == Float32
+        @test samplerate(buf) == TEST_SR
+        @test isa(buf, TimeSampleBuf)
+    end
+
     @testset "Invalid units throw an error" begin
         arr = rand(TEST_T, (round(Int, 0.01*TEST_SR), 2))
         buf = TimeSampleBuf(arr, TEST_SR)

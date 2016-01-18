@@ -23,6 +23,7 @@ where T is the element type of the buffer"""
 channelptr{N, SR, T}(buf::SampleBuf{N, SR, T}, channel) =
     pointer(buf.data) + (channel-1)*nframes(buf) * sizeof(T)
 
+SampleBuf(T, SR, dims...) = TimeSampleBuf(Array(T, dims...), SR)
 
 # the index types that Base knows how to handle. Separate out those that index
 # multiple results
