@@ -22,21 +22,33 @@ SampleTypes also implements two concrete `SampleBuf` subtypes for commonly-used 
 * `TimeSampleBuf`, which supports indexing in seconds
 * `FrequencySampleBuf` which supports indexing in hertz
 
-## SampleSource
+### SampleSource
 
 A source of samples, which might for instance represent a microphone input. The `read` method just gives you a single frame (an 1xN N-channel `TimeSampleBuf`), but you can also read an integer number of samples or an amount of time given in seconds. This package includes the `DummySampleSource` concrete type that is useful for testing the stream interface.
 
-## SampleSink
+### SampleSink
 
 A sink for samples to be written to, for instance representing your laptop speakers. The main method used here is `write` which writes a `SampleBuf` to a `SampleSink`. This package includes the `DummySampleSink` concrete type that is useful for testing the stream interface.
+
+## Defining Custom Sink/Source types
+
+Say you have a library that moves audio over a network, or interfaces with some software-defined radio hardware. You should be able to easily tap into the SampleTypes infrastructure by doing the following:
+
+1. subtype `SampleSink{N, SR, T}` and `SampleSource{N, SR, T}`
+2. implement `Base.read!` and `Base.write` for your type, with channel count, sample rate, and type matching between your stream type and the buffer type.
+
+For example, to define `MySink` and `MySource` types, you would define the following methods:
+ 
+```julia
+Base.write{N, SR, T}(sink::MySink{N, SR, T}, buf::TimeSampleBuf{N, SR, T})
+Base.read!{N, SR, T}(src::MySource{N, SR, T}, buf::TimeSampleBuf{N, SR, T})
+```
+
+Other methods, such as the non-modifying `read`, sample-rate converting versions, and time-based indexing are all handled by SampleTypes. You can see the implementation of `DummySampleSink` and `DummySampleSource` in [DummySampleStream.jl](src/DummySampleStream.jl) for a more complete example.
 
 ## Sticky Design Issues
 
 There are a number of issues that I'm still in the process of figuring out:
-
-### Keeping track of sample rate
-
-We want to be able to go between domains (e.g. time/frequency) without losing the exact sample rate, so just keeping a floating point SR in the local domain is problematic. One option is to use `Rational`s for the SR. Currently we keep track of the time-domain sample rate even in the frequency domain and calculate the frequencies assuming the length of the buffer is the length of the FFT. That doesn't work if you want to look at a slice of the frequency-domain buffer.
 
 ### Complexity and Symmetry
 
@@ -48,4 +60,4 @@ Currently for real-valued indices like time we are just rounding to the nearest 
 
 ### Relative vs. Absolute indexing
 
-When we take a slice of a SampleBuf (e.g. take the span from 1s to 3s of a 10s audio buffer), what is the indexing domain of the result? Specifically, is it 1s-3s, or is it 0s-2s? For time-domain signals I can see wanting indexing relative to the beginning of the buffer, bug in frequency-domain buffers it seems you usually want to keep the frequency information. Keeping track of the time information could also be useful if you split out a signal for processing and then want to re-combine things at the end.
+When we take a slice of a SampleBuf (e.g. take the span from 1s to 3s of a 10s audio buffer), what is the indexing domain of the result? Specifically, is it 1s-3s, or is it 0s-2s? For time-domain signals I can see wanting indexing relative to the beginning of the buffer, but in frequency-domain buffers it seems you usually want to keep the frequency information. Keeping track of the time information could also be useful if you split out a signal for processing and then want to re-combine things at the end.
