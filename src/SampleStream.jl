@@ -27,3 +27,21 @@ function Base.read{N, SR, T}(src::SampleSource{N, SR, T}, nframes::Integer)
 
     buf
 end
+
+function Base.write{N, SR, T}(sink::SampleSink{N, SR, T},
+        source::SampleSource{N, SR, T},
+        bufsize=4096)
+    total = 0
+    buf = SampleBuf(T, SR, bufsize, N)
+    while true
+        n = read!(source, buf)
+        total += n
+        if n < bufsize
+            write(sink, buf[1:n, :])
+            break
+        end
+        write(sink, buf)
+    end
+    
+    total
+end

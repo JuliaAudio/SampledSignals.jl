@@ -1,5 +1,4 @@
 @testset "DummySampleStream Tests" begin
-
     const DEFAULT_SR = 48000
     const DEFAULT_T = Float32
 

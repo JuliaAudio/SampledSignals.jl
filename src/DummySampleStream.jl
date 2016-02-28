@@ -3,16 +3,18 @@ type DummySampleSource{N, SR, T <: Real} <: SampleSource{N, SR, T}
     DummySampleSource() = new(Array(T, (0, N)))
 end
 
+DummySampleSource(T, SR, N) = DummySampleSource{N, SR, T}()
+
 type DummySampleSink{N, SR, T <: Real} <: SampleSink{N, SR, T}
     buf::Array{T, 2}
     DummySampleSink() = new(Array(T, (0, N)))
 end
 
+DummySampleSink(T, SR, N) = DummySampleSink{N, SR, T}()
+
 """
 Simulate receiving input on the dummy source This adds data to the internal
 buffer, so that when client code reads from the source they receive this data.
-This will also wake up any tasks that are blocked waiting for data from the
-stream.
 """
 function simulate_input{N, SR, T}(src::DummySampleSource{N, SR, T}, data::Array{T})
     if size(data, 2) != N
@@ -37,9 +39,9 @@ function Base.write{N, SR, T}(sink::DummySampleSink{N, SR, T}, buf::TimeSampleBu
 end
 
 """
-Reads from the given stream and returns a TimeSampleBuf with the data. The
-amount of data to read can be given as an integer number of samples or a
-real-valued number of seconds.
+Fills the given buffer with the data from the stream. If there aren't enough
+frames in the stream then it's considered to be at its end and will only
+partally fill the buffer.
 """
 function Base.read!{N, SR, T}(src::DummySampleSource{N, SR, T}, buf::TimeSampleBuf{N, SR, T})
     n = min(nframes(buf), size(src.buf, 1))

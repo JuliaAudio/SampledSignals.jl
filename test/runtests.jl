@@ -12,6 +12,7 @@ try
         include("DummySampleStream.jl")
         include("SampleBuf.jl")
         include("Interval.jl")
+        include("SampleStream.jl")
     end
 catch err
     exit(-1)

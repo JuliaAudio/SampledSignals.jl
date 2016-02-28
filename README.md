@@ -46,6 +46,29 @@ Base.read!{N, SR, T}(src::MySource{N, SR, T}, buf::TimeSampleBuf{N, SR, T})
 
 Other methods, such as the non-modifying `read`, sample-rate converting versions, and time-based indexing are all handled by SampleTypes. You can see the implementation of `DummySampleSink` and `DummySampleSource` in [DummySampleStream.jl](src/DummySampleStream.jl) for a more complete example.
 
+## Connecting Streams
+
+In addition to reading and writing buffers to streams, you can also set up direct stream-to-stream connections using the `write` function. For instance, if you have the streams `in` and `out`, you can connect them with `write(out, in)`. This will block the current task until the `in` stream ends. The implementation just reads a block at a time from `in` and writes the received data to `out`. You can set the blocksize with an optional third argument, e.g. `write(out, in, 1024)` will read blocks of 1024 frames at a time. The default blocksize is 4096.
+
+## Conversions (TODO)
+
+Sometimes you have a source of data (a `SampleBuf` or `SampleSource`) that is not in the same format as the stream you want to write to. For instance, you may have a audio file recorded at 44.1kHz and want to play to your soundcard configured for 48kHz (samplerate conversion). Or you want to play a mono microphone signal through your stereo soundcard (channel conversion). Or you generated a buffer of floating point values that you want to write to a 16-bit integer WAVE file (format conversion). SampleTypes handles these conversions transparently.
+
+SampleTypes uses SampleSourceWrapper and SampleSinkWrapper types to implement this conversion. Normally these wrappers are created automatically when you attempt an operation that needs conversion, but you can also create them explictly. For instance, if you have a sink `sink` that is operating at 48kHz (say a soundcard output), and a source `source`, the code `write(sink, source)` is equivalent to:
+
+```julia
+wrapper = SampleSinkWrapper(sink, nchannels(sink), 48000, eltype(sink))
+write(wrapper, source)
+```
+
+### Samplerate Conversion
+
+Currently SampleTypes handles resampling with simple linear interpolation. In the future we will likely implement other resampling methods.
+
+### Channel Conversion
+
+### Format Conversion
+
 ## Sticky Design Issues
 
 There are a number of issues that I'm still in the process of figuring out:
