@@ -1,27 +1,25 @@
 type DummySampleSource{N, SR, T <: Real} <: SampleSource{N, SR, T}
     buf::Array{T, 2}
-    DummySampleSource() = new(Array(T, (0, N)))
 end
 
-DummySampleSource(T, SR, N) = DummySampleSource{N, SR, T}()
+DummySampleSource(SR, buf) = DummySampleSource{size(buf, 2), SR, eltype(buf)}(buf)
 
 type DummySampleSink{N, SR, T <: Real} <: SampleSink{N, SR, T}
     buf::Array{T, 2}
-    DummySampleSink() = new(Array(T, (0, N)))
 end
 
-DummySampleSink(T, SR, N) = DummySampleSink{N, SR, T}()
+DummySampleSink(T, SR, N) = DummySampleSink{N, SR, T}(Array(T, 0, N))
 
-"""
-Simulate receiving input on the dummy source This adds data to the internal
-buffer, so that when client code reads from the source they receive this data.
-"""
-function simulate_input{N, SR, T}(src::DummySampleSource{N, SR, T}, data::Array{T})
-    if size(data, 2) != N
-        error("Simulated data channel count must match stream input count")
-    end
-    src.buf = vcat(src.buf, data)
-end
+# """
+# Simulate receiving input on the dummy source This adds data to the internal
+# buffer, so that when client code reads from the source they receive this data.
+# """
+# function simulate_input{N, SR, T}(src::DummySampleSource{N, SR, T}, data::Array{T})
+#     if size(data, 2) != N
+#         error("Simulated data channel count must match stream input count")
+#     end
+#     src.buf = vcat(src.buf, data)
+# end
 
 # stream interface methods
 
