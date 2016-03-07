@@ -84,3 +84,85 @@ Currently for real-valued indices like time we are just rounding to the nearest 
 ### Relative vs. Absolute indexing
 
 When we take a slice of a SampleBuf (e.g. take the span from 1s to 3s of a 10s audio buffer), what is the indexing domain of the result? Specifically, is it 1s-3s, or is it 0s-2s? For time-domain signals I can see wanting indexing relative to the beginning of the buffer, but in frequency-domain buffers it seems you usually want to keep the frequency information. Keeping track of the time information could also be useful if you split out a signal for processing and then want to re-combine things at the end.
+
+### Views/SubArrays
+
+We don't currently implement `sub(buf::SampleBuf, A...)` for view-based indexing, so if you use `sub` you just get back a regular SubArray of the data, and lose the channel / samplerate data. Every time you index with a range you get back a new copy of the data, which is often not great for efficiency. Should we create a `SubSampleBuf` type (and an `AbstractSampleBuf` to contain both `SubSampleBuf` and `SampleBuf`)? 
+
+### Handling conversions
+
+Because we have the sample type, channel count and sampling rate as type parameters, we can talk about samplerate conversions, channel up/down-mixing, etc. in the language of type conversions. For instance, we might want to define `convert(::Type{SampleBuf{N, SR1, T}}, buf::SampleBuf{N, SR2, T})` to resample the given buffer to the new sampling rate. We could also consider a `resample` function, e.g. `resample(buf::SampleBuf, rate)`, but this would not be type-stable because the type of the result buffer would depend on the value of the `rate` parameter.
+
+There are several use cases where conversions come up:
+
+* writing a buffer to a stream with a different rate, channel count, or eltype
+* writing one stream to another stream
+* using `read!` on a stream and giving a receive buffer with different parameters
+
+One issue to consider is that samplerate conversion requires some state, so it's not a great idea to just implement conversion when writing a buffer to a mis-matched stream. You want something that can persist the state across writes.
+
+#### Possible Architectures
+
+1. Create `UpMixSink`, `DownMixSink`, `ResampleSink`, `FormatConvertSink` types, which are wrappers around another `*Sink` type. For example, you might have a `SampleSink{2, 44100, Float32}` wrapped in a `ResampleSink` that's a `SampleSink{2, 48000, Float32}`. When you write a buffer to the `ResampleSink` with a sample rate of 48000, it gets resampled to 44100. It's also able to maintain state across writes so the resampling is correct. We also might want to create converting `Source` wrappers as well, in case we want to convert on `read`s. Calling `convert` on a source or sink would wrap it in a converter object and return the wrapper, or possibly a set of nested converter objects. Calling `convert` on a buffer would give you a new, converted, buffer.
+2. Create `SinkWrapper` and `SourceWrapper` types that handle all the necessary conversion. This might be more efficient as we could do multiple conversions at once instead of nested wrappers.
+2. Define `read!` and `write` for stream-to-stream that just keep the state in the method during the operation.
+
+```julia
+sink = SomeSinkType() # <: SampleSink{2, 44100, Float32}
+source = SomeSourceType() # <: SampleSource{2, 48000, Float32}
+
+# the following should block the task until the source is over (or closed). For
+# this use case I think either architecture would work:
+#  1. wrap the source in a converter and call write
+#  2. wrap the sink in a converter and call write
+#  3. create a temp buffer and a while loop that reads from the source, 
+#     converts, and writes to the sink
+write(sink, source)
+
+snd = load("somefile.wav") # <: SampleBuf{2, 96000, Float32}
+# if it's just this one write of an isolated buffer, we don't really care about
+# continuity so we could:
+#  1. convert the whole buffer and then write it to the sink
+#  2. convert the buffer in pieces and write each to the sink sequentially
+#  3. wrap the sink in a converter object and write the buffer to it
+#  4. wrap the buffer in a converter Source and write it to the sink
+write(sink, snd)
+
+# this is a simple example of processing a stream before passing it along (in 
+# this case just scaling it by 2). In this example we'd want to make sure that
+# the samplerate conversion would maintain state across writes, which doesn't
+# seem possible with any of our architectures above.
+blocksize = 1024
+while true
+    buf = SampleBuf(Float32, 48000, blocksize, 2)
+    n = read!(source, buf)
+    for i in 1:n
+        buf[i] *= 2
+    end
+    write(sink, buf[1:n]) # currently this indexing will allocate and copy :(
+    if n < blocksize
+        break
+    end
+end
+
+# perhaps it needs to be:
+
+blocksize = 1024
+# there appears to be precedent for `convert`ing to an abstract type, e.g.
+# `convert(AbstractFloat, 1/3)`
+wrapper = convert(SampleSource{2, 44100, Float32}, source)
+# or 
+wrapper = SinkWrapper{2, 44100, Float32}(source)
+# or
+wrapper = resample(source, 44100) # not type stable
+while true
+    buf = SampleBuf(Float32, 44100, blocksize, 2)
+    n = read!(wrapper, buf)
+    for i in 1:n
+        buf[i] *= 2
+    end
+    write(sink, buf[1:n]) # currently this indexing will allocate and copy :(
+    if n < blocksize
+        break
+    end
+end

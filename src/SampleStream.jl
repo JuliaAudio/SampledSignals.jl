@@ -50,8 +50,8 @@ function Base.write{N, SR, T}(sink::SampleSink{N, SR, T},
     total
 end
 
-# handle mono-to-mono, to disambiguate between mono-to-multi and multi-to-mono
-# TODO: figure out how not to duplicate the above implementation
+# TODO: this is totally duplicated from the more general N-to-N case, but
+# necessary to disambiguiate between 1-to-N and N-to-1.
 function Base.write{SR, T}(sink::SampleSink{1, SR, T},
         source::SampleSource{1, SR, T},
         bufsize=DEFAULT_BUFSIZE)
@@ -72,52 +72,99 @@ function Base.write{SR, T}(sink::SampleSink{1, SR, T},
     total
 end
 
-# handle mono-to-multichannel conversion.
-function Base.write{N, SR, T}(sink::SampleSink{N, SR, T},
-        source::SampleSource{1, SR, T},
-        bufsize=DEFAULT_BUFSIZE)
+"""UpMixSink provides a single-channel sink that wraps a multi-channel sink.
+Writing to this sink copies the single channel to all the channels in the
+wrapped sink"""
+immutable UpMixSink{N, SR, T, W <: SampleSink} <: SampleSink{1, SR, T}
+    wrapped::W
+    buf::TimeSampleBuf{N, SR, T}
+end
 
-    total = 0
-    monobuf = SampleBuf(T, SR, bufsize, 1)
-    multibuf = SampleBuf(T, SR, bufsize, N)
-    while true
-        n = read!(source, monobuf)
-        total += n
+function UpMixSink{W <: SampleSink}(wrapped::W, bufsize=DEFAULT_BUFSIZE)
+    N = nchannels(wrapped)
+    SR = samplerate(wrapped)
+    T = eltype(wrapped)
+    buf = SampleBuf(T, SR, bufsize, N)
+    
+    UpMixSink{N, SR, T, W}(wrapped, buf)
+end
+
+function Base.write{N, SR, T, W}(sink::UpMixSink{N, SR, T, W}, buf::SampleBuf{1, SR, T})
+    bufsize = nframes(sink.buf)
+    total = nframes(buf)
+    written = 0
+    
+    while written < total
+        n = min(bufsize, total - written)
         for ch in 1:N
-            multibuf[1:n, ch] = monobuf[1:n]
+            sink.buf[1:n, ch] = buf[(1:n) + written]
         end
-        write(sink, multibuf[1:n, :])
-        if n < bufsize
+        actual = write(sink.wrapped, sink.buf[1:n, :])
+        written += actual
+        if actual != n
+            # write stream closed early
             break
         end
     end
     
-    total
+    written
+end
+
+"""DownMixSink provides a multi-channel sink that wraps a single-channel sink.
+Writing to this sink mixes all the channels down to the single channel"""
+immutable DownMixSink{N, SR, T, W <: SampleSink} <: SampleSink{N, SR, T}
+    wrapped::W
+    buf::TimeSampleBuf{1, SR, T}
+end
+
+function DownMixSink{W <: SampleSink}(wrapped::W, channels, bufsize=DEFAULT_BUFSIZE)
+    SR = samplerate(wrapped)
+    T = eltype(wrapped)
+    buf = SampleBuf(T, SR, bufsize, 1)
+    
+    DownMixSink{channels, SR, T, W}(wrapped, buf)
+end
+
+function Base.write{N, SR, T, W}(sink::DownMixSink{N, SR, T, W}, buf::SampleBuf{N, SR, T})
+    bufsize = nframes(sink.buf)
+    total = nframes(buf)
+    written = 0
+    if N == 0
+        error("Can't do channel conversion from a zero-channel source")
+    end
+    
+    while written < total
+        n = min(bufsize, total - written)
+        # initialize with the first channel
+        sink.buf[1:n] = buf[(1:n) + written, 1]
+        for ch in 2:N
+            sink.buf[1:n] += buf[(1:n) + written, ch]
+        end
+        actual = write(sink.wrapped, sink.buf[1:n])
+        written += actual
+        if actual != n
+            # write stream closed early
+            break
+        end
+    end
+    
+    written
+end
+
+# handle mono-to-multichannel conversion.
+function Base.write{N, SR, T}(sink::SampleSink{N, SR, T},
+        source::SampleSource{1, SR, T},
+        bufsize=DEFAULT_BUFSIZE)
+    
+    wrapper = UpMixSink(sink, bufsize)
+    write(wrapper, source, bufsize)
 end
 
 # handle multi-to-mono channel conversion.
 function Base.write{N, SR, T}(sink::SampleSink{1, SR, T},
         source::SampleSource{N, SR, T},
         bufsize=DEFAULT_BUFSIZE)
-    if N == 0
-        error("Can't do channel conversion from a zero-channel source")
-    end
-    
-    total = 0
-    multibuf = SampleBuf(T, SR, bufsize, N)
-    monobuf = SampleBuf(T, SR, bufsize, 1)
-    while true
-        n = read!(source, multibuf)
-        total += n
-        monobuf[1:n] = multibuf[1:n, 1]
-        for ch in 2:N
-            monobuf[1:n] += multibuf[1:n, ch]
-        end
-        write(sink, monobuf[1:n])
-        if n < bufsize
-            break
-        end
-    end
-    
-    total
+        
+    wrapper = DownMixSink(sink, N, bufsize)
+    write(wrapper, source, bufsize)
 end
