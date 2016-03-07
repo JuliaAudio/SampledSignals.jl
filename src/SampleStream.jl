@@ -151,6 +151,40 @@ function Base.write{N, SR, T, W}(sink::DownMixSink{N, SR, T, W}, buf::SampleBuf{
     written
 end
 
+immutable ReformatSink{N, SR, T, W <: SampleSink, WT} <: SampleSink{N, SR, T}
+    wrapped::W
+    buf::TimeSampleBuf{N, SR, WT}
+end
+
+function ReformatSink{W <: SampleSink}(wrapped::W, T, bufsize=DEFAULT_BUFSIZE)
+    SR = samplerate(wrapped)
+    WT = eltype(wrapped)
+    N = nchannels(wrapped)
+    buf = SampleBuf(WT, SR, bufsize, N)
+    
+    ReformatSink{N, SR, T, W, WT}(wrapped, buf)
+end
+
+function Base.write{N, SR, T, W, WT}(sink::ReformatSink{N, SR, T, W, WT}, buf::SampleBuf{N, SR, T})
+    bufsize = nframes(sink.buf)
+    total = nframes(buf)
+    written = 0
+    
+    while written < total
+        n = min(bufsize, total - written)
+        # copy to the buffer, which will convert to the wrapped type
+        sink.buf[1:n, :] = buf[(1:n) + written, :]
+        actual = write(sink.wrapped, sink.buf[1:n, :])
+        written += actual
+        if actual != n
+            # write stream closed early
+            break
+        end
+    end
+    
+    written
+end
+
 # handle mono-to-multichannel conversion.
 function Base.write{N, SR, T}(sink::SampleSink{N, SR, T},
         source::SampleSource{1, SR, T},
@@ -166,5 +200,14 @@ function Base.write{N, SR, T}(sink::SampleSink{1, SR, T},
         bufsize=DEFAULT_BUFSIZE)
         
     wrapper = DownMixSink(sink, N, bufsize)
+    write(wrapper, source, bufsize)
+end
+
+# handle stream conversion
+function Base.write{N, SR, T1, T2}(sink::SampleSink{N, SR, T1},
+        source::SampleSource{N, SR, T2},
+        bufsize=DEFAULT_BUFSIZE)
+        
+    wrapper = ReformatSink(sink, T2, bufsize)
     write(wrapper, source, bufsize)
 end
