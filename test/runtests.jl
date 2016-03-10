@@ -6,6 +6,7 @@ if VERSION >= v"0.5.0-"
 else
     using BaseTestNext
 end
+using FixedPointNumbers
 
 try
     @testset "SampleTypes Tests" begin

@@ -63,4 +63,21 @@
         write(sink, source, 20)
         @test sink.buf == data2
     end
+    
+    @testset "combined conversion" begin
+        sr1 = 48000
+        data1 = rand(Float32, 64, 1) - 0.5
+        sr2 = 44100
+        data2 = Array(Fixed{Int16, 15}, (63 * sr2)÷sr1+1, 2)
+        for i in 1:size(data2, 1)
+            t = (i-1) / sr2
+            v = linterp(data1, sr1, t)
+            data2[i, :] = [v v]
+        end
+
+        source = DummySampleSource(sr1, data1)
+        sink = DummySampleSink(Fixed{Int16, 15}, sr2, 2)
+        write(sink, source, 20)
+        @test sink.buf == data2
+    end
 end

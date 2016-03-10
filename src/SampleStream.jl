@@ -236,38 +236,65 @@ end
 # TODO: bufsize should probably be a keyword arg, this positional argument
 # should probably allow the user to limit how much is written.
 
-# handle mono-to-multichannel conversion.
-function Base.write{N, SR, T}(sink::SampleSink{N, SR, T},
-        source::SampleSource{1, SR, T},
+function Base.write{N1, N2, SR1, SR2, T1, T2}(sink::SampleSink{N1, SR1, T1},
+        source::SampleSource{N2, SR2, T2},
         bufsize=DEFAULT_BUFSIZE)
 
-    wrapper = UpMixSink(sink, bufsize)
-    write(wrapper, source, bufsize)
+    if SR1 != SR2
+        wrapper = ResampleSink(sink, SR2, bufsize)
+        return write(wrapper, source, bufsize)
+    end
+    
+    if T1 != T2
+        wrapper = ReformatSink(sink, T2, bufsize)
+        return write(wrapper, source, bufsize)
+    end
+    
+    if N1 != N2
+        if N1 == 1
+            wrapper = DownMixSink(sink, N2, bufsize)
+            return write(wrapper, source, bufsize)
+        elseif N2 == 1
+            wrapper = UpMixSink(sink, bufsize)
+            return write(wrapper, source, bufsize)
+        else
+            error("General M-to-N channel mapping not supported")
+        end
+    end
 end
 
-# handle multi-to-mono channel conversion.
-function Base.write{N, SR, T}(sink::SampleSink{1, SR, T},
-        source::SampleSource{N, SR, T},
-        bufsize=DEFAULT_BUFSIZE)
-
-    wrapper = DownMixSink(sink, N, bufsize)
-    write(wrapper, source, bufsize)
-end
-
-# handle stream format conversion
-function Base.write{N, SR, T1, T2}(sink::SampleSink{N, SR, T1},
-        source::SampleSource{N, SR, T2},
-        bufsize=DEFAULT_BUFSIZE)
-
-    wrapper = ReformatSink(sink, T2, bufsize)
-    write(wrapper, source, bufsize)
-end
-
-# handle sample rate conversion
-function Base.write{N, SR1, SR2, T}(sink::SampleSink{N, SR1, T},
-        source::SampleSource{N, SR2, T},
-        bufsize=DEFAULT_BUFSIZE)
-
-    wrapper = ResampleSink(sink, SR2, bufsize)
-    write(wrapper, source, bufsize)
-end
+# # handle mono-to-multichannel conversion.
+# function Base.write{N, SR, T}(sink::SampleSink{N, SR, T},
+#         source::SampleSource{1, SR, T},
+#         bufsize=DEFAULT_BUFSIZE)
+# 
+#     wrapper = UpMixSink(sink, bufsize)
+#     write(wrapper, source, bufsize)
+# end
+# 
+# # handle multi-to-mono channel conversion.
+# function Base.write{N, SR, T}(sink::SampleSink{1, SR, T},
+#         source::SampleSource{N, SR, T},
+#         bufsize=DEFAULT_BUFSIZE)
+# 
+#     wrapper = DownMixSink(sink, N, bufsize)
+#     write(wrapper, source, bufsize)
+# end
+# 
+# # handle stream format conversion
+# function Base.write{N, SR, T1, T2}(sink::SampleSink{N, SR, T1},
+#         source::SampleSource{N, SR, T2},
+#         bufsize=DEFAULT_BUFSIZE)
+# 
+#     wrapper = ReformatSink(sink, T2, bufsize)
+#     write(wrapper, source, bufsize)
+# end
+# 
+# # handle sample rate conversion
+# function Base.write{N, SR1, SR2, T}(sink::SampleSink{N, SR1, T},
+#         source::SampleSource{N, SR2, T},
+#         bufsize=DEFAULT_BUFSIZE)
+# 
+#     wrapper = ResampleSink(sink, SR2, bufsize)
+#     write(wrapper, source, bufsize)
+# end
