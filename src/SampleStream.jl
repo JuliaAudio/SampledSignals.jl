@@ -185,11 +185,62 @@ function Base.write{N, SR, T, W, WT}(sink::ReformatSink{N, SR, T, W, WT}, buf::S
     written
 end
 
+type ResampleSink{N, SR, T, W <: SampleSink, WSR} <: SampleSink{N, SR, T}
+    wrapped::W
+    buf::TimeSampleBuf{N, WSR, T}
+    phase::Float64
+    last::Array{T}
+end
+
+function ResampleSink{W <: SampleSink}(wrapped::W, SR, bufsize=DEFAULT_BUFSIZE)
+    WSR = samplerate(wrapped)
+    T = eltype(wrapped)
+    N = nchannels(wrapped)
+    buf = SampleBuf(T, WSR, bufsize, N)
+
+    ResampleSink{N, SR, T, W, WSR}(wrapped, buf, 0.0, zeros(T, N))
+end
+
+function Base.write{N, SR, T, W, WSR}(sink::ResampleSink{N, SR, T, W, WSR}, buf::SampleBuf{N, SR, T})
+    bufsize = nframes(sink.buf)
+    # total is in terms of samples at the wrapped sink rate
+    ratio = SR / WSR
+    total = trunc(Int, (nframes(buf) - 1) / ratio + sink.phase) + 1
+    written = 0
+
+    nframes(buf) == 0 && return 0
+
+    while written < total
+        n = min(nframes(sink.buf), total-written)
+        for i in 1:n
+            bufidx = (written + i-1 - sink.phase)*ratio + 1
+            leftidx = trunc(Int, bufidx)
+            offset = bufidx - leftidx
+            left = (leftidx == 0 ? sink.last : buf[leftidx, :])
+            right = buf[leftidx+1, :]
+            sink.buf[i, :] = (1-offset)*left + offset*right
+        end
+        actual = write(sink.wrapped, sink.buf[1:n, :])
+        written += actual
+        actual == n || break
+    end
+
+    # return the amount written in terms of the buffer's samplerate
+    read = (written == total ? nframes(buf) : trunc(Int, written * ratio))
+    read > 0 && (sink.last = buf.data[read, :])
+    sink.phase = read / ratio + sink.phase - written
+
+    read
+end
+
+# TODO: bufsize should probably be a keyword arg, this positional argument
+# should probably allow the user to limit how much is written.
+
 # handle mono-to-multichannel conversion.
 function Base.write{N, SR, T}(sink::SampleSink{N, SR, T},
         source::SampleSource{1, SR, T},
         bufsize=DEFAULT_BUFSIZE)
-    
+
     wrapper = UpMixSink(sink, bufsize)
     write(wrapper, source, bufsize)
 end
@@ -198,16 +249,25 @@ end
 function Base.write{N, SR, T}(sink::SampleSink{1, SR, T},
         source::SampleSource{N, SR, T},
         bufsize=DEFAULT_BUFSIZE)
-        
+
     wrapper = DownMixSink(sink, N, bufsize)
     write(wrapper, source, bufsize)
 end
 
-# handle stream conversion
+# handle stream format conversion
 function Base.write{N, SR, T1, T2}(sink::SampleSink{N, SR, T1},
         source::SampleSource{N, SR, T2},
         bufsize=DEFAULT_BUFSIZE)
-        
+
     wrapper = ReformatSink(sink, T2, bufsize)
+    write(wrapper, source, bufsize)
+end
+
+# handle sample rate conversion
+function Base.write{N, SR1, SR2, T}(sink::SampleSink{N, SR1, T},
+        source::SampleSource{N, SR2, T},
+        bufsize=DEFAULT_BUFSIZE)
+
+    wrapper = ResampleSink(sink, SR2, bufsize)
     write(wrapper, source, bufsize)
 end
