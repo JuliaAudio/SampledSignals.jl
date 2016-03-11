@@ -4,9 +4,11 @@ samples and N channels. Signals in the time domain are represented by the
 concrete type TimeSampleBuf and frequency-domain signals are represented by
 FrequencySampleBuf. So a 1-second stereo audio buffer sampled at 44100Hz with
 32-bit floating-point samples in the time domain would have the type
-TimeSampleBuf{2, 44100, Float32}.
+TimeSampleBuf{Float32}.
+
+Subtypes should implement `samplerate`, `nchannels`
 """
-abstract SampleBuf{N, SR, T <: Number} <: AbstractArray{T, 2}
+abstract SampleBuf{T <: Number} <: AbstractArray{T, 2}
 
 # terminology:
 # sample - a single value representing the amplitude of 1 channel at some point in time (or frequency)
@@ -14,14 +16,14 @@ abstract SampleBuf{N, SR, T <: Number} <: AbstractArray{T, 2}
 # frame - a collection of samples from each channel that were sampled simultaneously
 
 # audio methods
-samplerate{N, SR, T}(::SampleBuf{N, SR, T}) = SR
-nchannels{N, SR, T}(::SampleBuf{N, SR, T}) = N
+samplerate(buf::SampleBuf) = buf.samplerate
+nchannels(buf::SampleBuf) = size(buf.data, 2)
 nframes(buf::SampleBuf) = size(buf.data, 1)
 
 """Get a pointer to the underlying data for the buffer. Will return a Ptr{T},
 where T is the element type of the buffer"""
-channelptr{N, SR, T}(buf::SampleBuf{N, SR, T}, channel) =
-    pointer(buf.data) + (channel-1)*nframes(buf) * sizeof(T)
+channelptr(buf::SampleBuf, channel) =
+    pointer(buf.data) + (channel-1)*nframes(buf) * sizeof(eltype(buf))
 
 SampleBuf(T, SR, dims...) = TimeSampleBuf(Array(T, dims...), SR)
 
@@ -81,13 +83,13 @@ Base.getindex(buf::SampleBuf, I1::Int, I2::BuiltinMultiIdx) = buf[I1:I1, I2]
 # we have to implement checksize because we always create a 2D buffer even when
 # indexed with a linear range (returning a 1-channel buffer). Defining for the
 # Bool case is just to resolve dispatch ambiguity
-function Base.checksize{SR, T, N}(A::SampleBuf{1, SR, T}, I::AbstractArray{Bool, N})
+function Base.checksize{N}(A::SampleBuf, I::AbstractArray{Bool, N})
     if length(A) != sum(I)
         throw(DimensionMismatch("index 1 selects $(sum(I)) elements, but length(A) = $(length(A))"))
     end
     nothing
 end
-function Base.checksize{SR, T}(A::SampleBuf{1, SR, T}, I::AbstractArray)
+function Base.checksize(A::SampleBuf, I::AbstractArray)
     if length(A) != length(I)
         throw(DimensionMismatch("index 1 has size $(size(I)), but size(A) = $(size(A))"))
     end
@@ -113,12 +115,13 @@ import Base.==
 # TODO: maybe the unit should just be a type parameter and we can combine these
 
 "A time-domain signal. See `SampleBuf` for details"
-immutable TimeSampleBuf{N, SR, T} <: SampleBuf{N, SR, T}
+immutable TimeSampleBuf{T} <: SampleBuf{T}
     data::Array{T, 2}
+    samplerate::SampleRate
 end
 
-TimeSampleBuf{T}(arr::AbstractArray{T, 2}, SR::Real) = TimeSampleBuf{size(arr, 2), SR, T}(arr)
-TimeSampleBuf{T}(arr::AbstractArray{T, 1}, SR::Real) = TimeSampleBuf{1, SR, T}(reshape(arr, (length(arr), 1)))
+TimeSampleBuf{T}(arr::AbstractArray{T, 2}, samplerate::Real) = TimeSampleBuf{T}(arr, samplerate)
+TimeSampleBuf{T}(arr::AbstractArray{T, 1}, samplerate::Real) = TimeSampleBuf(reshape(arr, (length(arr), 1)), samplerate)
 Base.similar{T}(buf::TimeSampleBuf, ::Type{T}, dims::Dims) = TimeSampleBuf(Array(T, dims), samplerate(buf))
 toindex(buf::TimeSampleBuf, t::RealTime) = round(Int, t.val*samplerate(buf)) + 1
 # TODO: we shouldn't need the `collect` once SIUnits supports LinSpace
@@ -126,12 +129,13 @@ domain(buf::TimeSampleBuf) = collect(0:(nframes(buf)-1)) / samplerate(buf) * s
 
 
 "A frequency-domain signal. See `SampleBuf` for details"
-immutable FrequencySampleBuf{N, SR, T} <: SampleBuf{N, SR, T}
+immutable FrequencySampleBuf{T} <: SampleBuf{T}
     data::Array{T, 2}
+    samplerate::SampleRate
 end
 
-FrequencySampleBuf{T}(arr::AbstractArray{T, 2}, SR::Real) = FrequencySampleBuf{size(arr, 2), SR, T}(arr)
-FrequencySampleBuf{T}(arr::AbstractArray{T, 1}, SR::Real) = FrequencySampleBuf{1, SR, T}(reshape(arr, (length(arr), 1)))
+FrequencySampleBuf{T}(arr::AbstractArray{T, 2}, SR::Real) = FrequencySampleBuf{T}(arr, SR)
+FrequencySampleBuf{T}(arr::AbstractArray{T, 1}, samplerate::Real) = FrequencySampleBuf(reshape(arr, (length(arr), 1)), samplerate)
 Base.similar{T}(buf::FrequencySampleBuf, ::Type{T}, dims::Dims) = FrequencySampleBuf(Array(T, dims), samplerate(buf))
 # convert a frequency in Hz to an index. This assumes the buffer represents
 # a spectrum (i.e. the result of an FFT) with the first bin representing 0Hz

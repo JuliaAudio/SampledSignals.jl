@@ -11,10 +11,11 @@ using Devectorize
 typealias RealTime{T <: Real} quantity(T, Second)
 """A Real frequency, measured in Hz"""
 typealias RealFrequency{T <: Real} quantity(T, Hertz)
-typealias SampleRate Rational{UInt}
+typealias SampleRate Rational{Int}
 
 export SampleBuf, TimeSampleBuf, FrequencySampleBuf
 export SampleSource, SampleSink, read, write
+export SampleRate
 export DummySampleSource, DummySampleSink, simulate_input
 export DSPNode
 export Interval, ..

@@ -5,12 +5,10 @@
     DummySource(buf) = DummySampleSource(DEFAULT_SR, buf)
     DummyMonoSink() = DummySampleSink(DEFAULT_T, DEFAULT_SR, 1)
     DummyStereoSink() = DummySampleSink(DEFAULT_T, DEFAULT_SR, 2)
-    const StereoBuf = TimeSampleBuf{2, DEFAULT_SR, DEFAULT_T}
-    const MonoBuf = TimeSampleBuf{1, DEFAULT_SR, DEFAULT_T}
 
     @testset "write writes to buf" begin
         sink = DummyStereoSink()
-        buf = StereoBuf(convert(Array{DEFAULT_T}, randn(32, 2)))
+        buf = SampleBuf(convert(Array{DEFAULT_T}, randn(32, 2)), DEFAULT_SR)
         write(sink, buf)
         @test sink.buf == buf.data
     end

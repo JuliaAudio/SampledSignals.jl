@@ -1,14 +1,22 @@
-type DummySampleSource{N, SR, T <: Real} <: SampleSource{N, SR, T}
+type DummySampleSource{T <: Real} <: SampleSource{T}
     buf::Array{T, 2}
+    samplerate::SampleRate
 end
 
-DummySampleSource(SR, buf) = DummySampleSource{size(buf, 2), SR, eltype(buf)}(buf)
+DummySampleSource(samplerate, buf) = DummySampleSource{eltype(buf)}(buf, samplerate)
 
-type DummySampleSink{N, SR, T <: Real} <: SampleSink{N, SR, T}
+samplerate(source::DummySampleSource) = source.samplerate
+nchannels(source::DummySampleSource) = size(source.buf, 2)
+
+type DummySampleSink{T <: Real} <: SampleSink{T}
     buf::Array{T, 2}
+    samplerate::SampleRate
 end
 
-DummySampleSink(T, SR, N) = DummySampleSink{N, SR, T}(Array(T, 0, N))
+DummySampleSink(T, SR, N) = DummySampleSink{T}(Array(T, 0, N), SR)
+
+samplerate(sink::DummySampleSink) = sink.samplerate
+nchannels(sink::DummySampleSink) = size(sink.buf, 2)
 
 # """
 # Simulate receiving input on the dummy source This adds data to the internal
@@ -29,8 +37,7 @@ queued the Sample will be played immediately. If a previously-written buffer is
 in progress the signal will be queued. To mix multiple signal see the `play`
 function. Currently we only implement the non-resampling, non-converting method.
 """
-function Base.write{N, SR, T}(sink::DummySampleSink{N, SR, T}, buf::TimeSampleBuf{N, SR, T})
-    # TODO: probably should check channels here instead of using dispatch so we can give a better error message
+function unsafe_write(sink::DummySampleSink, buf::TimeSampleBuf)
     sink.buf = vcat(sink.buf, buf.data)
 
     nframes(buf)
@@ -41,7 +48,7 @@ Fills the given buffer with the data from the stream. If there aren't enough
 frames in the stream then it's considered to be at its end and will only
 partally fill the buffer.
 """
-function Base.read!{N, SR, T}(src::DummySampleSource{N, SR, T}, buf::TimeSampleBuf{N, SR, T})
+function unsafe_read!(src::DummySampleSource, buf::TimeSampleBuf)
     n = min(nframes(buf), size(src.buf, 1))
     buf.data[1:n, :] = src.buf[1:n, :]
     src.buf = src.buf[(n+1):end, :]
