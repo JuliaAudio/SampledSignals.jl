@@ -216,17 +216,17 @@
         @test isa(buf, TimeSampleBuf)
     end
 
-    # @testset "sub gives a SampleBuf that references the original instead of copying" begin
-    #     arr = rand(TEST_T, 16)
-    #     buf = SampleBuf(arr, TEST_SR)
-    #
-    #     sub = sub(buf, 5:10)
-    #     @test sub[1] == buf[5]
-    #     buf[7] = 0.0
-    #     sub[2] = 42.0
-    #     @test buf[7] == 42.0
-    # end
-    #
+    @testset "sub references the original instead of copying" begin
+        arr = rand(TEST_T, 16)
+        buf = SampleBuf(arr, TEST_SR)
+    
+        view = sub(buf, 5:10)
+        @test view[1] == buf[5]
+        buf[6] = 0.0
+        view[2] = 42.0
+        @test buf[6] == 42.0
+    end
+    
     @testset "Invalid units throw an error" begin
         arr = rand(TEST_T, (round(Int, 0.01*TEST_SR), 2))
         buf = TimeSampleBuf(arr, TEST_SR)

@@ -5,6 +5,8 @@ module SampleTypes
 using SIUnits
 using SIUnits.ShortUnits: ns, ms, µs, s, Hz, kHz, MHz, GHz, THz
 
+using Devectorize
+
 """A Real amount of time, measured in seconds"""
 typealias RealTime{T <: Real} quantity(T, Second)
 """A Real frequency, measured in Hz"""

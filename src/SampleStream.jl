@@ -97,7 +97,7 @@ function Base.write{N, SR, T, W}(sink::UpMixSink{N, SR, T, W}, buf::SampleBuf{1,
     while written < total
         n = min(bufsize, total - written)
         for ch in 1:N
-            sink.buf[1:n, ch] = buf[(1:n) + written]
+            sink.buf[1:n, ch] = sub(buf, (1:n) + written)
         end
         actual = write(sink.wrapped, sink.buf[1:n, :])
         written += actual
@@ -189,7 +189,7 @@ type ResampleSink{N, SR, T, W <: SampleSink, WSR} <: SampleSink{N, SR, T}
     wrapped::W
     buf::TimeSampleBuf{N, WSR, T}
     phase::Float64
-    last::Array{T}
+    last::Array{T, 1}
 end
 
 function ResampleSink{W <: SampleSink}(wrapped::W, SR, bufsize=DEFAULT_BUFSIZE)
@@ -206,7 +206,7 @@ function Base.write{N, SR, T, W, WSR}(sink::ResampleSink{N, SR, T, W, WSR}, buf:
     # total is in terms of samples at the wrapped sink rate
     ratio = SR / WSR
     total = trunc(Int, (nframes(buf) - 1) / ratio + sink.phase) + 1
-    written = 0
+    written::Int = 0
 
     nframes(buf) == 0 && return 0
 
@@ -216,18 +216,25 @@ function Base.write{N, SR, T, W, WSR}(sink::ResampleSink{N, SR, T, W, WSR}, buf:
             bufidx = (written + i-1 - sink.phase)*ratio + 1
             leftidx = trunc(Int, bufidx)
             offset = bufidx - leftidx
-            left = (leftidx == 0 ? sink.last : buf[leftidx, :])
-            right = buf[leftidx+1, :]
-            sink.buf[i, :] = (1-offset)*left + offset*right
+            right = sub(buf, leftidx+1, :)
+            # note we have to use `.*` here because devectorize doesn't recognize
+            # that our multiplier is scalar. I don't think it makes a difference
+            # though
+            if leftidx == 0
+                @devec sink.buf[i, :] = (1-offset) .* sink.last + offset .* right
+            else
+                left = sub(buf, leftidx, :)
+                @devec sink.buf[i, :] = (1-offset) .* left + offset .* right
+            end
         end
-        actual = write(sink.wrapped, sink.buf[1:n, :])
+        actual::Int = write(sink.wrapped, sink.buf[1:n, :])
         written += actual
         actual == n || break
     end
 
     # return the amount written in terms of the buffer's samplerate
     read = (written == total ? nframes(buf) : trunc(Int, written * ratio))
-    read > 0 && (sink.last = buf.data[read, :])
+    read > 0 && (sink.last[:] = sub(buf, read, :))
     sink.phase = read / ratio + sink.phase - written
 
     read
@@ -261,6 +268,8 @@ function Base.write{N1, N2, SR1, SR2, T1, T2}(sink::SampleSink{N1, SR1, T1},
             error("General M-to-N channel mapping not supported")
         end
     end
+    
+    error("Couldn't write $(typeof(source)) to $(typeof(sink))")
 end
 
 # # handle mono-to-multichannel conversion.

@@ -61,7 +61,7 @@
         source = DummySampleSource(sr1, data1)
         sink = DummySampleSink(Float32, sr2, 2)
         write(sink, source, 20)
-        @test sink.buf == data2
+        @test isapprox(sink.buf, data2)
     end
     
     @testset "combined conversion" begin
