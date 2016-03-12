@@ -7,7 +7,8 @@
         source = DummySampleSource(48000, data)
         sink = DummySampleSink(Float32, 48000, 2)
         # write 20 frames at a time
-        write(sink, source, bufsize=20)
+        n = write(sink, source, bufsize=20)
+        @test n == 64
         @test sink.buf == data
     end
 
@@ -87,8 +88,31 @@
         data = rand(Float32, 64, 2)
         source = DummySampleSource(48000, data)
         sink = DummySampleSink(Float32, 48000, 2)
-        # write 20 frames at a time
-        write(sink, source, 20, bufsize=8)
+        n = write(sink, source, 20, bufsize=8)
+        @test n == 20
         @test sink.buf == data[1:20, :]
+    end
+
+    @testset "stream reading supports duration in seconds" begin
+        data = rand(Float32, 64, 2)
+        source = DummySampleSource(48000, data)
+        sink = DummySampleSink(Float32, 48000, 2)
+        duration = 20 / 48000
+        # we should get back the exact duration given even if it's not exactly
+        # on a sample boundary
+        duration = (duration + eps(duration)) * s
+        t = write(sink, source, duration, bufsize=8)
+        @test t == duration
+        @test sink.buf == data[1:20, :]
+    end
+
+    @testset "stream reading supports duration in seconds when stream ends" begin
+        data = rand(Float32, 64, 2)
+        source = DummySampleSource(48000, data)
+        sink = DummySampleSink(Float32, 48000, 2)
+        duration = 1.0s
+        t = write(sink, source, duration, bufsize=8)
+        @test t == (64/48000) * s
+        @test sink.buf == data
     end
 end

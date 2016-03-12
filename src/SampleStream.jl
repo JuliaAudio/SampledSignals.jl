@@ -66,6 +66,20 @@ end
 
 const DEFAULT_BUFSIZE=4096
 
+# handle sink-to-source writing with a duration in seconds
+function Base.write{T <: Real}(sink::SampleSink, source::SampleSource,
+        duration::quantity(T, Second); bufsize=DEFAULT_BUFSIZE)
+    # TODO: this will have to be tweaked if we have samplerate(sink) return
+    # a unitful quantity in Hz
+    sr = samplerate(sink)
+    frames = trunc(Int, duration.val * sr)
+    n = write(sink, source, frames; bufsize=bufsize)
+
+    # if we completed the operation return back the original duration so the
+    # caller can check equality to see if the operation succeeded
+    n == frames ? duration : T(n/sr) * s
+end
+
 function Base.write(sink::SampleSink, source::SampleSource, frames=-1; bufsize=DEFAULT_BUFSIZE)
     if samplerate(sink) != samplerate(source)
         sink = ResampleSink(sink, samplerate(source), bufsize)
