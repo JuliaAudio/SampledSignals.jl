@@ -30,6 +30,26 @@ A source of samples, which might for instance represent a microphone input. The 
 
 A sink for samples to be written to, for instance representing your laptop speakers. The main method used here is `write` which writes a `SampleBuf` to a `SampleSink`. This package includes the `DummySampleSink` concrete type that is useful for testing the stream interface.
 
+## Stream Read/Write Semantics
+
+SampleTypes tries to keep the semantics of reading and writing simple and consistent. If a read or write is attempted and there's not enough space or samples available (but the stream is still open), the operation will block the task until it can proceed. If the stream is closed, you can always check the return value of the operation for a partially-completed read or write.
+
+Rather than specifying read and write durations in terms of frames, you can also specify in seconds. In this case `read!` and `write` will return seconds as well. If the operation completes fully, the returned duration will exactly match the given duration, so you can still check for equality.
+
+`read!(source, buf)` reads from `source` and places the data in `buf`. It returns the number of frames that were read. If the number returned is less than the length of `buf`, you know that `source` was closed before the read was complete.
+
+`read(source, n)` reads `n` frames from the source and returns a new buffer filled with their contents. If the length of the returned buffer is shorter than `n` then you know that `source` was closed before the read was complete.
+
+`write(sink, buf)` writes the contents of `buf` into `sink`, and returns the number of frames that were written. If fewer frames were written than the length of `buf`, you know that `sink` was closed before the write was complete.
+
+`write(sink, source)` reads from `source` and writes to `sink` a block at a time, and returns the number of frames written to `sink`.
+
+`write(sink, source, n)` reads from `source` and writes to `sink` a block at a time, and returns the number of frames written to `sink`. If both the streams stay open it will return after writing `n` frames.
+
+`read!(source, sink)` reads from `source` and writes to `sink` a block at a time, and returns the number of frames read from `source`. This method is not currently implemented.
+
+Note that when connecting `source`s to `sink`s, the only difference between `read!` and `write` is the return value. If the sampling rates match then the value returned should be the same in both cases, but will be different in the case of a samplerate conversion.
+
 ## Defining Custom Sink/Source types
 
 Say you have a library that moves audio over a network, or interfaces with some software-defined radio hardware. You should be able to easily tap into the SampleTypes infrastructure by doing the following:

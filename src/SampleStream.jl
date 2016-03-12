@@ -66,17 +66,17 @@ end
 
 const DEFAULT_BUFSIZE=4096
 
-function Base.write(sink::SampleSink, source::SampleSource, bufsize=DEFAULT_BUFSIZE)
+function Base.write(sink::SampleSink, source::SampleSource, frames=-1; bufsize=DEFAULT_BUFSIZE)
     if samplerate(sink) != samplerate(source)
         sink = ResampleSink(sink, samplerate(source), bufsize)
         # return write(srwrapper, source, bufsize)
     end
-    
+
     if eltype(sink) != eltype(source)
         sink = ReformatSink(sink, eltype(source), bufsize)
         # return write(fmtwrapper, source, bufsize)
     end
-    
+
     if nchannels(sink) != nchannels(source)
         if nchannels(sink) == 1
             sink = DownMixSink(sink, nchannels(source), bufsize)
@@ -90,25 +90,37 @@ function Base.write(sink::SampleSink, source::SampleSource, bufsize=DEFAULT_BUFS
     end
     # looks like everything matches, now we can actually hook up the source
     # to the sink
-    unsafe_write(sink, source, bufsize)
+    unsafe_write(sink, source, frames; bufsize=bufsize)
 end
 
-function unsafe_write(sink::SampleSink, source::SampleSource, bufsize=DEFAULT_BUFSIZE)
-    total = 0
+function unsafe_write(sink::SampleSink, source::SampleSource, frames=-1; bufsize=DEFAULT_BUFSIZE)
+    written = 0
     buf = SampleBuf(eltype(source), samplerate(source), bufsize, nchannels(source))
-    while true
-        n = unsafe_read!(source, buf)
-        total += n
+    while frames < 0 || written < frames
+        n = frames < 0 ? bufsize : min(bufsize, frames - written)
+        # this branch is just to avoid the allocation for the receive buffer
         if n < bufsize
-            # this currently allocates a temporary buffer, so only do it when
-            # we need to
-            unsafe_write(sink, buf[1:n, :])
+            # TODO: add a frames parameter to unsafe_read! API so we don't need
+            # to create a new buffer for this, or add subarray support
+            buf = SampleBuf(eltype(source), samplerate(source), n, nchannels(source))
+        end
+        nr = unsafe_read!(source, buf)
+        if nr < n
+            # looks like the source stream is over. This currently allocates a
+            # temporary buffer, so only do it when we need to
+            nw = unsafe_write(sink, buf[1:nr, :])
+            written += nw
             break
         end
-        unsafe_write(sink, buf)
+        nw = unsafe_write(sink, buf)
+        written += nw
+        if nw < n
+            # looks like the sink stream is closed
+            break
+        end
     end
-    
-    total
+
+    written
 end
 
 function Base.write(sink::SampleSink, buf::SampleBuf)
@@ -121,7 +133,7 @@ function Base.write(sink::SampleSink, buf::SampleBuf)
     if samplerate(sink) != samplerate(buf)
         error("Sample rate mismatch while writing buffer to sink")
     end
-    
+
     unsafe_write(sink, buf)
 end
 
@@ -135,7 +147,7 @@ function Base.read!(source::SampleSource, buf::SampleBuf)
     if samplerate(source) != samplerate(buf)
         error("Sample rate mismatch while reading sink to buffer")
     end
-    
+
     unsafe_read!(source, buf)
 end
 
@@ -152,7 +164,7 @@ function UpMixSink{W <: SampleSink}(wrapped::W, bufsize=DEFAULT_BUFSIZE)
     SR = samplerate(wrapped)
     T = eltype(wrapped)
     buf = SampleBuf(T, SR, bufsize, N)
-    
+
     UpMixSink{T, W}(wrapped, buf)
 end
 
@@ -163,7 +175,7 @@ function unsafe_write(sink::UpMixSink, buf::SampleBuf)
     bufsize = nframes(sink.buf)
     total = nframes(buf)
     written = 0
-    
+
     while written < total
         n = min(bufsize, total - written)
         for ch in 1:nchannels(sink.wrapped)
@@ -176,7 +188,7 @@ function unsafe_write(sink::UpMixSink, buf::SampleBuf)
             break
         end
     end
-    
+
     written
 end
 
@@ -192,7 +204,7 @@ function DownMixSink{W <: SampleSink}(wrapped::W, channels, bufsize=DEFAULT_BUFS
     SR = samplerate(wrapped)
     T = eltype(wrapped)
     buf = SampleBuf(T, SR, bufsize, 1)
-    
+
     DownMixSink{T, W}(wrapped, buf, channels)
 end
 
@@ -206,7 +218,7 @@ function unsafe_write(sink::DownMixSink, buf::SampleBuf)
     if nchannels(buf) == 0
         error("Can't do channel conversion from a zero-channel source")
     end
-    
+
     while written < total
         n = min(bufsize, total - written)
         # initialize with the first channel
@@ -221,7 +233,7 @@ function unsafe_write(sink::DownMixSink, buf::SampleBuf)
             break
         end
     end
-    
+
     written
 end
 
@@ -235,7 +247,7 @@ function ReformatSink{W <: SampleSink}(wrapped::W, T, bufsize=DEFAULT_BUFSIZE)
     WT = eltype(wrapped)
     N = nchannels(wrapped)
     buf = SampleBuf(WT, SR, bufsize, N)
-    
+
     ReformatSink{T, W, WT}(wrapped, buf)
 end
 
@@ -246,7 +258,7 @@ function unsafe_write(sink::ReformatSink, buf::SampleBuf)
     bufsize = nframes(sink.buf)
     total = nframes(buf)
     written = 0
-    
+
     while written < total
         n = min(bufsize, total - written)
         # copy to the buffer, which will convert to the wrapped type
@@ -258,7 +270,7 @@ function unsafe_write(sink::ReformatSink, buf::SampleBuf)
             break
         end
     end
-    
+
     written
 end
 

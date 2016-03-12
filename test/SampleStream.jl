@@ -7,7 +7,7 @@
         source = DummySampleSource(48000, data)
         sink = DummySampleSink(Float32, 48000, 2)
         # write 20 frames at a time
-        write(sink, source, 20)
+        write(sink, source, bufsize=20)
         @test sink.buf == data
     end
 
@@ -15,15 +15,15 @@
         data = rand(Float32, 64, 1)
         source = DummySampleSource(48000, data)
         sink = DummySampleSink(Float32, 48000, 2)
-        write(sink, source, 20)
+        write(sink, source, bufsize=20)
         @test sink.buf == [data data]
     end
-    
+
     @testset "multi-to-single channel stream conversion" begin
         data = rand(Float32, 64, 2)
         source = DummySampleSource(48000, data)
         sink = DummySampleSink(Float32, 48000, 1)
-        write(sink, source, 20)
+        write(sink, source, bufsize=20)
         @test sink.buf == data[:, 1:1] + data[:, 2:2]
     end
 
@@ -32,22 +32,22 @@
         fdata = convert(Array{Float32}, data)
         source = DummySampleSource(48000, data)
         sink = DummySampleSink(Float32, 48000, 2)
-        write(sink, source, 20)
+        write(sink, source, bufsize=20)
         @test sink.buf == fdata
     end
-    
+
     """Linearly interpolate the given array"""
     function linterp(v::AbstractArray, sr::Real, t::Real)
         idx = sr*t+1
         left = round(Int, idx, RoundDown)
         right = left+1
         offset = idx - left
-    
+
         right > size(v, 1) && error("Tried to interpolate past the end of the vector")
-    
+
         v[left, :] * (1-offset) + v[right, :] * offset
     end
-    
+
     @testset "samplerate conversion" begin
         sr1 = 48000
         data1 = rand(Float32, 64, 2)
@@ -57,13 +57,13 @@
             t = (i-1) / sr2
             data2[i, :] = linterp(data1, sr1, t)
         end
-    
+
         source = DummySampleSource(sr1, data1)
         sink = DummySampleSink(Float32, sr2, 2)
-        write(sink, source, 20)
+        write(sink, source, bufsize=20)
         @test isapprox(sink.buf, data2)
     end
-    
+
     @testset "combined conversion" begin
         sr1 = 48000
         data1 = rand(Float32, 64, 1) - 0.5
@@ -74,12 +74,21 @@
             v = linterp(data1, sr1, t)
             data2[i, :] = [v v]
         end
-    
+
         source = DummySampleSource(sr1, data1)
         sink = DummySampleSink(Fixed{Int16, 15}, sr2, 2)
-        write(sink, source, 20)
+        write(sink, source, bufsize=20)
         # we can get slightly different results depending on whether we resample
         # before or after converting data types
         @test isapprox(sink.buf, data2)
+    end
+
+    @testset "stream reading supports frame count" begin
+        data = rand(Float32, 64, 2)
+        source = DummySampleSource(48000, data)
+        sink = DummySampleSink(Float32, 48000, 2)
+        # write 20 frames at a time
+        write(sink, source, 20, bufsize=8)
+        @test sink.buf == data[1:20, :]
     end
 end
