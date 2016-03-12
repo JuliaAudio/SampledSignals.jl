@@ -104,10 +104,10 @@ function Base.write(sink::SampleSink, source::SampleSource, frames=-1; bufsize=D
     end
     # looks like everything matches, now we can actually hook up the source
     # to the sink
-    unsafe_write(sink, source, frames; bufsize=bufsize)
+    unsafe_write(sink, source, frames, bufsize)
 end
 
-function unsafe_write(sink::SampleSink, source::SampleSource, frames=-1; bufsize=DEFAULT_BUFSIZE)
+function unsafe_write(sink::SampleSink, source::SampleSource, frames=-1, bufsize=DEFAULT_BUFSIZE)
     written = 0
     buf = SampleBuf(eltype(source), samplerate(source), bufsize, nchannels(source))
     while frames < 0 || written < frames
@@ -195,7 +195,12 @@ function unsafe_write(sink::UpMixSink, buf::SampleBuf)
         for ch in 1:nchannels(sink.wrapped)
             sink.buf[1:n, ch] = sub(buf, (1:n) + written)
         end
-        actual = write(sink.wrapped, sink.buf[1:n, :])
+        # only slice if we have to
+        if n == bufsize
+            actual = unsafe_write(sink.wrapped, sink.buf)
+        else
+            actual = unsafe_write(sink.wrapped, sink.buf[1:n, :])
+        end
         written += actual
         if actual != n
             # write stream closed early
@@ -240,7 +245,12 @@ function unsafe_write(sink::DownMixSink, buf::SampleBuf)
         for ch in 2:nchannels(buf)
             sink.buf[1:n] += buf[(1:n) + written, ch]
         end
-        actual = write(sink.wrapped, sink.buf[1:n])
+        # only slice if we have to
+        if n == bufsize
+            actual = unsafe_write(sink.wrapped, sink.buf)
+        else
+            actual = unsafe_write(sink.wrapped, sink.buf[1:n])
+        end
         written += actual
         if actual != n
             # write stream closed early
@@ -276,8 +286,13 @@ function unsafe_write(sink::ReformatSink, buf::SampleBuf)
     while written < total
         n = min(bufsize, total - written)
         # copy to the buffer, which will convert to the wrapped type
-        sink.buf[1:n, :] = buf[(1:n) + written, :]
-        actual = write(sink.wrapped, sink.buf[1:n, :])
+        sink.buf[1:n, :] = sub(buf, (1:n) + written, :)
+        # only slice if we have to
+        if n == bufsize
+            actual = unsafe_write(sink.wrapped, sink.buf)
+        else
+            actual = unsafe_write(sink.wrapped, sink.buf[1:n, :])
+        end
         written += actual
         if actual != n
             # write stream closed early
@@ -308,7 +323,7 @@ end
 samplerate(sink::ResampleSink) = sink.samplerate
 nchannels(sink::ResampleSink) = nchannels(sink.wrapped)
 
-function unsafe_write(sink::ResampleSink, buf::SampleBuf)
+function unsafe_write{T, W}(sink::ResampleSink{T, W}, buf::SampleBuf{T})
     bufsize = nframes(sink.buf)
     # total is in terms of samples at the wrapped sink rate
     ratio = samplerate(sink) / samplerate(sink.wrapped)
@@ -323,18 +338,22 @@ function unsafe_write(sink::ResampleSink, buf::SampleBuf)
             bufidx = (written + i-1 - sink.phase)*ratio + 1
             leftidx = trunc(Int, bufidx)
             offset = bufidx - leftidx
-            right = sub(buf, leftidx+1, :)
+            # right[:] = sub(buf, leftidx+1, :)
             # note we have to use `.*` here because devectorize doesn't recognize
             # that our multiplier is scalar. I don't think it makes a difference
             # though
-            if leftidx == 0
-                @devec sink.buf[i, :] = (1-offset) .* sink.last + offset .* right
-            else
-                left = sub(buf, leftidx, :)
-                @devec sink.buf[i, :] = (1-offset) .* left + offset .* right
+            for ch in 1:nchannels(buf)
+                left = leftidx == 0 ? sink.last[ch] : buf[leftidx, ch]
+                sink.buf[i, ch] = (1-offset) * left + offset * buf[leftidx+1, ch]
             end
         end
-        actual::Int = write(sink.wrapped, sink.buf[1:n, :])
+        # only slice if we have to, to avoid allocating
+        actual::Int
+        if n == bufsize
+            actual = unsafe_write(sink.wrapped, sink.buf)
+        else
+            actual = unsafe_write(sink.wrapped, sink.buf[1:n, :])
+        end
         written += actual
         actual == n || break
     end
