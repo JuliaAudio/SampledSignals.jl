@@ -1,22 +1,26 @@
-type DummySampleSource{T <: Real} <: SampleSource{T}
+type DummySampleSource{T <: Real, U <: SIQuantity} <: SampleSource
     buf::Array{T, 2}
-    samplerate::SampleRate
+    samplerate::U
 end
 
-DummySampleSource(samplerate, buf) = DummySampleSource{eltype(buf)}(buf, samplerate)
+DummySampleSource(samplerate::SIQuantity, buf) = DummySampleSource(buf, samplerate)
+DummySampleSource(samplerate::Real, buf) = DummySampleSource(samplerate*Hz, buf)
 
 samplerate(source::DummySampleSource) = source.samplerate
 nchannels(source::DummySampleSource) = size(source.buf, 2)
+Base.eltype(source::DummySampleSource) = eltype(source.buf)
 
-type DummySampleSink{T <: Real} <: SampleSink{T}
+type DummySampleSink{T <: Real, U <: SIQuantity} <: SampleSink
     buf::Array{T, 2}
-    samplerate::SampleRate
+    samplerate::U
 end
 
-DummySampleSink(T, SR, N) = DummySampleSink{T}(Array(T, 0, N), SR)
+DummySampleSink(T, SR::SIQuantity, N) = DummySampleSink(Array(T, 0, N), SR)
+DummySampleSink(T, SR::Real, N) = DummySampleSink(T, SR*Hz, N)
 
 samplerate(sink::DummySampleSink) = sink.samplerate
 nchannels(sink::DummySampleSink) = size(sink.buf, 2)
+Base.eltype(sink::DummySampleSink) = eltype(sink.buf)
 
 # """
 # Simulate receiving input on the dummy source This adds data to the internal
@@ -37,7 +41,7 @@ queued the Sample will be played immediately. If a previously-written buffer is
 in progress the signal will be queued. To mix multiple signal see the `play`
 function. Currently we only implement the non-resampling, non-converting method.
 """
-function unsafe_write(sink::DummySampleSink, buf::TimeSampleBuf)
+function unsafe_write(sink::DummySampleSink, buf::SampleBuf)
     sink.buf = vcat(sink.buf, buf.data)
 
     nframes(buf)
@@ -48,7 +52,7 @@ Fills the given buffer with the data from the stream. If there aren't enough
 frames in the stream then it's considered to be at its end and will only
 partally fill the buffer.
 """
-function unsafe_read!(src::DummySampleSource, buf::TimeSampleBuf)
+function unsafe_read!(src::DummySampleSource, buf::SampleBuf)
     n = min(nframes(buf), size(src.buf, 1))
     buf.data[1:n, :] = src.buf[1:n, :]
     src.buf = src.buf[(n+1):end, :]

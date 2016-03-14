@@ -1,17 +1,11 @@
 """
-Represents a sample stream, which could be a physical device like a sound card,
-or a network audio stream, audio file, etc.
-"""
-abstract SampleStream{T}
-
-"""
 Represents a source of samples, such as an audio file or microphone input.
 
-Subtypes should implement the `samplerate`, `nchannels`, and `unsafe_read!`
-methods. `unsafe_read!` can assume that the samplerate, channel count, and
-element type are all matching.
+Subtypes should implement the `samplerate`, `nchannels`, `eltype`, and
+`unsafe_read!` methods. `unsafe_read!` can assume that the samplerate, channel
+count, and element type are all matching.
 """
-abstract SampleSource{T <: Real} <: SampleStream{T}
+abstract SampleSource
 
 """
 unsafe_read!(source::SampleSource, buf::SampleBuf)
@@ -28,11 +22,11 @@ function unsafe_read! end
 Represents a sink that samples can be written to, such as an audio file or
 headphone output.
 
-Subtypes should implement the `samplerate`, `nchannels`, and `unsafe_write`
-methods. `unsafe_write` can assume that the samplerate, channel count, and
-element type are all matching.
+Subtypes should implement the `samplerate`, `nchannels`, `eltype`, and
+`unsafe_write` methods. `unsafe_write` can assume that the samplerate, channel
+count, and element type are all matching.
 """
-abstract SampleSink{T <: Real} <: SampleStream{T}
+abstract SampleSink
 
 """
 unsafe_write(sink::SampleSink, buf::SampleBuf)
@@ -44,18 +38,14 @@ the buffer and sink are compatible, or possibly adds a conversion wrapper.
 """
 function unsafe_write end
 
-# audio interface methods
-
-Base.eltype{T}(stream::SampleStream{T}) = T
-
 # TODO: probably generalize to all units...
-toindex(stream::SampleSource, t::RealTime) = round(Int, t.val*samplerate(stream)) + 1
+toindex(stream::SampleSource, t::SIQuantity) = round(Int, t*samplerate(stream)) + 1
 
 # subtypes should only have to implement the `unsafe_read!` and `unsafe_write` methods, so
 # here we implement all the converting wrapper methods
 
 # when used as an amount of time to read, subtract one from the result of `toindex`
-Base.read(stream::SampleSource, t::RealTime) = read(stream, toindex(stream, t)-1)
+Base.read(stream::SampleSource, t::SIQuantity) = read(stream, toindex(stream, t)-1)
 
 function Base.read(src::SampleSource, nframes::Integer)
     buf = SampleBuf(eltype(src), samplerate(src), nframes, nchannels(src))
@@ -69,15 +59,13 @@ const DEFAULT_BUFSIZE=4096
 # handle sink-to-source writing with a duration in seconds
 function Base.write{T <: Real}(sink::SampleSink, source::SampleSource,
         duration::quantity(T, Second); bufsize=DEFAULT_BUFSIZE)
-    # TODO: this will have to be tweaked if we have samplerate(sink) return
-    # a unitful quantity in Hz
     sr = samplerate(sink)
-    frames = trunc(Int, duration.val * sr)
+    frames = trunc(Int, duration * sr)
     n = write(sink, source, frames; bufsize=bufsize)
 
     # if we completed the operation return back the original duration so the
     # caller can check equality to see if the operation succeeded
-    n == frames ? duration : T(n/sr) * s
+    n == frames ? duration : T(n/sr.val) * s
 end
 
 function Base.write(sink::SampleSink, source::SampleSource, frames=-1; bufsize=DEFAULT_BUFSIZE)
@@ -168,22 +156,23 @@ end
 """UpMixSink provides a single-channel sink that wraps a multi-channel sink.
 Writing to this sink copies the single channel to all the channels in the
 wrapped sink"""
-immutable UpMixSink{T, W <: SampleSink} <: SampleSink{T}
+immutable UpMixSink{W <: SampleSink, B <: SampleBuf} <: SampleSink
     wrapped::W
-    buf::TimeSampleBuf{T}
+    buf::B
 end
 
-function UpMixSink{W <: SampleSink}(wrapped::W, bufsize=DEFAULT_BUFSIZE)
+function UpMixSink(wrapped::SampleSink, bufsize=DEFAULT_BUFSIZE)
     N = nchannels(wrapped)
     SR = samplerate(wrapped)
     T = eltype(wrapped)
     buf = SampleBuf(T, SR, bufsize, N)
 
-    UpMixSink{T, W}(wrapped, buf)
+    UpMixSink(wrapped, buf)
 end
 
 samplerate(sink::UpMixSink) = samplerate(sink.wrapped)
 nchannels(sink::UpMixSink) = 1
+Base.eltype(sink::UpMixSink) = eltype(sink.wrapped)
 
 function unsafe_write(sink::UpMixSink, buf::SampleBuf)
     bufsize = nframes(sink.buf)
@@ -213,22 +202,23 @@ end
 
 """DownMixSink provides a multi-channel sink that wraps a single-channel sink.
 Writing to this sink mixes all the channels down to the single channel"""
-immutable DownMixSink{T, W <: SampleSink} <: SampleSink{T}
+immutable DownMixSink{W <: SampleSink, B <: SampleBuf} <: SampleSink
     wrapped::W
-    buf::TimeSampleBuf{T}
+    buf::B
     channels::Int
 end
 
-function DownMixSink{W <: SampleSink}(wrapped::W, channels, bufsize=DEFAULT_BUFSIZE)
+function DownMixSink(wrapped::SampleSink, channels, bufsize=DEFAULT_BUFSIZE)
     SR = samplerate(wrapped)
     T = eltype(wrapped)
     buf = SampleBuf(T, SR, bufsize, 1)
 
-    DownMixSink{T, W}(wrapped, buf, channels)
+    DownMixSink(wrapped, buf, channels)
 end
 
 samplerate(sink::DownMixSink) = samplerate(sink.wrapped)
 nchannels(sink::DownMixSink) = sink.channels
+Base.eltype(sink::DownMixSink) = eltype(sink.wrapped)
 
 function unsafe_write(sink::DownMixSink, buf::SampleBuf)
     bufsize = nframes(sink.buf)
@@ -261,22 +251,23 @@ function unsafe_write(sink::DownMixSink, buf::SampleBuf)
     written
 end
 
-immutable ReformatSink{T, W <: SampleSink, WT} <: SampleSink{T}
+immutable ReformatSink{W <: SampleSink, B <: SampleBuf} <: SampleSink
     wrapped::W
-    buf::TimeSampleBuf{WT}
+    buf::B
 end
 
-function ReformatSink{W <: SampleSink}(wrapped::W, T, bufsize=DEFAULT_BUFSIZE)
+function ReformatSink(wrapped::SampleSink, T, bufsize=DEFAULT_BUFSIZE)
     SR = samplerate(wrapped)
     WT = eltype(wrapped)
     N = nchannels(wrapped)
     buf = SampleBuf(WT, SR, bufsize, N)
 
-    ReformatSink{T, W, WT}(wrapped, buf)
+    ReformatSink(wrapped, buf)
 end
 
 samplerate(sink::ReformatSink) = samplerate(sink.wrapped)
 nchannels(sink::ReformatSink) = nchannels(sink.wrapped)
+Base.eltype(sink::ReformatSink) = eltype(sink.wrapped)
 
 function unsafe_write(sink::ReformatSink, buf::SampleBuf)
     bufsize = nframes(sink.buf)
@@ -303,27 +294,32 @@ function unsafe_write(sink::ReformatSink, buf::SampleBuf)
     written
 end
 
-type ResampleSink{T, W <: SampleSink} <: SampleSink{T}
+type ResampleSink{W <: SampleSink, U <: SIQuantity, B <: SampleBuf, A <: Array} <: SampleSink
     wrapped::W
-    samplerate::SampleRate
-    buf::TimeSampleBuf{T}
+    samplerate::U
+    buf::B
     phase::Float64
-    last::Array{T, 1}
+    last::A
 end
 
-function ResampleSink{W <: SampleSink}(wrapped::W, SR, bufsize=DEFAULT_BUFSIZE)
+function ResampleSink(wrapped::SampleSink, SR::SIQuantity, bufsize=DEFAULT_BUFSIZE)
     WSR = samplerate(wrapped)
     T = eltype(wrapped)
     N = nchannels(wrapped)
     buf = SampleBuf(T, WSR, bufsize, N)
 
-    ResampleSink{T, W}(wrapped, SR, buf, 0.0, zeros(T, N))
+    ResampleSink(wrapped, SR, buf, 0.0, zeros(T, N))
 end
+
+# default sample rate unit to Hz
+ResampleSink(wrapped, SR::Real, bufsize=DEFAULT_BUFSIZE) =
+    ResampleSink(wrapped, SR*Hz, bufsize)
 
 samplerate(sink::ResampleSink) = sink.samplerate
 nchannels(sink::ResampleSink) = nchannels(sink.wrapped)
+Base.eltype(sink::ResampleSink) = eltype(sink.wrapped)
 
-function unsafe_write{T, W}(sink::ResampleSink{T, W}, buf::SampleBuf{T})
+function unsafe_write(sink::ResampleSink, buf::SampleBuf)
     bufsize = nframes(sink.buf)
     # total is in terms of samples at the wrapped sink rate
     ratio = samplerate(sink) / samplerate(sink.wrapped)
@@ -338,10 +334,6 @@ function unsafe_write{T, W}(sink::ResampleSink{T, W}, buf::SampleBuf{T})
             bufidx = (written + i-1 - sink.phase)*ratio + 1
             leftidx = trunc(Int, bufidx)
             offset = bufidx - leftidx
-            # right[:] = sub(buf, leftidx+1, :)
-            # note we have to use `.*` here because devectorize doesn't recognize
-            # that our multiplier is scalar. I don't think it makes a difference
-            # though
             for ch in 1:nchannels(buf)
                 left = leftidx == 0 ? sink.last[ch] : buf[leftidx, ch]
                 sink.buf[i, ch] = (1-offset) * left + offset * buf[leftidx+1, ch]
