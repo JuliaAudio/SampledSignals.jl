@@ -107,7 +107,7 @@
         slice = buf[2, 1..2]
         @test samplerate(slice) == TEST_SR
         # 0.5 array indexing drops scalar indices, so we use 2:2 instead of 2
-        @test slice == SampleBuf(arr[2, 1:2], TEST_SR)
+        @test slice == SampleBuf(arr[2:2, 1:2], TEST_SR)
         slice = buf[2..6, 1..2]
         @test samplerate(slice) == TEST_SR
         @test slice == SampleBuf(arr[2:6, 1:2], TEST_SR)
