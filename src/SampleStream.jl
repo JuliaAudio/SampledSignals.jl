@@ -96,7 +96,7 @@ function Base.write(sink::SampleSink, source::SampleSource, frames=-1; bufsize=D
 end
 
 function unsafe_write(sink::SampleSink, source::SampleSource, frames=-1, bufsize=DEFAULT_BUFSIZE)
-    written = 0
+    written::Int = 0
     buf = SampleBuf(eltype(source), samplerate(source), bufsize, nchannels(source))
     while frames < 0 || written < frames
         n = frames < 0 ? bufsize : min(bufsize, frames - written)
@@ -321,8 +321,11 @@ Base.eltype(sink::ResampleSink) = eltype(sink.wrapped)
 
 function unsafe_write(sink::ResampleSink, buf::SampleBuf)
     bufsize = nframes(sink.buf)
+    # we have to help inference here because SIUnits isn't type-stable on
+    # division and multiplication
+    # TODO: clean this when SIUnits is more type-stable
+    ratio::Float64 = samplerate(sink) / samplerate(sink.wrapped)
     # total is in terms of samples at the wrapped sink rate
-    ratio = samplerate(sink) / samplerate(sink.wrapped)
     total = trunc(Int, (nframes(buf) - 1) / ratio + sink.phase) + 1
     written::Int = 0
 
