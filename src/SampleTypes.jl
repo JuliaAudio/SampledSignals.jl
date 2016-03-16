@@ -15,10 +15,11 @@ using Devectorize
 # typealias SampleRate Rational{Int}
 
 export SampleBuf
-export SampleSource, SampleSink, read, write
+export SampleSource, SampleSink
 export SampleRate
 export DummySampleSource, DummySampleSink, simulate_input
-export DSPNode
+export ResampleSink, ReformatSink, DownMixSink, UpMixSink
+export SampleBufSource
 export Interval, ..
 # general methods for types in SampleTypes
 export samplerate, nchannels, nframes, domain, channelptr

@@ -126,17 +126,16 @@ function unsafe_write(sink::SampleSink, source::SampleSource, frames=-1, bufsize
 end
 
 function Base.write(sink::SampleSink, buf::SampleBuf)
-    if nchannels(sink) != nchannels(buf)
-        error("Channel count mismatch while writing buffer to sink")
-    end
-    if eltype(sink) != eltype(buf)
-        error("Element Type mismatch while writing buffer to sink")
-    end
-    if samplerate(sink) != samplerate(buf)
-        error("Sample rate mismatch while writing buffer to sink")
+    if nchannels(sink) == nchannels(buf) &&
+            eltype(sink) == eltype(buf) &&
+            samplerate(sink) == samplerate(buf)
+        unsafe_write(sink, buf)
+    else
+        # some conversion is necessary. Wrap in a source so we can use the
+        # stream conversion machinery
+        write(sink, SampleBufSource(buf))
     end
 
-    unsafe_write(sink, buf)
 end
 
 function Base.read!(source::SampleSource, buf::SampleBuf)
@@ -361,5 +360,25 @@ function unsafe_write(sink::ResampleSink, buf::SampleBuf)
     read
 end
 
-# TODO: bufsize should probably be a keyword arg, this positional argument
-# should probably allow the user to limit how much is written.
+"""SampleBufSource is a SampleSource backed by a buffer. It's mostly useful to
+hook into the stream conversion infrastructure, because you can wrap a buffer in
+a SampleBufSource and then write it into a sink with a different channel count,
+sample rate, or channel count."""
+type SampleBufSource{B<:SampleBuf} <: SampleSource
+    buf::B
+    read::Int
+end
+
+SampleBufSource(buf::SampleBuf) = SampleBufSource(buf, 0)
+
+samplerate(source::SampleBufSource) = samplerate(source.buf)
+nchannels(source::SampleBufSource) = nchannels(source.buf)
+Base.eltype(source::SampleBufSource) = eltype(source.buf)
+
+function unsafe_read!(source::SampleBufSource, buf::SampleBuf)
+    n = min(nframes(buf), nframes(source.buf)-source.read)
+    buf[1:n, :] = sub(source.buf, (1:n)+source.read, :)
+    source.read += n
+
+    n
+end

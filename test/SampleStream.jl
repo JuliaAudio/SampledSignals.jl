@@ -115,4 +115,17 @@
         @test t == (64/48000) * s
         @test sink.buf == data
     end
+
+    @testset "SampleBufSource can wrap SampleBuf" begin
+        buf = SampleBuf(rand(16, 2), 48000Hz)
+        source = SampleBufSource(buf)
+        @test read(source, 8) == buf[1:8, :]
+    end
+
+    @testset "SampleBufs can be written to sinks with conversion" begin
+        buf = SampleBuf(rand(16, 2), 48000Hz)
+        sink = DummySampleSink(Float64, 48000Hz, 1)
+        write(sink, buf)
+        @test sink.buf[:] == buf[:, 1] + buf[:, 2]
+    end
 end
