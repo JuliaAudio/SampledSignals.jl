@@ -89,7 +89,6 @@
         slice = buf[6, 1:2]
         @test samplerate(slice) == TEST_SR
         @test slice == SampleBuf(TEST_T[6 14], TEST_SR)
-        @test buf[6, 1:2] == buf[6:6, 1:2]
         @test samplerate(slice) == TEST_SR
         slice = buf[3:6, 1]
         @test slice == SampleBuf(TEST_T[3:6;], TEST_SR)
