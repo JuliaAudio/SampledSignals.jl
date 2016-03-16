@@ -87,6 +87,10 @@ Base.getindex(buf::SampleBuf, I::ConvertIdx) = buf[toindex(buf, I)]
 Base.getindex(buf::SampleBuf, I1::ConvertIdx, I2::BuiltinIdx) = buf[toindex(buf, I1), I2]
 Base.getindex(buf::SampleBuf, I1::BuiltinIdx, I2::ConvertIdx) = buf[I1, toindex(buf, I2)]
 Base.getindex(buf::SampleBuf, I1::ConvertIdx, I2::ConvertIdx) = buf[toindex(buf, I1), toindex(buf, I2)]
+# In Julia 0.5 scalar indices are now dropped, so by default indexing
+# buf[5, 1:2] gives you a 2-frame single-channel buffer instead of a 1-frame
+# two-channel buffer. The following getindex method defeats the index dropping
+Base.getindex(buf::SampleBuf, I1::Int, I2::BuiltinMultiIdx) = buf[I1:I1, I2]
 
 function Base.setindex!(buf::SampleBuf, val, i::Int)
     buf.data[i] = val
