@@ -6,8 +6,6 @@ using SIUnits
 using SIUnits.ShortUnits: ns, ms, µs, s, Hz, kHz, MHz, GHz, THz
 using SIUnits: SIQuantity
 
-using Devectorize
-
 # """A Real amount of time, measured in seconds"""
 # typealias RealTime{T <: Real} quantity(T, Second)
 # """A Real frequency, measured in Hz"""
