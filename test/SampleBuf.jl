@@ -140,6 +140,8 @@
         # including assuming unitless sample rates are Hz
         buf = SampleBuf(Float32, TEST_SR / Hz, 100, 2)
         @test samplerate(buf) == TEST_SR
+        buf = SampleBuf(Array(Float32, 100, 2), TEST_SR / Hz)
+        @test samplerate(buf) == TEST_SR
     end
 
     @testset "sub references the original instead of copying" begin
