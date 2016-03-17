@@ -54,10 +54,9 @@ function showchannels(io::IO, buf::SampleBuf, widthchars=80)
         i = (blk-1)*blockwidth + 1
         n = min(blockwidth, nframes(buf)-i+1)
         peaks = maximum(abs(float(buf[(1:n)+i-1, :])), 1)
-        for j in 1:length(peaks)
-            peaks[j] = min(peaks[j], 1.0)
-        end
-        idxs = trunc(Int, peaks * (length(ticks)-1)) + 1
+        # clamp to -60dB, 0dB
+        peaks = clamp(20log10(peaks), -60.0, 0.0)
+        idxs = trunc(Int, (peaks+60)/60 * (length(ticks)-1)) + 1
         blocks[blk, :] = ticks[idxs]
     end
     for ch in 1:(nchannels(buf)-1)
