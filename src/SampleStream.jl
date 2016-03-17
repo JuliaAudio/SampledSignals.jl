@@ -135,21 +135,18 @@ function Base.write(sink::SampleSink, buf::SampleBuf)
         # stream conversion machinery
         write(sink, SampleBufSource(buf))
     end
-
 end
 
 function Base.read!(source::SampleSource, buf::SampleBuf)
-    if nchannels(source) != nchannels(buf)
-        error("Channel count mismatch while reading sink to buffer")
+    if nchannels(source) == nchannels(buf) &&
+            eltype(source) == eltype(buf) &&
+            samplerate(source) == samplerate(buf)
+        unsafe_read!(source, buf)
+    else
+        # some conversion is necessary. Wrap in a sink so we can use the
+        # stream conversion machinery
+        write(SampleBufSink(buf), source)
     end
-    if eltype(source) != eltype(buf)
-        error("Element Type mismatch while reading sink to buffer")
-    end
-    if samplerate(source) != samplerate(buf)
-        error("Sample rate mismatch while reading sink to buffer")
-    end
-
-    unsafe_read!(source, buf)
 end
 
 """UpMixSink provides a single-channel sink that wraps a multi-channel sink.
@@ -379,6 +376,29 @@ function unsafe_read!(source::SampleBufSource, buf::SampleBuf)
     n = min(nframes(buf), nframes(source.buf)-source.read)
     buf[1:n, :] = sub(source.buf, (1:n)+source.read, :)
     source.read += n
+
+    n
+end
+
+"""SampleBufSink is a SampleSink backed by a buffer. It's mostly useful to
+hook into the stream conversion infrastructure, because you can wrap a buffer in
+a SampleBufSink and then read a source into it with a different channel count,
+sample rate, or channel count."""
+type SampleBufSink{B<:SampleBuf} <: SampleSink
+    buf::B
+    written::Int
+end
+
+SampleBufSink(buf::SampleBuf) = SampleBufSink(buf, 0)
+
+samplerate(sink::SampleBufSink) = samplerate(sink.buf)
+nchannels(sink::SampleBufSink) = nchannels(sink.buf)
+Base.eltype(sink::SampleBufSink) = eltype(sink.buf)
+
+function unsafe_write(sink::SampleBufSink, buf::SampleBuf)
+    n = min(nframes(buf), nframes(sink.buf)-sink.written)
+    sink.buf[(1:n)+sink.written, :] = sub(buf, 1:n, :)
+    sink.written += n
 
     n
 end

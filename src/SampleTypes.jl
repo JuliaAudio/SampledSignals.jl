@@ -17,7 +17,7 @@ export SampleSource, SampleSink
 export SampleRate
 export DummySampleSource, DummySampleSink, simulate_input
 export ResampleSink, ReformatSink, DownMixSink, UpMixSink
-export SampleBufSource
+export SampleBufSource, SampleBufSink
 export Interval, ..
 # general methods for types in SampleTypes
 export samplerate, nchannels, nframes, domain, channelptr
