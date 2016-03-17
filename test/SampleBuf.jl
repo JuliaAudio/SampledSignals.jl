@@ -212,4 +212,16 @@
         @test nchannels(buf2) == 1
         @test isapprox(buf2, buf)
     end
+
+    @testset "Prints prettily" begin
+        t = collect(linspace(0, 2pi, 300))
+        buf = SampleBuf([cos(t) sin(t)], 48000Hz)
+        expected = """300-frame, 2-channel SampleBuf{Float64, 2, SIUnits.SIQuantity{Int64,0,0,-1,0,0,0,0,0,0}}
+                   0.00625 s at 48000 s⁻¹
+                   █▇▇▇▇▇▇▆▆▆▅▅▄▄▃▃▂▁▁▁▂▂▃▃▄▄▅▅▆▆▆▇▇▇▇▇▇▇▇▇▇▇▇▇▆▆▆▅▅▄▄▃▃▂▂▁▁▁▂▃▃▄▄▅▅▆▆▆▇▇▇▇▇▇█
+                   ▁▂▂▃▃▄▄▅▅▆▆▆▇▇▇▇▇▇▇▇▇▇▇▇▇▇▆▆▅▅▅▄▄▃▂▂▁▁▁▂▂▃▄▄▅▅▅▆▆▇▇▇▇▇▇▇▇▇▇▇▇▇▇▆▆▆▅▅▄▄▃▃▂▂▁"""
+        iobuf = IOBuffer()
+        writemime(iobuf, "text/plain", buf)
+        @test takebuf_string(iobuf) == expected
+    end
 end

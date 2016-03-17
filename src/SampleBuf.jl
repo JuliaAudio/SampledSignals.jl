@@ -35,6 +35,36 @@ Base.similar{T}(buf::SampleBuf, ::Type{T}, dims::Dims) = SampleBuf(Array(T, dims
 # TODO: we shouldn't need the `collect` once SIUnits supports LinSpace
 domain(buf::SampleBuf) = collect(0:(nframes(buf)-1)) / samplerate(buf)
 
+# from @mbauman's Sparklines.jl package
+const ticks = ['▁','▂','▃','▄','▅','▆','▇','█']
+function Base.show{T, N, U}(io::IO, buf::SampleBuf{T, N, U})
+    println(io, "$(nframes(buf))-frame, $(nchannels(buf))-channel SampleBuf{$T, 2, $U}")
+    len = nframes(buf) / samplerate(buf)
+    println(io, "$len at $(samplerate(buf))")
+    showchannels(io, buf)
+end
+Base.writemime(io::IO, ::MIME"text/plain", buf::SampleBuf) = show(io, buf)
+
+function showchannels(io::IO, buf::SampleBuf, widthchars=80)
+    # number of samples per block
+    blockwidth = round(Int, nframes(buf)/widthchars, RoundUp)
+    nblocks = round(Int, nframes(buf)/blockwidth, RoundUp)
+    blocks = Array(Char, nblocks, nchannels(buf))
+    for blk in 1:nblocks
+        i = (blk-1)*blockwidth + 1
+        n = min(blockwidth, nframes(buf)-i+1)
+        peaks = maximum(abs(float(buf[(1:n)+i-1, :])), 1)
+        for j in 1:length(peaks)
+            peaks[j] = min(peaks[j], 1.0)
+        end
+        idxs = trunc(Int, peaks * (length(ticks)-1)) + 1
+        blocks[blk, :] = ticks[idxs]
+    end
+    for ch in 1:(nchannels(buf)-1)
+        println(io, utf8(blocks[:, ch]))
+    end
+    print(io, utf8(blocks[:, end]))
+end
 
 """Get a pointer to the underlying data for the buffer. Will return a Ptr{T},
 where T is the element type of the buffer. This is particularly useful for
