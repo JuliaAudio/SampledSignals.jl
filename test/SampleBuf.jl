@@ -223,5 +223,12 @@
         iobuf = IOBuffer()
         writemime(iobuf, "text/plain", buf)
         @test takebuf_string(iobuf) == expected
+        buf = SampleBuf(cos(t)*0.2, 48000Hz)
+        expected = """300-frame, 1-channel SampleBuf{Float64, 1, SIUnits.SIQuantity{Int64,0,0,-1,0,0,0,0,0,0}}
+                   0.00625 s at 48000 s⁻¹
+                   ▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▃▃▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▃▃▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆"""
+        iobuf = IOBuffer()
+        writemime(iobuf, "text/plain", buf)
+        @test takebuf_string(iobuf) == expected
     end
 end

@@ -33,12 +33,16 @@ nframes(buf::SampleBuf) = size(buf.data, 1)
 # right type, instead of just a bare array
 Base.similar{T}(buf::SampleBuf, ::Type{T}, dims::Dims) = SampleBuf(Array(T, dims), samplerate(buf))
 # TODO: we shouldn't need the `collect` once SIUnits supports LinSpace
-domain(buf::SampleBuf) = collect(0:(nframes(buf)-1)) / samplerate(buf)
+# domain(buf::SampleBuf) = collect((0/samplerate(buf)):(nframes(buf)-1)/samplerate(buf))
+function domain(buf::SampleBuf)
+    T = typeof(1/samplerate(buf))
+    T[n/samplerate(buf) for n in 0:(nframes(buf)-1)]
+end
 
 # from @mbauman's Sparklines.jl package
 const ticks = ['▁','▂','▃','▄','▅','▆','▇','█']
 function Base.show{T, N, U}(io::IO, buf::SampleBuf{T, N, U})
-    println(io, "$(nframes(buf))-frame, $(nchannels(buf))-channel SampleBuf{$T, 2, $U}")
+    println(io, "$(nframes(buf))-frame, $(nchannels(buf))-channel SampleBuf{$T, $N, $U}")
     len = nframes(buf) / samplerate(buf)
     println(io, "$len at $(samplerate(buf))")
     showchannels(io, buf)
