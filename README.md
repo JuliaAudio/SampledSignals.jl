@@ -49,12 +49,25 @@ Note that when connecting `source`s to `sink`s, the only difference between `rea
 
 SampleTypes adds the `domain` function for `SampleBuf`s, which gives you the domain in real-world units at the buffer's sampling rate. This is especially useful for plotting because you can simply run `plot(x=domain(buf), y=buf)` and see your x axis in seconds. This also works for frequency-domain buffers, so you can do:
 
-```
+```julia
 spec = fft(buf)
 plot(x=domain(spec), y=abs(spec))
 ```
 
 and see the magnitude spectrum plotted against actual frequencies.
+
+## REPL Display
+
+When displaying a buffer at the REPL, SampleTypes shows the length, channel count, sample rate, and duration. It also shows a coarse audio waveform, which
+shows the signal amplitude in dB.
+
+```julia
+julia> [buf[1:44100] buf[44100:88199]]
+44100-frame, 2-channel SampleBuf{FixedPointNumbers.Fixed{Int16,15}, 2, SIUnits.SIQuantity{Int64,0,0,-1,0,0,0,0,0,0}}
+1.0 s at 44100 s⁻¹
+▁▁▁▁▁▁▁▁▂▁▁▁▃▂▅▅▅▅▅▅▅▅▆▅▅▅▄▃▃▄▅▅▄▄▄▃▄▃▂▅▅▅▄▃▁▂▄▄▄▄▄▄▄▄▅▅▅▅▅▄▃▂▄▅▅▅▅▅▅▅▅▅▅▅▅▄▃▂▄▄
+▃▃▄▄▄▃▂▂▂▂▄▃▄▄▄▄▄▄▅▅▅▅▅▅▅▅▅▅▄▂▂▁▁▅▃▃▂▄▂▄▃▃▄▃▄▂▁▃▂▂▃▃▃▃▃▃▃▃▃▃▃▄▄▄▅▅▄▄▄▆▆▄▃▅▄▂▁▁▂▁
+```
 
 ## Defining Custom Sink/Source types
 
