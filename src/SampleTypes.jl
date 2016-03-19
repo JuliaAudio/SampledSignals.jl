@@ -18,6 +18,7 @@ export SampleRate
 export DummySampleSource, DummySampleSink, simulate_input
 export ResampleSink, ReformatSink, DownMixSink, UpMixSink
 export SampleBufSource, SampleBufSink
+export SinSource
 export Interval, ..
 # general methods for types in SampleTypes
 export samplerate, nchannels, nframes, domain, channelptr
@@ -29,5 +30,6 @@ include("Interval.jl")
 include("SampleBuf.jl")
 include("SampleStream.jl")
 include("DummySampleStream.jl")
+include("SignalGen/SinSource.jl")
 
 end # module

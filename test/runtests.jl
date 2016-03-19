@@ -14,6 +14,7 @@ try
         include("SampleBuf.jl")
         include("Interval.jl")
         include("SampleStream.jl")
+        include("SignalGen/runtests.jl")
     end
 catch err
     exit(-1)

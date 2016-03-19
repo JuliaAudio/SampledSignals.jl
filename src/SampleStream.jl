@@ -48,6 +48,7 @@ Base.read(stream::SampleSource, t::SIQuantity) = read(stream, toindex(stream, t)
 
 function Base.read(src::SampleSource, nframes::Integer)
     buf = SampleBuf(eltype(src), samplerate(src), nframes, nchannels(src))
+    # println("created buffer:\n$buf")
     n = read!(src, buf)
 
     buf[1:n, :]
@@ -142,6 +143,10 @@ function Base.read!(source::SampleSource, buf::SampleBuf)
             samplerate(source) == samplerate(buf)
         unsafe_read!(source, buf)
     else
+        # println("doing conversion:")
+        # println(nchannels(source), " --> ", nchannels(buf))
+        # println(eltype(source), " --> ", eltype(buf))
+        # println(samplerate(source), " --> ", samplerate(buf))
         # some conversion is necessary. Wrap in a sink so we can use the
         # stream conversion machinery
         write(SampleBufSink(buf), source)
@@ -250,25 +255,25 @@ end
 #     wrapped::W
 #     buf::B
 # end
-# 
+#
 # function ReformatSink(wrapped::SampleSink, T, bufsize=DEFAULT_BUFSIZE)
 #     SR = samplerate(wrapped)
 #     WT = eltype(wrapped)
 #     N = nchannels(wrapped)
 #     buf = SampleBuf(WT, SR, bufsize, N)
-# 
+#
 #     ReformatSink(wrapped, buf)
 # end
-# 
+#
 # samplerate(sink::ReformatSink) = samplerate(sink.wrapped)
 # nchannels(sink::ReformatSink) = nchannels(sink.wrapped)
 # Base.eltype(sink::ReformatSink) = eltype(sink.wrapped)
-# 
+#
 # function unsafe_write(sink::ReformatSink, buf::SampleBuf)
 #     bufsize = nframes(sink.buf)
 #     total = nframes(buf)
 #     written = 0
-# 
+#
 #     while written < total
 #         n = min(bufsize, total - written)
 #         # copy to the buffer, which will convert to the wrapped type
@@ -285,7 +290,7 @@ end
 #             break
 #         end
 #     end
-# 
+#
 #     written
 # end
 

@@ -41,13 +41,13 @@ end
 
 # from @mbauman's Sparklines.jl package
 const ticks = ['▁','▂','▃','▄','▅','▆','▇','█']
-function Base.show{T, N, U}(io::IO, buf::SampleBuf{T, N, U})
+function Base.writemime{T, N, U}(io::IO, ::MIME"text/plain", buf::SampleBuf{T, N, U})
     println(io, "$(nframes(buf))-frame, $(nchannels(buf))-channel SampleBuf{$T, $N, $U}")
     len = nframes(buf) / samplerate(buf)
-    println(io, "$len at $(samplerate(buf))")
-    showchannels(io, buf)
+    print(io, "$len at $(samplerate(buf))")
+    nframes(buf) > 0 && showchannels(io, buf)
 end
-Base.writemime(io::IO, ::MIME"text/plain", buf::SampleBuf) = show(io, buf)
+# Base.writemime(io::IO, ::MIME"text/plain", buf::SampleBuf) = show(io, buf)
 
 function showchannels(io::IO, buf::SampleBuf, widthchars=80)
     # number of samples per block
@@ -63,10 +63,10 @@ function showchannels(io::IO, buf::SampleBuf, widthchars=80)
         idxs = trunc(Int, (peaks+60)/60 * (length(ticks)-1)) + 1
         blocks[blk, :] = ticks[idxs]
     end
-    for ch in 1:(nchannels(buf)-1)
-        println(io, utf8(blocks[:, ch]))
+    for ch in 1:nchannels(buf)
+        println(io)
+        print(io, utf8(blocks[:, ch]))
     end
-    print(io, utf8(blocks[:, end]))
 end
 
 """Get a pointer to the underlying data for the buffer. Will return a Ptr{T},
