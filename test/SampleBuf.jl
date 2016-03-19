@@ -136,12 +136,13 @@
         @test nframes(buf) == 100
         @test eltype(buf) == Float32
         @test samplerate(buf) == TEST_SR
+    end
 
-        # including assuming unitless sample rates are Hz
-        buf = SampleBuf(Float32, TEST_SR / Hz, 100, 2)
-        @test samplerate(buf) == TEST_SR
-        buf = SampleBuf(Array(Float32, 100, 2), TEST_SR / Hz)
-        @test samplerate(buf) == TEST_SR
+    @testset "Can be created without units" begin
+        buf = SampleBuf(Float32, 48000, 100, 2)
+        @test samplerate(buf) == 48000
+        buf = SampleBuf(Array(Float32, 100, 2), 48000)
+        @test samplerate(buf) == 48000
     end
 
     @testset "sub references the original instead of copying" begin
@@ -172,6 +173,10 @@
         @test buf[0.004s..0.005s] == SampleBuf(arr[193:241], TEST_SR)
         @test buf[0.004s..0.005s, 2] == SampleBuf(arr[193:241, 2], TEST_SR)
         @test buf[0.004s..0.005s, 1:2] == SampleBuf(arr[193:241, 1:2], TEST_SR)
+
+        # throws an error if we sample non-unit buffer
+        buf2 = SampleBuf(arr, 48000)
+        @test_throws ErrorException buf2[0.005s]
     end
 
     @testset "Frequency-domain SampleBufs can be indexed in Hz" begin

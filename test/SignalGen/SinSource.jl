@@ -12,4 +12,11 @@
         expected = Float32[sin(2pi*220*t);]
         @test read(source, 32) ≈ expected
     end
+
+    @testset "SinSource works without units" begin
+        source = SinSource(Float32, 44100, 220)
+        t = (0:31) / 44100
+        expected = Float32[sin(2pi*220*t);]
+        @test read(source, 32) ≈ expected
+    end
 end

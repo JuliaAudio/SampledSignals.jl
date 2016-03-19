@@ -4,19 +4,15 @@ rate. The wrapped data is an N-dimensional array. A 1-channel sample can be
 represented with a 1D array or an Mx1 matrix, and a C-channel buffer will be an
 MxC matrix. So a 1-second stereo audio buffer sampled at 44100Hz with
 32-bit floating-point samples in the time domain would have the type
-SampleBuf{Float32, 2}.
+SampleBuf{Float32, 2, SIUnits.SIQuantity{Int64,0,0,-1,0,0,0,0,0,0}}.
 """
-immutable SampleBuf{T <: Number, N, U <: SIQuantity} <: AbstractArray{T, N}
+immutable SampleBuf{T <: Number, N, U <: Number} <: AbstractArray{T, N}
     data::Array{T, N}
     samplerate::U
 end
 
 # handle creation with a unitful sample rate
-SampleBuf(T, sr::SIQuantity, dims...) = SampleBuf(Array(T, dims...), sr)
-
-# default to sampling rate in Hz if given rate is unitless
-SampleBuf(T, sr::Real, dims...) = SampleBuf(Array(T, dims...), sr*Hz)
-SampleBuf(arr::Array, sr::Real) = SampleBuf(arr, sr*Hz)
+SampleBuf(T, sr, dims...) = SampleBuf(Array(T, dims...), sr)
 
 # terminology:
 # sample - a single value representing the amplitude of 1 channel at some point in time (or frequency)
@@ -101,7 +97,8 @@ function toindex end
 # if the unit of the given value is the inverse of the sampling rate unit,
 # the result should be unitless
 # TODO: clearer error message when the given unit is not the inverse of the sampling rate
-toindex(buf::SampleBuf, t::SIQuantity) = round(Int, t*samplerate(buf)) + 1
+toindex{T <: Number, N, U <: SIQuantity}(buf::SampleBuf{T, N, U}, t::SIQuantity) = round(Int, t*samplerate(buf)) + 1
+toindex(buf::SampleBuf, t::SIQuantity) = error("Indexing with units only supported with unitful sampling rates")
 
 # indexing by vectors of SIQuantities not yet supported
 # toindex{T <: SIUnits.SIQuantity}(buf::SampleBuf, I::Vector{T}) = Int[toindex(buf, i) for i in I]
