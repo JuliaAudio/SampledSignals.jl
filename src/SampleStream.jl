@@ -59,13 +59,18 @@ const DEFAULT_BUFSIZE=4096
 # handle sink-to-source writing with a duration in seconds
 function Base.write{T <: Real}(sink::SampleSink, source::SampleSource,
         duration::quantity(T, Second); bufsize=DEFAULT_BUFSIZE)
+    if SIUnits.unit(samplerate(sink)) != Hertz
+        error("Specifying duration in seconds only supported with a sink samplerate in Hz")
+    end
     sr = samplerate(sink)
     frames = trunc(Int, duration * sr)
     n = write(sink, source, frames; bufsize=bufsize)
 
     # if we completed the operation return back the original duration so the
-    # caller can check equality to see if the operation succeeded
-    n == frames ? duration : T(n/sr.val) * s
+    # caller can check equality to see if the operation succeeded. Note this
+    # isn't going to be type-stable, but I don't expect this to be getting called
+    # in a hot loop
+    n == frames ? duration : n/sr
 end
 
 function Base.write(sink::SampleSink, source::SampleSource, frames=-1; bufsize=DEFAULT_BUFSIZE)
@@ -294,7 +299,7 @@ end
 #     written
 # end
 
-type ResampleSink{W <: SampleSink, U <: SIQuantity, B <: SampleBuf, A <: Array} <: SampleSink
+type ResampleSink{W <: SampleSink, U, B <: SampleBuf, A <: Array} <: SampleSink
     wrapped::W
     samplerate::U
     buf::B
@@ -302,7 +307,7 @@ type ResampleSink{W <: SampleSink, U <: SIQuantity, B <: SampleBuf, A <: Array} 
     last::A
 end
 
-function ResampleSink(wrapped::SampleSink, SR::SIQuantity, bufsize=DEFAULT_BUFSIZE)
+function ResampleSink(wrapped::SampleSink, SR, bufsize=DEFAULT_BUFSIZE)
     WSR = samplerate(wrapped)
     T = eltype(wrapped)
     N = nchannels(wrapped)
@@ -310,10 +315,6 @@ function ResampleSink(wrapped::SampleSink, SR::SIQuantity, bufsize=DEFAULT_BUFSI
 
     ResampleSink(wrapped, SR, buf, 0.0, zeros(T, N))
 end
-
-# default sample rate unit to Hz
-ResampleSink(wrapped, SR::Real, bufsize=DEFAULT_BUFSIZE) =
-    ResampleSink(wrapped, SR*Hz, bufsize)
 
 samplerate(sink::ResampleSink) = sink.samplerate
 nchannels(sink::ResampleSink) = nchannels(sink.wrapped)

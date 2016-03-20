@@ -84,7 +84,7 @@
         @test isapprox(sink.buf, data2)
     end
 
-    @testset "stream reading supports frame count" begin
+    @testset "stream reading supports frame count larger than bufsize" begin
         data = rand(Float32, 64, 2)
         source = DummySampleSource(48000, data)
         sink = DummySampleSink(Float32, 48000, 2)
@@ -93,10 +93,19 @@
         @test sink.buf == data[1:20, :]
     end
 
-    @testset "stream reading supports duration in seconds" begin
+    @testset "stream reading supports frame count smaller than bufsize" begin
         data = rand(Float32, 64, 2)
         source = DummySampleSource(48000, data)
         sink = DummySampleSink(Float32, 48000, 2)
+        n = write(sink, source, 10, bufsize=20)
+        @test n == 10
+        @test sink.buf == data[1:10, :]
+    end
+
+    @testset "stream reading supports duration in seconds" begin
+        data = rand(Float32, 64, 2)
+        source = DummySampleSource(48000Hz, data)
+        sink = DummySampleSink(Float32, 48000Hz, 2)
         duration = 20 / 48000
         # we should get back the exact duration given even if it's not exactly
         # on a sample boundary
@@ -108,8 +117,8 @@
 
     @testset "stream reading supports duration in seconds when stream ends" begin
         data = rand(Float32, 64, 2)
-        source = DummySampleSource(48000, data)
-        sink = DummySampleSink(Float32, 48000, 2)
+        source = DummySampleSource(48000Hz, data)
+        sink = DummySampleSink(Float32, 48000Hz, 2)
         duration = 1.0s
         t = write(sink, source, duration, bufsize=8)
         @test t == (64/48000) * s
@@ -140,7 +149,7 @@
     @testset "SampleBufs can be read from sources with conversion" begin
         buf = SampleBuf(Float64, 48000Hz, 32)
         data = rand(Float64, 64, 2)
-        source = DummySampleSource(data, 48000Hz)
+        source = DummySampleSource(48000Hz, data)
         read!(source, buf)
         @test buf == data[1:32, 1] + data[1:32, 2]
     end

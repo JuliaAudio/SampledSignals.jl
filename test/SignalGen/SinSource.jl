@@ -19,4 +19,13 @@
         expected = Float32[sin(2pi*220*t);]
         @test read(source, 32) ≈ expected
     end
+
+    @testset "SinSource can write to a sink without units" begin
+        source = SinSource(Float32, 44100, 220)
+        sink = DummySampleSink(Float32, 44100, 1)
+        t = (0:31) / 44100
+        expected = Float32[sin(2pi*220*t);]
+        write(sink, source, 32)
+        @test sink.buf ≈ expected
+    end
 end

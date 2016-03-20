@@ -1,26 +1,23 @@
-type DummySampleSource{T <: Real, U <: SIQuantity} <: SampleSource
-    buf::Array{T, 2}
+type DummySampleSource{T, U} <: SampleSource
     samplerate::U
+    buf::Array{T, 2}
 end
-
-DummySampleSource(samplerate::SIQuantity, buf) = DummySampleSource(buf, samplerate)
-DummySampleSource(samplerate::Real, buf) = DummySampleSource(samplerate*Hz, buf)
 
 samplerate(source::DummySampleSource) = source.samplerate
 nchannels(source::DummySampleSource) = size(source.buf, 2)
-Base.eltype(source::DummySampleSource) = eltype(source.buf)
+Base.eltype{T, U}(source::DummySampleSource{T, U}) = T
 
-type DummySampleSink{T <: Real, U <: SIQuantity} <: SampleSink
+type DummySampleSink{T, U} <: SampleSink
     buf::Array{T, 2}
     samplerate::U
 end
 
-DummySampleSink(T, SR::SIQuantity, N) = DummySampleSink(Array(T, 0, N), SR)
-DummySampleSink(T, SR::Real, N) = DummySampleSink(T, SR*Hz, N)
+DummySampleSink(eltype, samplerate, channels) =
+    DummySampleSink(Array(eltype, 0, channels), samplerate)
 
 samplerate(sink::DummySampleSink) = sink.samplerate
 nchannels(sink::DummySampleSink) = size(sink.buf, 2)
-Base.eltype(sink::DummySampleSink) = eltype(sink.buf)
+Base.eltype{T, U}(sink::DummySampleSink{T, U}) = T
 
 # """
 # Simulate receiving input on the dummy source This adds data to the internal

@@ -38,4 +38,11 @@
         @test nchannels(sink) == 2
         @test eltype(source) == DEFAULT_T
     end
+
+    @testset "can be created with non-unit sampling rate" begin
+        sink = DummySampleSink(Float32, 48000, 2)
+        @test samplerate(sink) == 48000
+        source = DummySampleSource(48000, Array(Float32, 16, 2))
+        @test samplerate(source) == 48000
+    end
 end
