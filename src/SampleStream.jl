@@ -313,6 +313,13 @@ function ResampleSink(wrapped::SampleSink, SR, bufsize=DEFAULT_BUFSIZE)
     N = nchannels(wrapped)
     buf = SampleBuf(T, WSR, bufsize, N)
 
+    sr_is_si = isa(SR, SIQuantity)
+    wsr_is_si = isa(WSR, SIQuantity)
+    if (wsr_is_si && !sr_is_si) || (!wsr_is_si && sr_is_si) ||
+            (wsr_is_si && sr_is_si && SIUnits.unit(WSR) != SIUnits.unit(SR))
+        error("Converting between units in samplerate conversion not yet supported")
+    end
+
     ResampleSink(wrapped, SR, buf, 0.0, zeros(T, N))
 end
 
