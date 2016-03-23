@@ -2,31 +2,32 @@
 SinSource is a multi-channel sine-tone signal generator. Frequency and samplerate
 must have the same units (if any).
 """
+# TODO: type instabilities in SIUnits.jl were causing major slowdowns here, so
+# for now I'm just stripping the units for the calculations and phase storage
 # phase will have the inverse units (probably s) to freq and samplerate (probably Hz)
-type SinSource{T, U, PU} <: SampleSource
+type SinSource{T, U} <: SampleSource
     samplerate::U
     freqs::Vector{U}
-    phase::PU
+    phase::Float64
 end
 
 function SinSource(eltype, samplerate, freqs::Array)
     U = typeof(samplerate)
-    phase = zero(inv(samplerate))
-    PU = typeof(phase)
-    SinSource{eltype, U, PU}(samplerate, freqs, phase)
+    phase = 1/float(samplerate)
+    SinSource{eltype, U}(samplerate, freqs, phase)
 end
 
 # also allow a single frequency
 SinSource(eltype, samplerate, freq::Number) = SinSource(eltype, samplerate, [freq])
 
-Base.eltype{T, U, PU}(::SinSource{T, U, PU}) = T
+Base.eltype{T, U}(::SinSource{T, U}) = T
 nchannels(source::SinSource) = length(source.freqs)
 samplerate(source::SinSource) = source.samplerate
 
 function unsafe_read!(source::SinSource, buf::SampleBuf)
-    inc = 2pi / samplerate(source)
+    inc = 2pi / float(samplerate(source))
     for ch in 1:nchannels(buf)
-        f = source.freqs[ch]
+        f = float(source.freqs[ch])
         for i in 1:nframes(buf)
             buf[i, ch] = sin((source.phase + (i-1)*inc)*f)
         end
