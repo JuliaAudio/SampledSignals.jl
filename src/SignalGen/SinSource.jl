@@ -13,8 +13,7 @@ end
 
 function SinSource(eltype, samplerate, freqs::Array)
     U = typeof(samplerate)
-    phase = 1/float(samplerate)
-    SinSource{eltype, U}(samplerate, freqs, phase)
+    SinSource{eltype, U}(samplerate, freqs, 0.0)
 end
 
 # also allow a single frequency
