@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Runs the SampleTypes tests including generating an lcov.info file
+# Runs the SampledSignals tests including generating an lcov.info file
 
 # abort on failure
 set -e

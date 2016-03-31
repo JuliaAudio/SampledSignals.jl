@@ -28,7 +28,7 @@ build_script:
 # Need to convert from shallow to complete for Pkg.clone to work
   - IF EXIST .git\shallow (git fetch --unshallow)
   - C:\projects\julia\bin\julia -e "versioninfo();
-      Pkg.clone(pwd(), \"SampleTypes\"); Pkg.build(\"SampleTypes\")"
+      Pkg.clone(pwd(), \"SampledSignals\"); Pkg.build(\"SampledSignals\")"
 
 test_script:
-  - C:\projects\julia\bin\julia --check-bounds=yes -e "Pkg.test(\"SampleTypes\")"
+  - C:\projects\julia\bin\julia --check-bounds=yes -e "Pkg.test(\"SampledSignals\")"

@@ -13,7 +13,7 @@ unsafe_read!(source::SampleSource, buf::SampleBuf)
 Reads samples from the given source to the given buffer, assuming that the
 channel count, sampling rate, and element types are matching. This isn't called
 from user code, but is called by the `read!` (and likewise `read`) implementions
-in SampleTypes after it verifies that the buffer and sink are compatible, or
+in SampledSignals after it verifies that the buffer and sink are compatible, or
 possibly adds a conversion wrapper.
 """
 function unsafe_read! end
@@ -33,7 +33,7 @@ unsafe_write(sink::SampleSink, buf::SampleBuf)
 
 Writes the given buffer to the given sink, assuming that the channel count,
 sampling rate, and element types are matching. This isn't called from user code,
-but is called by the `write` implemention in SampleTypes after it verifies that
+but is called by the `write` implemention in SampledSignals after it verifies that
 the buffer and sink are compatible, or possibly adds a conversion wrapper.
 """
 function unsafe_write end

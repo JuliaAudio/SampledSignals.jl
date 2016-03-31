@@ -1,6 +1,6 @@
 __precompile__()
 
-module SampleTypes
+module SampledSignals
 
 using SIUnits
 using SIUnits.ShortUnits: ns, ms, µs, s, Hz, kHz, MHz, GHz, THz
@@ -20,7 +20,7 @@ export ResampleSink, ReformatSink, DownMixSink, UpMixSink
 export SampleBufSource, SampleBufSink
 export SinSource
 export Interval, ..
-# general methods for types in SampleTypes
+# general methods for types in SampledSignals
 export samplerate, nchannels, nframes, domain, channelptr
 # re-export the useful units
 export ns, ms, µs, s, Hz, kHz, MHz, GHz, THz

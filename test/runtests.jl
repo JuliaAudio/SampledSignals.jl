@@ -1,4 +1,4 @@
-using SampleTypes
+using SampledSignals
 import SIUnits
 
 if VERSION >= v"0.5.0-"
@@ -9,7 +9,7 @@ end
 using FixedPointNumbers
 
 try
-    @testset "SampleTypes Tests" begin
+    @testset "SampledSignals Tests" begin
         include("DummySampleStream.jl")
         include("SampleBuf.jl")
         include("Interval.jl")

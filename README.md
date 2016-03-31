@@ -1,15 +1,15 @@
-# SampleTypes
+# SampledSignals
 
-[![Build Status](https://travis-ci.org/JuliaAudio/SampleTypes.jl.svg?branch=master)] (https://travis-ci.org/JuliaAudio/SampleTypes.jl)
-[![codecov.io] (http://codecov.io/github/JuliaAudio/SampleTypes.jl/coverage.svg?branch=master)] (http://codecov.io/github/JuliaAudio/SampleTypes.jl?branch=master)
+[![Build Status](https://travis-ci.org/JuliaAudio/SampledSignals.jl.svg?branch=master)] (https://travis-ci.org/JuliaAudio/SampledSignals.jl)
+[![codecov.io] (http://codecov.io/github/JuliaAudio/SampledSignals.jl/coverage.svg?branch=master)] (http://codecov.io/github/JuliaAudio/SampledSignals.jl?branch=master)
 
-SampleTypes is a collection of types intended to be used on multichannel sampled signals like audio or radio data, EEG signals, etc., to provide better interoperability between packages that read data from files or streams, DSP packages, and output and display packages.
+SampledSignals is a collection of types intended to be used on multichannel sampled signals like audio or radio data, EEG signals, etc., to provide better interoperability between packages that read data from files or streams, DSP packages, and output and display packages.
 
-SampleTypes provides several types to stream and store sampled data: `SampleBuf`, `SampleSource`, `SampleSink` and also an `Interval` type that can be used to represent contiguous ranges using a convenient `a..b` syntax, this feature is copied mostly from the [AxisArrays](https://github.com/mbauman/AxisArrays.jl) package, which also inspired much of the implementation of this package.
+SampledSignals provides several types to stream and store sampled data: `SampleBuf`, `SampleSource`, `SampleSink` and also an `Interval` type that can be used to represent contiguous ranges using a convenient `a..b` syntax, this feature is copied mostly from the [AxisArrays](https://github.com/mbauman/AxisArrays.jl) package, which also inspired much of the implementation of this package.
 
-We also use the [SIUnits](https://github.com/keno/SIUnits.jl) package to enable indexing using real-world units like seconds or hertz. `SampleTypes` re-exports the relevant `SIUnits` units (`ns`, `ms`, `µs`, `s`, `Hz`, `kHz`, `MHz`, `GHz`, `THz`) so you don't need to import `SIUnits` explicitly.
+We also use the [SIUnits](https://github.com/keno/SIUnits.jl) package to enable indexing using real-world units like seconds or hertz. `SampledSignals` re-exports the relevant `SIUnits` units (`ns`, `ms`, `µs`, `s`, `Hz`, `kHz`, `MHz`, `GHz`, `THz`) so you don't need to import `SIUnits` explicitly.
 
-Because these buffer and stream types are sample-rate and channel-count aware, this package can automatically handle situations like writing a mono source into a stereo buffer, or resampling to match sample rates. This greatly simplifies the process of writing new streaming sample back-ends, because you only need to implement a small number of fundamental read/write operations, and SampleTypes will handle the plumbing.
+Because these buffer and stream types are sample-rate and channel-count aware, this package can automatically handle situations like writing a mono source into a stereo buffer, or resampling to match sample rates. This greatly simplifies the process of writing new streaming sample back-ends, because you only need to implement a small number of fundamental read/write operations, and SampledSignals will handle the plumbing.
 
 ## Types
 
@@ -27,7 +27,7 @@ A `SampleBuf` represents multichannel, regularly-sampled data, providing handy i
 
 ## Stream Read/Write Semantics
 
-SampleTypes tries to keep the semantics of reading and writing simple and consistent. If a read or write is attempted and there's not enough space or samples available (but the stream is still open), the operation will block the task until it can proceed. If the stream is closed, you can always check the return value of the operation for a partially-completed read or write.
+SampledSignals tries to keep the semantics of reading and writing simple and consistent. If a read or write is attempted and there's not enough space or samples available (but the stream is still open), the operation will block the task until it can proceed. If the stream is closed, you can always check the return value of the operation for a partially-completed read or write.
 
 Rather than specifying read and write durations in terms of frames, you can also specify in seconds. In this case `read!` and `write` will return seconds as well. If the operation completes fully, the returned duration will exactly match the given duration, so you can still check for equality.
 
@@ -47,7 +47,7 @@ Note that when connecting `source`s to `sink`s, the only difference between `rea
 
 ## Plotting Support
 
-SampleTypes adds the `domain` function for `SampleBuf`s, which gives you the domain in real-world units at the buffer's sampling rate. This is especially useful for plotting because you can simply run `plot(x=domain(buf), y=buf)` and see your x axis in seconds. This also works for frequency-domain buffers, so you can do:
+SampledSignals adds the `domain` function for `SampleBuf`s, which gives you the domain in real-world units at the buffer's sampling rate. This is especially useful for plotting because you can simply run `plot(x=domain(buf), y=buf)` and see your x axis in seconds. This also works for frequency-domain buffers, so you can do:
 
 ```julia
 spec = fft(buf)
@@ -58,7 +58,7 @@ and see the magnitude spectrum plotted against actual frequencies.
 
 ## REPL Display
 
-When displaying a buffer at the REPL, SampleTypes shows the length, channel count, sample rate, and duration. It also shows a coarse audio waveform, which
+When displaying a buffer at the REPL, SampledSignals shows the length, channel count, sample rate, and duration. It also shows a coarse audio waveform, which
 shows the signal amplitude in dB.
 
 ```julia
@@ -71,22 +71,22 @@ julia> [buf[1:44100] buf[44100:88199]]
 
 ## Defining Custom Sink/Source types
 
-Say you have a library that moves audio over a network, or interfaces with some software-defined radio hardware. You should be able to easily tap into the SampleTypes infrastructure by doing the following:
+Say you have a library that moves audio over a network, or interfaces with some software-defined radio hardware. You should be able to easily tap into the SampledSignals infrastructure by doing the following:
 
 1. Subtype `SampleSink` or `SampleSource`
 2. Implement `Base.unsafe_read!` (for sources) or `Base.unsafe_write` (for sinks), which can assume that the channel count, sample rate, and type match between your stream type and the buffer type.
-3. Implement `SampleTypes.samplerate`, `SampleTypes.nchannels`, and `Base.eltype` for your type.
+3. Implement `SampledSignals.samplerate`, `SampledSignals.nchannels`, and `Base.eltype` for your type.
 
 For example, to define a `MySource` type, you would implement:
 
 ```julia
 Base.unsafe_read!(src::MySource, buf::SampleBuf)
-SampleTypes.samplerate(source::MySource)
-SampleTypes.nchannels(source::MySource)
+SampledSignals.samplerate(source::MySource)
+SampledSignals.nchannels(source::MySource)
 Base.eltype(source::MySource)
 ```
 
-Other methods, such as the non-modifying `read`, sample-rate converting versions, and time-based indexing are all handled by SampleTypes. You can see the implementation of `DummySampleSink` and `DummySampleSource` in [DummySampleStream.jl](src/DummySampleStream.jl) or the [JACKAudio.jl](https://github.com/JuliaAudio/JACKAudio.jl) package for more complete examples.
+Other methods, such as the non-modifying `read`, sample-rate converting versions, and time-based indexing are all handled by SampledSignals. You can see the implementation of `DummySampleSink` and `DummySampleSource` in [DummySampleStream.jl](src/DummySampleStream.jl) or the [JACKAudio.jl](https://github.com/JuliaAudio/JACKAudio.jl) package for more complete examples.
 
 ## Connecting Streams
 
@@ -94,9 +94,9 @@ In addition to reading and writing buffers to streams, you can also set up direc
 
 ## Conversions
 
-Sometimes you have a source of data (a `SampleBuf` or `SampleSource`) that is not in the same format as the stream you want to write to. For instance, you may have a audio file recorded at 44.1kHz and want to play to your soundcard configured for 48kHz (samplerate conversion). Or you want to play a mono microphone signal through your stereo soundcard (channel conversion). Or you generated a buffer of floating point values that you want to write to a 16-bit integer WAVE file (format conversion). SampleTypes handles these conversions transparently.
+Sometimes you have a source of data (a `SampleBuf` or `SampleSource`) that is not in the same format as the stream you want to write to. For instance, you may have a audio file recorded at 44.1kHz and want to play to your soundcard configured for 48kHz (samplerate conversion). Or you want to play a mono microphone signal through your stereo soundcard (channel conversion). Or you generated a buffer of floating point values that you want to write to a 16-bit integer WAVE file (format conversion). SampledSignals handles these conversions transparently.
 
-SampleTypes uses several wrapper types to implement this conversion. Normally these wrappers are created automatically when you attempt an operation that needs conversion, but you can also create them explictly. For instance, if you have a sink `sink` that is operating at 48kHz (say a soundcard output), and a source `source` at 44.1kHz, the code `write(sink, source)` is equivalent to:
+SampledSignals uses several wrapper types to implement this conversion. Normally these wrappers are created automatically when you attempt an operation that needs conversion, but you can also create them explictly. For instance, if you have a sink `sink` that is operating at 48kHz (say a soundcard output), and a source `source` at 44.1kHz, the code `write(sink, source)` is equivalent to:
 
 ```julia
 wrapper = ResampleSink(sink, 44.1kHz)
