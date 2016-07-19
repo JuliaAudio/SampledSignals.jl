@@ -221,7 +221,7 @@
     @testset "multichannel buf prints prettily" begin
         t = collect(linspace(0, 2pi, 300))
         buf = SampleBuf([cos(t) sin(t)]*0.2, 48000Hz)
-        expected = """300-frame, 2-channel SampleBuf{Float64, 2, SIUnits.SIQuantity{Int64,0,0,-1,0,0,0,0,0,0}}
+        expected = """300-frame, 2-channel SampleBuf{Float64, 2, SIUnits.SIQuantity{$Int,0,0,-1,0,0,0,0,0,0}}
                    0.00625 s at 48000 s⁻¹
                    ▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▃▃▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▃▃▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆
                    ▃▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▂▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▃"""
@@ -232,7 +232,7 @@
     @testset "1D buf prints prettily" begin
         t = collect(linspace(0, 2pi, 300))
         buf = SampleBuf(cos(t)*0.2, 48000Hz)
-        expected = """300-frame, 1-channel SampleBuf{Float64, 1, SIUnits.SIQuantity{Int64,0,0,-1,0,0,0,0,0,0}}
+        expected = """300-frame, 1-channel SampleBuf{Float64, 1, SIUnits.SIQuantity{$Int,0,0,-1,0,0,0,0,0,0}}
                    0.00625 s at 48000 s⁻¹
                    ▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▃▃▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▃▃▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆"""
         iobuf = IOBuffer()
@@ -241,7 +241,7 @@
     end
     @testset "zero-length buf prints prettily" begin
         buf = SampleBuf(Float64, 48000Hz, 0, 2)
-        expected = """0-frame, 2-channel SampleBuf{Float64, 2, SIUnits.SIQuantity{Int64,0,0,-1,0,0,0,0,0,0}}
+        expected = """0-frame, 2-channel SampleBuf{Float64, 2, SIUnits.SIQuantity{$Int,0,0,-1,0,0,0,0,0,0}}
                    0.0 s at 48000 s⁻¹"""
         iobuf = IOBuffer()
         display(TextDisplay(iobuf), buf)
