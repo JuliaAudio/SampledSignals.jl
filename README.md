@@ -75,13 +75,13 @@ julia> [buf[1:44100] buf[44100:88199]]
 Say you have a library that moves audio over a network, or interfaces with some software-defined radio hardware. You should be able to easily tap into the SampledSignals infrastructure by doing the following:
 
 1. Subtype `SampleSink` or `SampleSource`
-2. Implement `Base.unsafe_read!` (for sources) or `Base.unsafe_write` (for sinks), which can assume that the channel count, sample rate, and type match between your stream type and the buffer type.
+2. Implement `SampledSignals.unsafe_read!` (for sources) or `SampledSignals.unsafe_write` (for sinks), which can assume that the channel count, sample rate, and type match between your stream type and the buffer type.
 3. Implement `SampledSignals.samplerate`, `SampledSignals.nchannels`, and `Base.eltype` for your type.
 
 For example, to define a `MySource` type, you would implement:
 
 ```julia
-Base.unsafe_read!(src::MySource, buf::SampleBuf)
+SampledSignals.unsafe_read!(src::MySource, buf::SampleBuf)
 SampledSignals.samplerate(source::MySource)
 SampledSignals.nchannels(source::MySource)
 Base.eltype(source::MySource)
