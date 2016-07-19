@@ -8,7 +8,7 @@
         @test samplerate(tbuf) == TEST_SR
         @test nchannels(tbuf) == 2
         @test nframes(tbuf) == 64
-        @test domain(tbuf) == collect((0:63))/TEST_SR
+        @test domain(tbuf) == collect((0:63)/TEST_SR)
     end
 
     @testset "Supports size()" begin
@@ -149,10 +149,10 @@
         arr = rand(TEST_T, 16)
         buf = SampleBuf(arr, TEST_SR)
 
-        view = sub(buf, 5:10)
-        @test view[1] == buf[5]
+        v = view(buf, 5:10)
+        @test v[1] == buf[5]
         buf[6] = 0.0
-        view[2] = 42.0
+        v[2] = 42.0
         @test buf[6] == 42.0
     end
 
@@ -226,7 +226,7 @@
                    ▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▃▃▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▃▃▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆
                    ▃▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▂▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▃"""
         iobuf = IOBuffer()
-        writemime(iobuf, "text/plain", buf)
+        display(TextDisplay(iobuf), buf)
         @test takebuf_string(iobuf) == expected
     end
     @testset "1D buf prints prettily" begin
@@ -236,7 +236,7 @@
                    0.00625 s at 48000 s⁻¹
                    ▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▃▃▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▃▃▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆"""
         iobuf = IOBuffer()
-        writemime(iobuf, "text/plain", buf)
+        display(TextDisplay(iobuf), buf)
         @test takebuf_string(iobuf) == expected
     end
     @testset "zero-length buf prints prettily" begin
@@ -244,7 +244,7 @@
         expected = """0-frame, 2-channel SampleBuf{Float64, 2, SIUnits.SIQuantity{Int64,0,0,-1,0,0,0,0,0,0}}
                    0.0 s at 48000 s⁻¹"""
         iobuf = IOBuffer()
-        writemime(iobuf, "text/plain", buf)
+        display(TextDisplay(iobuf), buf)
         @test takebuf_string(iobuf) == expected
     end
 end

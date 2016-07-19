@@ -1,5 +1,8 @@
 using SampledSignals
+using Compat
 import SIUnits
+
+import Compat.view
 
 if VERSION >= v"0.5.0-"
     using Base.Test

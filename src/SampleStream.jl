@@ -187,7 +187,7 @@ function unsafe_write(sink::UpMixSink, buf::SampleBuf)
     while written < total
         n = min(bufsize, total - written)
         for ch in 1:nchannels(sink.wrapped)
-            sink.buf[1:n, ch] = sub(buf, (1:n) + written)
+            sink.buf[1:n, ch] = view(buf, (1:n) + written)
         end
         # only slice if we have to
         if n == bufsize
@@ -282,7 +282,7 @@ end
 #     while written < total
 #         n = min(bufsize, total - written)
 #         # copy to the buffer, which will convert to the wrapped type
-#         sink.buf[1:n, :] = sub(buf, (1:n) + written, :)
+#         sink.buf[1:n, :] = view(buf, (1:n) + written, :)
 #         # only slice if we have to
 #         if n == bufsize
 #             actual = unsafe_write(sink.wrapped, sink.buf)
@@ -363,7 +363,7 @@ function unsafe_write(sink::ResampleSink, buf::SampleBuf)
 
     # return the amount written in terms of the buffer's samplerate
     read = (written == total ? nframes(buf) : trunc(Int, written * ratio))
-    read > 0 && (sink.last[:] = sub(buf, read, :))
+    read > 0 && (sink.last[:] = view(buf, read, :))
     sink.phase = read / ratio + sink.phase - written
 
     read
@@ -386,7 +386,7 @@ Base.eltype(source::SampleBufSource) = eltype(source.buf)
 
 function unsafe_read!(source::SampleBufSource, buf::SampleBuf)
     n = min(nframes(buf), nframes(source.buf)-source.read)
-    buf[1:n, :] = sub(source.buf, (1:n)+source.read, :)
+    buf[1:n, :] = view(source.buf, (1:n)+source.read, :)
     source.read += n
 
     n
@@ -409,7 +409,7 @@ Base.eltype(sink::SampleBufSink) = eltype(sink.buf)
 
 function unsafe_write(sink::SampleBufSink, buf::SampleBuf)
     n = min(nframes(buf), nframes(sink.buf)-sink.written)
-    sink.buf[(1:n)+sink.written, :] = sub(buf, 1:n, :)
+    sink.buf[(1:n)+sink.written, :] = view(buf, 1:n, :)
     sink.written += n
 
     n

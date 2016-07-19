@@ -5,12 +5,10 @@ module SampledSignals
 using SIUnits
 using SIUnits.ShortUnits: ns, ms, µs, s, Hz, kHz, MHz, GHz, THz
 using SIUnits: SIQuantity
-
-# """A Real amount of time, measured in seconds"""
-# typealias RealTime{T <: Real} quantity(T, Second)
-# """A Real frequency, measured in Hz"""
-# typealias RealFrequency{T <: Real} quantity(T, Hertz)
-# typealias SampleRate Rational{Int}
+using Compat
+# if/when we drop 0.4 support we can remove UTF8String and just call it "String".
+# we'll also be able to use view without importing it from Compat
+import Compat: view, UTF8String
 
 export SampleBuf
 export SampleSource, SampleSink

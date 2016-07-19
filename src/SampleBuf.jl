@@ -35,15 +35,22 @@ function domain(buf::SampleBuf)
     T[n/samplerate(buf) for n in 0:(nframes(buf)-1)]
 end
 
+@compat import Base.show
 # from @mbauman's Sparklines.jl package
 const ticks = ['▁','▂','▃','▄','▅','▆','▇','█']
-function Base.writemime{T, N, U}(io::IO, ::MIME"text/plain", buf::SampleBuf{T, N, U})
+# 3-arg version (with explicit mimetype) is needed because we subtype AbstractArray,
+# and there's a 3-arg version defined in show.jl
+@compat function show{T, N, U}(io::IO, ::MIME"text/plain", buf::SampleBuf{T, N, U})
     println(io, "$(nframes(buf))-frame, $(nchannels(buf))-channel SampleBuf{$T, $N, $U}")
     len = nframes(buf) / samplerate(buf)
     print(io, "$len at $(samplerate(buf))")
     nframes(buf) > 0 && showchannels(io, buf)
 end
-# Base.writemime(io::IO, ::MIME"text/plain", buf::SampleBuf) = show(io, buf)
+
+# this is needed because if Compat.jl#255
+if VERSION < v"0.5.0-dev+4340"
+    Base.writemime(io::IO, M::MIME"text/plain", buf::SampleBuf) = show(io, M, buf)
+end
 
 function showchannels(io::IO, buf::SampleBuf, widthchars=80)
     # number of samples per block
@@ -61,7 +68,7 @@ function showchannels(io::IO, buf::SampleBuf, widthchars=80)
     end
     for ch in 1:nchannels(buf)
         println(io)
-        print(io, utf8(blocks[:, ch]))
+        print(io, convert(UTF8String, blocks[:, ch]))
     end
 end
 
