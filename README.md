@@ -18,13 +18,32 @@ Because these buffer and stream types are sample-rate and channel-count aware, t
 
 A `SampleBuf` represents multichannel, regularly-sampled data, providing handy indexing operations. It subtypes AbstractArray and should be drop-in compatible with raw arrays, with the exception that indexing a row (a single frame of multiple channels) will result in a 1xN result (a 1-frame multichannel buffer) instead of a 1D Vector, which is the Array behavior as of 0.5. The two main advantages of SampleBufs are they are sample-rate aware and that they support indexing with real-world units like seconds or hertz (depending on the domain).
 
+#### Methods
+
+* `samplerate`
+* `nchannels`
+* `nframes`
+* `domain`
+
 ### SampleSource
 
 `SampleSource` is an abstract type representing a source of samples, which might for instance represent a microphone input. The `read` method just gives you a single frame (an 1xN N-channel `SampleBuf`), but you can also read an integer number of samples or an amount of time given in seconds. This package includes the `DummySampleSource` concrete type that is useful for testing the stream interface.
 
+#### Methods
+
+* `samplerate`
+* `nchannels`
+* `bufsize`
+
 ### SampleSink
 
 `SampleSink` is an abstract type representing a sink for samples to be written to, for instance representing your laptop speakers. The main method used here is `write` which writes a `SampleBuf` to a `SampleSink`. This package includes the `DummySampleSink` concrete type that is useful for testing the stream interface.
+
+#### Methods
+
+* `samplerate`
+* `nchannels`
+* `bufsize`
 
 ## Stream Read/Write Semantics
 
@@ -77,6 +96,7 @@ Say you have a library that moves audio over a network, or interfaces with some 
 1. Subtype `SampleSink` or `SampleSource`
 2. Implement `SampledSignals.unsafe_read!` (for sources) or `SampledSignals.unsafe_write` (for sinks), which can assume that the channel count, sample rate, and type match between your stream type and the buffer type.
 3. Implement `SampledSignals.samplerate`, `SampledSignals.nchannels`, and `Base.eltype` for your type.
+4. If your type has a preferred bufsize, implement `SampledSignals.bufsize`. Otherwise the fallback implementation will return `0`, meaning there's no preferred bufsize.
 
 For example, to define a `MySource` type, you would implement:
 
@@ -91,7 +111,7 @@ Other methods, such as the non-modifying `read`, sample-rate converting versions
 
 ## Connecting Streams
 
-In addition to reading and writing buffers to streams, you can also set up direct stream-to-stream connections using the `write` function. For instance, if you have a sink `in` and a source `out`, you can connect them with `write(out, in)`. This will block the current task until the `in` stream ends, but you can give an optional third argument in samples or seconds to write a limited amount. The implementation just reads a block at a time from `in` and writes the received data to `out`. You can set the blocksize with a keyword argument, e.g. `write(out, in, blocksize=1024)` will read blocks of 1024 frames at a time. The default blocksize is 4096.
+In addition to reading and writing buffers to streams, you can also set up direct stream-to-stream connections using the `write` function. For instance, if you have a sink `in` and a source `out`, you can connect them with `write(out, in)`. This will block the current task until the `in` stream ends, but you can give an optional third argument in samples or seconds to write a limited amount. The implementation just reads a block at a time from `in` and writes the received data to `out`. You can set the bufsize with a keyword argument, e.g. `write(out, in, bufsize=1024)` will read blocks of 1024 frames at a time. The default bufsize is 4096.
 
 ## Conversions
 
@@ -124,7 +144,7 @@ There are a number of issues that I'm still in the process of figuring out:
 
 ### Interpolation
 
-Currently for real-valued indices like time we are just rounding to the nearest sample index, but often you'll want an interpolated value. How does the user specify what type of interpolation they want? One idea would be to allow an interpolation type symbol in the indexing, like `x[1.25s, :cubic]`, but that seems a little weird.
+Currently for real-valued indices like time we are just rounding to the nearest sample index, but often you'll want an interpolated value. How does the user specify what type of interpolation they want? One idea would be to allow an interpolation type symbol in the indexing, like `x[1.25s, :cubic]`, but that seems a little weird. Another option would be to have LinearInterpolator{T}, CubicInterpolator{T}, etc. wrappers that determine interpolation behavior.
 
 ### Relative vs. Absolute indexing
 

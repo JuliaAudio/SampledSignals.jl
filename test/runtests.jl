@@ -11,6 +11,8 @@ else
 end
 using FixedPointNumbers
 
+include("util.jl")
+
 try
     @testset "SampledSignals Tests" begin
         include("DummySampleStream.jl")

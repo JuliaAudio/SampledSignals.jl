@@ -154,4 +154,21 @@
         @test buf == data[1:32, 1] + data[1:32, 2]
     end
 
+    @testset "bufsize fallback returns 0" begin
+        @test bufsize(DummySampleSource(48000Hz, zeros(5, 2))) == 0
+        @test bufsize(DummySampleSink(Float32, 48000Hz, 2)) == 0
+    end
+
+    @testset "Writing source to sink goes blockwise" begin
+        source = BlockedSampleSource(32)
+        sink = DummySampleSink(eltype(source), samplerate(source), nchannels(source))
+        write(sink, source)
+        @test size(sink.buf, 1) == 32
+        for ch in 1:nchannels(source), i in 1:16
+            @test sink.buf[i, ch] == i * ch
+        end
+        for ch in 1:nchannels(source), i in 17:32
+            @test sink.buf[i, ch] == (i-16) * ch
+        end
+    end
 end

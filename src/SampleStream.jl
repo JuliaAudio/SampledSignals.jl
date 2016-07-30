@@ -38,6 +38,11 @@ the buffer and sink are compatible, or possibly adds a conversion wrapper.
 """
 function unsafe_write end
 
+# fallback functions for sources and sinks that don't have a preferred buffer
+# size. This will cause any chunked writes to use the default buffer size
+bufsize(src::SampleSource) = 0
+bufsize(src::SampleSink) = 0
+
 toindex(stream::SampleSource, t::SIQuantity) = round(Int, t*samplerate(stream)) + 1
 
 # subtypes should only have to implement the `unsafe_read!` and `unsafe_write` methods, so
@@ -58,10 +63,11 @@ const DEFAULT_BUFSIZE=4096
 
 # handle sink-to-source writing with a duration in seconds
 function Base.write{T <: Real}(sink::SampleSink, source::SampleSource,
-        duration::quantity(T, Second); bufsize=DEFAULT_BUFSIZE)
+        duration::quantity(T, Second); bufsize=-1)
     if SIUnits.unit(samplerate(sink)) != Hertz
         error("Specifying duration in seconds only supported with a sink samplerate in Hz")
     end
+
     sr = samplerate(sink)
     frames = trunc(Int, duration * sr)
     n = write(sink, source, frames; bufsize=bufsize)
@@ -73,10 +79,16 @@ function Base.write{T <: Real}(sink::SampleSink, source::SampleSource,
     n == frames ? duration : n/sr
 end
 
-function Base.write(sink::SampleSink, source::SampleSource, frames=-1; bufsize=DEFAULT_BUFSIZE)
+function Base.write(sink::SampleSink, source::SampleSource, frames=-1;
+        bufsize=-1)
+    if bufsize < 0
+        bufsize = SampledSignals.bufsize(source)
+    end
+    if bufsize == 0
+        bufsize = DEFAULT_BUFSIZE
+    end
     if samplerate(sink) != samplerate(source)
         sink = ResampleSink(sink, samplerate(source), bufsize)
-        # return write(srwrapper, source, bufsize)
     end
 
     # if eltype(sink) != eltype(source)
@@ -100,7 +112,7 @@ function Base.write(sink::SampleSink, source::SampleSource, frames=-1; bufsize=D
     unsafe_write(sink, source, frames, bufsize)
 end
 
-function unsafe_write(sink::SampleSink, source::SampleSource, frames=-1, bufsize=DEFAULT_BUFSIZE)
+function unsafe_write(sink::SampleSink, source::SampleSource, frames=-1, bufsize=-1)
     written::Int = 0
     buf = SampleBuf(eltype(source), samplerate(source), bufsize, nchannels(source))
     while frames < 0 || written < frames
@@ -178,6 +190,7 @@ end
 samplerate(sink::UpMixSink) = samplerate(sink.wrapped)
 nchannels(sink::UpMixSink) = 1
 Base.eltype(sink::UpMixSink) = eltype(sink.wrapped)
+bufsize(sink::UpMixSink) = size(sink.buf, 1)
 
 function unsafe_write(sink::UpMixSink, buf::SampleBuf)
     bufsize = nframes(sink.buf)
@@ -224,6 +237,7 @@ end
 samplerate(sink::DownMixSink) = samplerate(sink.wrapped)
 nchannels(sink::DownMixSink) = sink.channels
 Base.eltype(sink::DownMixSink) = eltype(sink.wrapped)
+bufsize(sink::DownMixSink) = size(sink.buf, 1)
 
 function unsafe_write(sink::DownMixSink, buf::SampleBuf)
     bufsize = nframes(sink.buf)
@@ -326,6 +340,7 @@ end
 samplerate(sink::ResampleSink) = sink.samplerate
 nchannels(sink::ResampleSink) = nchannels(sink.wrapped)
 Base.eltype(sink::ResampleSink) = eltype(sink.wrapped)
+# TODO: implement bufsize for this
 
 function unsafe_write(sink::ResampleSink, buf::SampleBuf)
     bufsize = nframes(sink.buf)
