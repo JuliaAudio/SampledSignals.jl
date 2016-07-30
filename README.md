@@ -33,7 +33,7 @@ A `SampleBuf` represents multichannel, regularly-sampled data, providing handy i
 
 * `samplerate`
 * `nchannels`
-* `bufsize`
+* `blocksize`
 
 ### SampleSink
 
@@ -43,7 +43,7 @@ A `SampleBuf` represents multichannel, regularly-sampled data, providing handy i
 
 * `samplerate`
 * `nchannels`
-* `bufsize`
+* `blocksize`
 
 ## Stream Read/Write Semantics
 
@@ -96,7 +96,7 @@ Say you have a library that moves audio over a network, or interfaces with some 
 1. Subtype `SampleSink` or `SampleSource`
 2. Implement `SampledSignals.unsafe_read!` (for sources) or `SampledSignals.unsafe_write` (for sinks), which can assume that the channel count, sample rate, and type match between your stream type and the buffer type.
 3. Implement `SampledSignals.samplerate`, `SampledSignals.nchannels`, and `Base.eltype` for your type.
-4. If your type has a preferred bufsize, implement `SampledSignals.bufsize`. Otherwise the fallback implementation will return `0`, meaning there's no preferred bufsize.
+4. If your type has a preferred blocksize, implement `SampledSignals.blocksize`. Otherwise the fallback implementation will return `0`, meaning there's no preferred blocksize.
 
 For example, to define a `MySource` type, you would implement:
 
@@ -111,7 +111,7 @@ Other methods, such as the non-modifying `read`, sample-rate converting versions
 
 ## Connecting Streams
 
-In addition to reading and writing buffers to streams, you can also set up direct stream-to-stream connections using the `write` function. For instance, if you have a sink `in` and a source `out`, you can connect them with `write(out, in)`. This will block the current task until the `in` stream ends, but you can give an optional third argument in samples or seconds to write a limited amount. The implementation just reads a block at a time from `in` and writes the received data to `out`. You can set the bufsize with a keyword argument, e.g. `write(out, in, bufsize=1024)` will read blocks of 1024 frames at a time. The default bufsize is 4096.
+In addition to reading and writing buffers to streams, you can also set up direct stream-to-stream connections using the `write` function. For instance, if you have a sink `in` and a source `out`, you can connect them with `write(out, in)`. This will block the current task until the `in` stream ends, but you can give an optional third argument in samples or seconds to write a limited amount. The implementation just reads a block at a time from `in` and writes the received data to `out`. You can set the blocksize with a keyword argument, e.g. `write(out, in, blocksize=1024)` will read blocks of 1024 frames at a time. The default blocksize is 4096.
 
 ## Conversions
 

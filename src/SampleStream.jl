@@ -40,8 +40,8 @@ function unsafe_write end
 
 # fallback functions for sources and sinks that don't have a preferred buffer
 # size. This will cause any chunked writes to use the default buffer size
-bufsize(src::SampleSource) = 0
-bufsize(src::SampleSink) = 0
+blocksize(src::SampleSource) = 0
+blocksize(src::SampleSink) = 0
 
 toindex(stream::SampleSource, t::SIQuantity) = round(Int, t*samplerate(stream)) + 1
 
@@ -59,18 +59,18 @@ function Base.read(src::SampleSource, nframes::Integer)
     buf[1:n, :]
 end
 
-const DEFAULT_BUFSIZE=4096
+const DEFAULT_blocksize=4096
 
 # handle sink-to-source writing with a duration in seconds
 function Base.write{T <: Real}(sink::SampleSink, source::SampleSource,
-        duration::quantity(T, Second); bufsize=-1)
+        duration::quantity(T, Second); blocksize=-1)
     if SIUnits.unit(samplerate(sink)) != Hertz
         error("Specifying duration in seconds only supported with a sink samplerate in Hz")
     end
 
     sr = samplerate(sink)
     frames = trunc(Int, duration * sr)
-    n = write(sink, source, frames; bufsize=bufsize)
+    n = write(sink, source, frames; blocksize=blocksize)
 
     # if we completed the operation return back the original duration so the
     # caller can check equality to see if the operation succeeded. Note this
@@ -80,45 +80,45 @@ function Base.write{T <: Real}(sink::SampleSink, source::SampleSource,
 end
 
 function Base.write(sink::SampleSink, source::SampleSource, frames=-1;
-        bufsize=-1)
-    if bufsize < 0
-        bufsize = SampledSignals.bufsize(source)
+        blocksize=-1)
+    if blocksize < 0
+        blocksize = SampledSignals.blocksize(source)
     end
-    if bufsize == 0
-        bufsize = DEFAULT_BUFSIZE
+    if blocksize == 0
+        blocksize = DEFAULT_blocksize
     end
     if samplerate(sink) != samplerate(source)
-        sink = ResampleSink(sink, samplerate(source), bufsize)
+        sink = ResampleSink(sink, samplerate(source), blocksize)
     end
 
     # if eltype(sink) != eltype(source)
-    #     sink = ReformatSink(sink, eltype(source), bufsize)
-    #     # return write(fmtwrapper, source, bufsize)
+    #     sink = ReformatSink(sink, eltype(source), blocksize)
+    #     # return write(fmtwrapper, source, blocksize)
     # end
 
     if nchannels(sink) != nchannels(source)
         if nchannels(sink) == 1
-            sink = DownMixSink(sink, nchannels(source), bufsize)
-            # return write(downwrapper, source, bufsize)
+            sink = DownMixSink(sink, nchannels(source), blocksize)
+            # return write(downwrapper, source, blocksize)
         elseif nchannels(source) == 1
-            sink = UpMixSink(sink, bufsize)
-            # return write(upwrapper, source, bufsize)
+            sink = UpMixSink(sink, blocksize)
+            # return write(upwrapper, source, blocksize)
         else
             error("General M-to-N channel mapping not supported")
         end
     end
     # looks like everything matches, now we can actually hook up the source
     # to the sink
-    unsafe_write(sink, source, frames, bufsize)
+    unsafe_write(sink, source, frames, blocksize)
 end
 
-function unsafe_write(sink::SampleSink, source::SampleSource, frames=-1, bufsize=-1)
+function unsafe_write(sink::SampleSink, source::SampleSource, frames=-1, blocksize=-1)
     written::Int = 0
-    buf = SampleBuf(eltype(source), samplerate(source), bufsize, nchannels(source))
+    buf = SampleBuf(eltype(source), samplerate(source), blocksize, nchannels(source))
     while frames < 0 || written < frames
-        n = frames < 0 ? bufsize : min(bufsize, frames - written)
+        n = frames < 0 ? blocksize : min(blocksize, frames - written)
         # this branch is just to avoid the allocation for the receive buffer
-        if n < bufsize
+        if n < blocksize
             # TODO: add a frames parameter to unsafe_read! API so we don't need
             # to create a new buffer for this, or add subarray support
             buf = SampleBuf(eltype(source), samplerate(source), n, nchannels(source))
@@ -178,11 +178,11 @@ immutable UpMixSink{W <: SampleSink, B <: SampleBuf} <: SampleSink
     buf::B
 end
 
-function UpMixSink(wrapped::SampleSink, bufsize=DEFAULT_BUFSIZE)
+function UpMixSink(wrapped::SampleSink, blocksize=DEFAULT_blocksize)
     N = nchannels(wrapped)
     SR = samplerate(wrapped)
     T = eltype(wrapped)
-    buf = SampleBuf(T, SR, bufsize, N)
+    buf = SampleBuf(T, SR, blocksize, N)
 
     UpMixSink(wrapped, buf)
 end
@@ -190,20 +190,20 @@ end
 samplerate(sink::UpMixSink) = samplerate(sink.wrapped)
 nchannels(sink::UpMixSink) = 1
 Base.eltype(sink::UpMixSink) = eltype(sink.wrapped)
-bufsize(sink::UpMixSink) = size(sink.buf, 1)
+blocksize(sink::UpMixSink) = size(sink.buf, 1)
 
 function unsafe_write(sink::UpMixSink, buf::SampleBuf)
-    bufsize = nframes(sink.buf)
+    blocksize = nframes(sink.buf)
     total = nframes(buf)
     written = 0
 
     while written < total
-        n = min(bufsize, total - written)
+        n = min(blocksize, total - written)
         for ch in 1:nchannels(sink.wrapped)
             sink.buf[1:n, ch] = view(buf, (1:n) + written)
         end
         # only slice if we have to
-        if n == bufsize
+        if n == blocksize
             actual = unsafe_write(sink.wrapped, sink.buf)
         else
             actual = unsafe_write(sink.wrapped, sink.buf[1:n, :])
@@ -226,10 +226,10 @@ immutable DownMixSink{W <: SampleSink, B <: SampleBuf} <: SampleSink
     channels::Int
 end
 
-function DownMixSink(wrapped::SampleSink, channels, bufsize=DEFAULT_BUFSIZE)
+function DownMixSink(wrapped::SampleSink, channels, blocksize=DEFAULT_blocksize)
     SR = samplerate(wrapped)
     T = eltype(wrapped)
-    buf = SampleBuf(T, SR, bufsize, 1)
+    buf = SampleBuf(T, SR, blocksize, 1)
 
     DownMixSink(wrapped, buf, channels)
 end
@@ -237,10 +237,10 @@ end
 samplerate(sink::DownMixSink) = samplerate(sink.wrapped)
 nchannels(sink::DownMixSink) = sink.channels
 Base.eltype(sink::DownMixSink) = eltype(sink.wrapped)
-bufsize(sink::DownMixSink) = size(sink.buf, 1)
+blocksize(sink::DownMixSink) = size(sink.buf, 1)
 
 function unsafe_write(sink::DownMixSink, buf::SampleBuf)
-    bufsize = nframes(sink.buf)
+    blocksize = nframes(sink.buf)
     total = nframes(buf)
     written = 0
     if nchannels(buf) == 0
@@ -248,14 +248,14 @@ function unsafe_write(sink::DownMixSink, buf::SampleBuf)
     end
 
     while written < total
-        n = min(bufsize, total - written)
+        n = min(blocksize, total - written)
         # initialize with the first channel
         sink.buf[1:n] = buf[(1:n) + written, 1]
         for ch in 2:nchannels(buf)
             sink.buf[1:n] += buf[(1:n) + written, ch]
         end
         # only slice if we have to
-        if n == bufsize
+        if n == blocksize
             actual = unsafe_write(sink.wrapped, sink.buf)
         else
             actual = unsafe_write(sink.wrapped, sink.buf[1:n])
@@ -275,11 +275,11 @@ end
 #     buf::B
 # end
 #
-# function ReformatSink(wrapped::SampleSink, T, bufsize=DEFAULT_BUFSIZE)
+# function ReformatSink(wrapped::SampleSink, T, blocksize=DEFAULT_blocksize)
 #     SR = samplerate(wrapped)
 #     WT = eltype(wrapped)
 #     N = nchannels(wrapped)
-#     buf = SampleBuf(WT, SR, bufsize, N)
+#     buf = SampleBuf(WT, SR, blocksize, N)
 #
 #     ReformatSink(wrapped, buf)
 # end
@@ -289,16 +289,16 @@ end
 # Base.eltype(sink::ReformatSink) = eltype(sink.wrapped)
 #
 # function unsafe_write(sink::ReformatSink, buf::SampleBuf)
-#     bufsize = nframes(sink.buf)
+#     blocksize = nframes(sink.buf)
 #     total = nframes(buf)
 #     written = 0
 #
 #     while written < total
-#         n = min(bufsize, total - written)
+#         n = min(blocksize, total - written)
 #         # copy to the buffer, which will convert to the wrapped type
 #         sink.buf[1:n, :] = view(buf, (1:n) + written, :)
 #         # only slice if we have to
-#         if n == bufsize
+#         if n == blocksize
 #             actual = unsafe_write(sink.wrapped, sink.buf)
 #         else
 #             actual = unsafe_write(sink.wrapped, sink.buf[1:n, :])
@@ -321,11 +321,11 @@ type ResampleSink{W <: SampleSink, U, B <: SampleBuf, A <: Array} <: SampleSink
     last::A
 end
 
-function ResampleSink(wrapped::SampleSink, SR, bufsize=DEFAULT_BUFSIZE)
+function ResampleSink(wrapped::SampleSink, SR, blocksize=DEFAULT_blocksize)
     WSR = samplerate(wrapped)
     T = eltype(wrapped)
     N = nchannels(wrapped)
-    buf = SampleBuf(T, WSR, bufsize, N)
+    buf = SampleBuf(T, WSR, blocksize, N)
 
     sr_is_si = isa(SR, SIQuantity)
     wsr_is_si = isa(WSR, SIQuantity)
@@ -340,10 +340,10 @@ end
 samplerate(sink::ResampleSink) = sink.samplerate
 nchannels(sink::ResampleSink) = nchannels(sink.wrapped)
 Base.eltype(sink::ResampleSink) = eltype(sink.wrapped)
-# TODO: implement bufsize for this
+# TODO: implement blocksize for this
 
 function unsafe_write(sink::ResampleSink, buf::SampleBuf)
-    bufsize = nframes(sink.buf)
+    blocksize = nframes(sink.buf)
     # we have to help inference here because SIUnits isn't type-stable on
     # division and multiplication
     # TODO: clean this when SIUnits is more type-stable
@@ -367,7 +367,7 @@ function unsafe_write(sink::ResampleSink, buf::SampleBuf)
         end
         # only slice if we have to, to avoid allocating
         actual::Int
-        if n == bufsize
+        if n == blocksize
             actual = unsafe_write(sink.wrapped, sink.buf)
         else
             actual = unsafe_write(sink.wrapped, sink.buf[1:n, :])

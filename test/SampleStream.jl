@@ -7,7 +7,7 @@
         source = DummySampleSource(48000, data)
         sink = DummySampleSink(Float32, 48000, 2)
         # write 20 frames at a time
-        n = write(sink, source, bufsize=20)
+        n = write(sink, source, blocksize=20)
         @test n == 64
         @test sink.buf == data
     end
@@ -16,7 +16,7 @@
         data = rand(Float32, 64, 1)
         source = DummySampleSource(48000, data)
         sink = DummySampleSink(Float32, 48000, 2)
-        write(sink, source, bufsize=20)
+        write(sink, source, blocksize=20)
         @test sink.buf == [data data]
     end
 
@@ -24,7 +24,7 @@
         data = rand(Float32, 64, 2)
         source = DummySampleSource(48000, data)
         sink = DummySampleSink(Float32, 48000, 1)
-        write(sink, source, bufsize=20)
+        write(sink, source, blocksize=20)
         @test sink.buf == data[:, 1:1] + data[:, 2:2]
     end
 
@@ -33,7 +33,7 @@
         fdata = convert(Array{Float32}, data)
         source = DummySampleSource(48000, data)
         sink = DummySampleSink(Float32, 48000, 2)
-        write(sink, source, bufsize=20)
+        write(sink, source, blocksize=20)
         @test sink.buf == fdata
     end
 
@@ -61,7 +61,7 @@
 
         source = DummySampleSource(sr1, data1)
         sink = DummySampleSink(Float32, sr2, 2)
-        write(sink, source, bufsize=20)
+        write(sink, source, blocksize=20)
         @test isapprox(sink.buf, data2)
     end
 
@@ -78,26 +78,26 @@
 
         source = DummySampleSource(sr1, data1)
         sink = DummySampleSink(Fixed{Int16, 15}, sr2, 2)
-        write(sink, source, bufsize=20)
+        write(sink, source, blocksize=20)
         # we can get slightly different results depending on whether we resample
         # before or after converting data types
         @test isapprox(sink.buf, data2)
     end
 
-    @testset "stream reading supports frame count larger than bufsize" begin
+    @testset "stream reading supports frame count larger than blocksize" begin
         data = rand(Float32, 64, 2)
         source = DummySampleSource(48000, data)
         sink = DummySampleSink(Float32, 48000, 2)
-        n = write(sink, source, 20, bufsize=8)
+        n = write(sink, source, 20, blocksize=8)
         @test n == 20
         @test sink.buf == data[1:20, :]
     end
 
-    @testset "stream reading supports frame count smaller than bufsize" begin
+    @testset "stream reading supports frame count smaller than blocksize" begin
         data = rand(Float32, 64, 2)
         source = DummySampleSource(48000, data)
         sink = DummySampleSink(Float32, 48000, 2)
-        n = write(sink, source, 10, bufsize=20)
+        n = write(sink, source, 10, blocksize=20)
         @test n == 10
         @test sink.buf == data[1:10, :]
     end
@@ -110,7 +110,7 @@
         # we should get back the exact duration given even if it's not exactly
         # on a sample boundary
         duration = (duration + eps(duration)) * s
-        t = write(sink, source, duration, bufsize=8)
+        t = write(sink, source, duration, blocksize=8)
         @test t == duration
         @test sink.buf == data[1:20, :]
     end
@@ -120,7 +120,7 @@
         source = DummySampleSource(48000Hz, data)
         sink = DummySampleSink(Float32, 48000Hz, 2)
         duration = 1.0s
-        t = write(sink, source, duration, bufsize=8)
+        t = write(sink, source, duration, blocksize=8)
         @test t == (64/48000) * s
         @test sink.buf == data
     end
@@ -154,9 +154,9 @@
         @test buf == data[1:32, 1] + data[1:32, 2]
     end
 
-    @testset "bufsize fallback returns 0" begin
-        @test bufsize(DummySampleSource(48000Hz, zeros(5, 2))) == 0
-        @test bufsize(DummySampleSink(Float32, 48000Hz, 2)) == 0
+    @testset "blocksize fallback returns 0" begin
+        @test blocksize(DummySampleSource(48000Hz, zeros(5, 2))) == 0
+        @test blocksize(DummySampleSink(Float32, 48000Hz, 2)) == 0
     end
 
     @testset "Writing source to sink goes blockwise" begin
