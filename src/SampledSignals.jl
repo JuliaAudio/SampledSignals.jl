@@ -9,6 +9,7 @@ using Compat
 # if/when we drop 0.4 support we can remove UTF8String and just call it "String".
 # we'll also be able to use view without importing it from Compat
 import Compat: view, UTF8String
+@compat import Base.show
 
 export SampleBuf
 export SampleSource, SampleSink

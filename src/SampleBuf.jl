@@ -35,7 +35,6 @@ function domain(buf::SampleBuf)
     T[n/samplerate(buf) for n in 0:(nframes(buf)-1)]
 end
 
-@compat import Base.show
 # from @mbauman's Sparklines.jl package
 const ticks = ['▁','▂','▃','▄','▅','▆','▇','█']
 # 3-arg version (with explicit mimetype) is needed because we subtype AbstractArray,
@@ -45,11 +44,6 @@ const ticks = ['▁','▂','▃','▄','▅','▆','▇','█']
     len = nframes(buf) / samplerate(buf)
     print(io, "$len at $(samplerate(buf))")
     nframes(buf) > 0 && showchannels(io, buf)
-end
-
-# this is needed because if Compat.jl#255
-if VERSION < v"0.5.0-dev+4340"
-    Base.writemime(io::IO, M::MIME"text/plain", buf::SampleBuf) = show(io, M, buf)
 end
 
 function showchannels(io::IO, buf::SampleBuf, widthchars=80)
