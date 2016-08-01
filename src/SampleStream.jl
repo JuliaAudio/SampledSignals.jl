@@ -59,7 +59,7 @@ function Base.read(src::SampleSource, nframes::Integer)
     buf[1:n, :]
 end
 
-const DEFAULT_blocksize=4096
+const DEFAULT_BLOCKSIZE=4096
 
 # handle sink-to-source writing with a duration in seconds
 function Base.write{T <: Real}(sink::SampleSink, source::SampleSource,
@@ -85,7 +85,7 @@ function Base.write(sink::SampleSink, source::SampleSource, frames=-1;
         blocksize = SampledSignals.blocksize(source)
     end
     if blocksize == 0
-        blocksize = DEFAULT_blocksize
+        blocksize = DEFAULT_BLOCKSIZE
     end
     if samplerate(sink) != samplerate(source)
         sink = ResampleSink(sink, samplerate(source), blocksize)
@@ -178,7 +178,7 @@ immutable UpMixSink{W <: SampleSink, B <: SampleBuf} <: SampleSink
     buf::B
 end
 
-function UpMixSink(wrapped::SampleSink, blocksize=DEFAULT_blocksize)
+function UpMixSink(wrapped::SampleSink, blocksize=DEFAULT_BLOCKSIZE)
     N = nchannels(wrapped)
     SR = samplerate(wrapped)
     T = eltype(wrapped)
@@ -226,7 +226,7 @@ immutable DownMixSink{W <: SampleSink, B <: SampleBuf} <: SampleSink
     channels::Int
 end
 
-function DownMixSink(wrapped::SampleSink, channels, blocksize=DEFAULT_blocksize)
+function DownMixSink(wrapped::SampleSink, channels, blocksize=DEFAULT_BLOCKSIZE)
     SR = samplerate(wrapped)
     T = eltype(wrapped)
     buf = SampleBuf(T, SR, blocksize, 1)
@@ -275,7 +275,7 @@ end
 #     buf::B
 # end
 #
-# function ReformatSink(wrapped::SampleSink, T, blocksize=DEFAULT_blocksize)
+# function ReformatSink(wrapped::SampleSink, T, blocksize=DEFAULT_BLOCKSIZE)
 #     SR = samplerate(wrapped)
 #     WT = eltype(wrapped)
 #     N = nchannels(wrapped)
@@ -321,7 +321,7 @@ type ResampleSink{W <: SampleSink, U, B <: SampleBuf, A <: Array} <: SampleSink
     last::A
 end
 
-function ResampleSink(wrapped::SampleSink, SR, blocksize=DEFAULT_blocksize)
+function ResampleSink(wrapped::SampleSink, SR, blocksize=DEFAULT_BLOCKSIZE)
     WSR = samplerate(wrapped)
     T = eltype(wrapped)
     N = nchannels(wrapped)
