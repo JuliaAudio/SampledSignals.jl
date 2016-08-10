@@ -30,5 +30,6 @@ include("SampleBuf.jl")
 include("SampleStream.jl")
 include("DummySampleStream.jl")
 include("SignalGen/SinSource.jl")
+include("WAVDisplay.jl")
 
 end # module
