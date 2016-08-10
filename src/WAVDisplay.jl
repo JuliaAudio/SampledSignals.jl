@@ -88,7 +88,7 @@ function wavwrite(io::IO, buf::SampleBuf)
     nbits = get_nbits(buf)
     nchans = nchannels(buf)
     blockalign = nbits / 8 * nchans
-    sr = round(Uint32, float(samplerate(buf)))
+    sr = round(UInt32, float(samplerate(buf)))
     bps = sr * blockalign
     datalength::UInt32 = nframes(buf) * blockalign
 
