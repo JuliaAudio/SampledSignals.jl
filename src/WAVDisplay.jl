@@ -6,11 +6,68 @@
     tempio = IOBuffer()
     wavwrite(tempio, buf)
     data = base64encode(takebuf_array(tempio))
-    markup = """<audio controls="controls" {autoplay}>
-                <source src="data:audio/wav;base64,$data" type="audio/wav" />
-                Your browser does not support the audio element.
-                </audio>"""
-    print(io, markup)
+    # we want the divID to start with a letter
+    divid = string("a", randstring(10))
+    print(io, """
+    <div id=$divid></div>
+    <button id=$divid-skipback class="btn"><span class="fa fa-step-backward"></span></button>
+    <button id=$divid-playpause class="btn"><span class="fa fa-play"></span></button>
+    <button id=$divid-stop class="btn"><span class="fa fa-stop"></span></button>
+    <button id=$divid-skipahead class="btn"><span class="fa fa-step-forward"></span></button>
+    <script type="text/javascript">
+        require.config({
+            paths: {
+                wavesurfer: ["//cdnjs.cloudflare.com/ajax/libs/wavesurfer.js/1.0.52/wavesurfer.min"],
+            }
+        });
+        require(["wavesurfer"], function(wavesurfer) {
+            var waveform = WaveSurfer.create({
+                container: '#$divid',
+                splitChannels: true,
+                scrollParent: true,
+                height: 40
+            });
+            var base64 = "$data";
+            var binary_string = window.atob(base64);
+            var len = binary_string.length;
+            var bytes = new Uint8Array(len);
+            for (var i = 0; i < len; i++) {
+                bytes[i] = binary_string.charCodeAt(i);
+            }
+            waveform.loadArrayBuffer(bytes.buffer);
+            \$("#$divid-skipback").click(function(event) {
+                waveform.skip(-3);
+            });
+            \$("#$divid-skipahead").click(function(event) {
+                waveform.skip(3);
+            });
+            \$("#$divid-playpause").click(function(event) {
+                var el = \$("#$divid-playpause span")
+                if(waveform.isPlaying()) {
+                    waveform.pause();
+                    el.removeClass("fa-pause");
+                    el.addClass("fa-play");
+                }
+                else {
+                    waveform.play();
+                    el.removeClass("fa-play");
+                    el.addClass("fa-pause");
+                }
+            });
+            \$("#$divid-stop").click(function(event) {
+                waveform.stop();
+                var el = \$("#$divid-playpause span")
+                el.removeClass("fa-pause");
+                el.addClass("fa-play");
+            });
+            waveform.on('finish', function() {
+                var el = \$("#$divid-playpause span")
+                el.removeClass("fa-pause");
+                el.addClass("fa-play");
+            })
+        });
+    </script>
+    """)
 end
 
 # Required WAV Chunk; The format chunk describes how the waveform data is stored
