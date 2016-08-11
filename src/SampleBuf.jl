@@ -30,9 +30,15 @@ nframes(buf::SampleBuf) = size(buf.data, 1)
 Base.similar{T}(buf::SampleBuf, ::Type{T}, dims::Dims) = SampleBuf(Array(T, dims), samplerate(buf))
 # TODO: we shouldn't need the `collect` once SIUnits supports LinSpace
 # domain(buf::SampleBuf) = collect((0/samplerate(buf)):(nframes(buf)-1)/samplerate(buf))
-function domain(buf::SampleBuf)
-    T = typeof(1/samplerate(buf))
-    T[n/samplerate(buf) for n in 0:(nframes(buf)-1)]
+function domain(buf::SampleBuf; units=true)
+    if units
+        T = typeof(1/samplerate(buf))
+        arr = T[n/samplerate(buf) for n in 0:(nframes(buf)-1)]
+    else
+        sr = float(samplerate(buf))
+        arr = Float64[n/sr for n in 0:(nframes(buf)-1)]
+    end
+    arr
 end
 
 # from @mbauman's Sparklines.jl package
