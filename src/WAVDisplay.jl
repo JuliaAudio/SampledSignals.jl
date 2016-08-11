@@ -104,6 +104,8 @@ function wavwrite(io::IO, buf::SampleBuf)
     end
 end
 
+
+write_le(stream::IO, val::FixedPoint) = write_le(stream, reinterpret(val))
 write_le(stream::IO, value) = write(stream, htol(value))
 
 function write_header(io::IO, datalength)
@@ -131,7 +133,12 @@ get_nbits(::AbstractArray{Int16}) = 16
 get_nbits{T}(::AbstractArray{T}) = error("Unsupported sample type $T")
 get_nbits(::AbstractArray{Float32}) = 32
 get_nbits(::AbstractArray{Float64}) = 64
+# 2-step process for Fixed-Point numbers to work within dispatch stuff
+# TODO: this will break on empty arrays
+get_nbits{T, N}(::FixedPoint{T, N}) = N+1
+get_nbits{T <: FixedPoint}(arr::AbstractArray{T}) = get_nbits(arr[1])
 
 get_format{T <: Integer}(::AbstractArray{T}) = WAVE_FORMAT_PCM
+get_format{T <: Fixed}(::AbstractArray{T}) = WAVE_FORMAT_PCM
 get_format{T <: AbstractFloat}(::AbstractArray{T}) = WAVE_FORMAT_IEEE_FLOAT
 get_nbits{T}(::AbstractArray{T}) = error("Unsupported sample type $T")
