@@ -2,7 +2,7 @@
 # WAV.jl package. Rather than full WAV support here we just want to support
 # enough for simple HTML display of SampleBufs
 
-@compat function show(io::IO, ::MIME"text/html", buf::SampleBuf)
+@compat function show{T<:Real, N, U<:HertzQuantity}(io::IO, ::MIME"text/html", buf::SampleBuf{T, N, U})
     tempio = IOBuffer()
     wavwrite(tempio, buf)
     data = base64encode(takebuf_array(tempio))
@@ -128,9 +128,10 @@ end
 
 get_nbits(::AbstractArray{UInt8}) = 8
 get_nbits(::AbstractArray{Int16}) = 16
-get_nbits(::Any) = 24
+get_nbits{T}(::AbstractArray{T}) = error("Unsupported sample type $T")
 get_nbits(::AbstractArray{Float32}) = 32
 get_nbits(::AbstractArray{Float64}) = 64
 
 get_format{T <: Integer}(::AbstractArray{T}) = WAVE_FORMAT_PCM
 get_format{T <: AbstractFloat}(::AbstractArray{T}) = WAVE_FORMAT_IEEE_FLOAT
+get_nbits{T}(::AbstractArray{T}) = error("Unsupported sample type $T")

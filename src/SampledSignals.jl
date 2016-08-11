@@ -24,6 +24,8 @@ export samplerate, nchannels, nframes, domain, channelptr, blocksize
 # re-export the useful units
 export ns, ms, µs, s, Hz, kHz, MHz, GHz, THz
 
+typealias HertzQuantity{T} SIUnits.SIQuantity{T,0,0,-1,0,0,0,0,0,0}
+typealias SecondsQuantity{T} SIUnits.SIQuantity{T,0,0,1,0,0,0,0,0,0}
 
 include("Interval.jl")
 include("SampleBuf.jl")
