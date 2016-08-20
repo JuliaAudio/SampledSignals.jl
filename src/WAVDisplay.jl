@@ -81,19 +81,20 @@ immutable WAVFormat
 end
 
 # we'll only ever write these formats
-const WAVE_FORMAT_PCM        = 0x0001 # PCM
-const WAVE_FORMAT_IEEE_FLOAT = 0x0003 # IEEE float
+const WAVE_FORMAT_PCM = 0x0001
+const SAMPLE_TYPE = Fixed{Int16, 15}
 
+# we always write 16-bit PCM wav data, because that's what Firefox understands
 function wavwrite(io::IO, buf::SampleBuf)
-    nbits = get_nbits(buf)
+    nbits = 16
     nchans = nchannels(buf)
-    blockalign = nbits / 8 * nchans
+    blockalign = 2 * nchans
     sr = round(UInt32, float(samplerate(buf)))
     bps = sr * blockalign
     datalength::UInt32 = nframes(buf) * blockalign
 
     write_header(io, datalength)
-    write_format(io, WAVFormat(get_format(buf), nchans, sr, bps, blockalign, nbits))
+    write_format(io, WAVFormat(WAVE_FORMAT_PCM, nchans, sr, bps, blockalign, nbits))
 
     # write the data subchunk header
     write(io, b"data")
@@ -105,6 +106,8 @@ function wavwrite(io::IO, buf::SampleBuf)
 end
 
 
+write_le(stream::IO, val::AbstractFloat) = write_le(stream,
+    SAMPLE_TYPE(clamp(val, typemin(SAMPLE_TYPE), typemax(SAMPLE_TYPE))))
 write_le(stream::IO, val::FixedPoint) = write_le(stream, reinterpret(val))
 write_le(stream::IO, value) = write(stream, htol(value))
 
@@ -127,18 +130,3 @@ function write_format(io::IO, fmt::WAVFormat)
     write_le(io, fmt.block_align) # byte align (UInt16)
     write_le(io, fmt.nbits) # number of bits per sample (UInt16)
 end
-
-get_nbits(::AbstractArray{UInt8}) = 8
-get_nbits(::AbstractArray{Int16}) = 16
-get_nbits{T}(::AbstractArray{T}) = error("Unsupported sample type $T")
-get_nbits(::AbstractArray{Float32}) = 32
-get_nbits(::AbstractArray{Float64}) = 64
-# 2-step process for Fixed-Point numbers to work within dispatch stuff
-# TODO: this will break on empty arrays
-get_nbits{T, N}(::FixedPoint{T, N}) = N+1
-get_nbits{T <: FixedPoint}(arr::AbstractArray{T}) = get_nbits(arr[1])
-
-get_format{T <: Integer}(::AbstractArray{T}) = WAVE_FORMAT_PCM
-get_format{T <: Fixed}(::AbstractArray{T}) = WAVE_FORMAT_PCM
-get_format{T <: AbstractFloat}(::AbstractArray{T}) = WAVE_FORMAT_IEEE_FLOAT
-get_nbits{T}(::AbstractArray{T}) = error("Unsupported sample type $T")
