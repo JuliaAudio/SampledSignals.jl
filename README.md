@@ -12,8 +12,6 @@ We also use the [SIUnits](https://github.com/keno/SIUnits.jl) package to enable 
 
 Because these buffer and stream types are sample-rate and channel-count aware, this package can automatically handle situations like writing a mono source into a stereo buffer, or resampling to match sample rates. This greatly simplifies the process of writing new streaming sample back-ends, because you only need to implement a small number of fundamental read/write operations, and SampledSignals will handle the plumbing.
 
-#### NOTE: This package currently requires the master branch of the `Compat` package.
-
 ## Types
 
 ### SampleBuf
