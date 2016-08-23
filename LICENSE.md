@@ -20,3 +20,7 @@ The SampledSignals.jl package is licensed under the MIT "Expat" License:
 > CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 > TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 > SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Additionally, The wav file generation code in WAVDisplay.jl is adapted from the
+WAV.jl package, Copyright (c) 2013: Daniel C. Casimiro, released under the MIT
+"Expat" License.
