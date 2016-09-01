@@ -89,6 +89,12 @@ julia> [buf[1:44100] buf[44100:88199]]
 ▃▃▄▄▄▃▂▂▂▂▄▃▄▄▄▄▄▄▅▅▅▅▅▅▅▅▅▅▄▂▂▁▁▅▃▃▂▄▂▄▃▃▄▃▄▂▁▃▂▂▃▃▃▃▃▃▃▃▃▃▃▄▄▄▅▅▄▄▄▆▆▄▃▅▄▂▁▁▂▁
 ```
 
+## Jupyter Notebook Display
+
+When working in a Jupyter notebook (which can display rich HTML representations), `SampleBuf`s will show a waveform display and allow you to listen to the buffer using your browser's WebAudio support.
+
+![Example of SampleBuf display in a Jupyter Notebook](http://juliaaudio.github.io/SampledSignals.jl/samplebuf_html_disp.png)
+
 ## Defining Custom Sink/Source types
 
 Say you have a library that moves audio over a network, or interfaces with some software-defined radio hardware. You should be able to easily tap into the SampledSignals infrastructure by doing the following:
