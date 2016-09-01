@@ -100,20 +100,20 @@ When working in a Jupyter notebook (which can display rich HTML representations)
 Say you have a library that moves audio over a network, or interfaces with some software-defined radio hardware. You should be able to easily tap into the SampledSignals infrastructure by doing the following:
 
 1. Subtype `SampleSink` or `SampleSource`
-2. Implement `SampledSignals.unsafe_read!` (for sources) or `SampledSignals.unsafe_write` (for sinks), which can assume that the channel count, sample rate, and type match between your stream type and the buffer type.
+2. Implement `Base.read!(source::YourSource, buf::Array)` (for sources) or `Base.write(sink::YourSink, buf::Array)` (for sinks), which can assume that the channel count, sample rate, and type match between your stream type and the buffer type. The methods listed above in the "Stream Read/Write Semantics" section are implemented in terms of these base `read!` and `write` calls. SampledSignals will call these methods with a 1D or 2D (nframes x nchannels) `Array`, with each channel in its own column.
 3. Implement `SampledSignals.samplerate`, `SampledSignals.nchannels`, and `Base.eltype` for your type.
 4. If your type has a preferred blocksize, implement `SampledSignals.blocksize`. Otherwise the fallback implementation will return `0`, meaning there's no preferred blocksize.
 
 For example, to define a `MySource` type, you would implement:
 
 ```julia
-SampledSignals.unsafe_read!(src::MySource, buf::SampleBuf)
+Base.read!(src::MySource, buf::Array)
+Base.eltype(source::MySource)
 SampledSignals.samplerate(source::MySource)
 SampledSignals.nchannels(source::MySource)
-Base.eltype(source::MySource)
 ```
 
-Other methods, such as the non-modifying `read`, sample-rate converting versions, and time-based indexing are all handled by SampledSignals. You can see the implementation of `DummySampleSink` and `DummySampleSource` in [DummySampleStream.jl](src/DummySampleStream.jl) or the [JACKAudio.jl](https://github.com/JuliaAudio/JACKAudio.jl) package for more complete examples.
+Other methods, such as the non-modifying `read`, sample-rate converting versions, and time-based indexing are all handled by SampledSignals. You can see the implementation of `DummySampleSink` and `DummySampleSource` in [DummySampleStream.jl](src/DummySampleStream.jl), or the [JACKAudio.jl](https://github.com/JuliaAudio/JACKAudio.jl) or [PortAudio.jl](https://github.com/JuliaAudio/PortAudio.jl) packages for more complete examples.
 
 ## Connecting Streams
 

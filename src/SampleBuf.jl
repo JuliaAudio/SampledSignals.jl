@@ -25,6 +25,10 @@ nchannels{T, U}(buf::SampleBuf{T, 2, U}) = size(buf.data, 2)
 nchannels{T, U}(buf::SampleBuf{T, 1, U}) = 1
 nframes(buf::SampleBuf) = size(buf.data, 1)
 
+# define audio methods on raw buffers as well
+nframes(arr::AbstractArray) = size(arr, 1)
+nchannels(arr::AbstractArray) = size(arr, 2)
+
 # it's important to define Base.similar so that range-indexing returns the
 # right type, instead of just a bare array
 Base.similar{T}(buf::SampleBuf, ::Type{T}, dims::Dims) = SampleBuf(Array(T, dims), samplerate(buf))

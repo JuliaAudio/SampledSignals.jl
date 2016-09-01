@@ -23,7 +23,7 @@ Base.eltype{T, U}(::SinSource{T, U}) = T
 nchannels(source::SinSource) = length(source.freqs)
 samplerate(source::SinSource) = source.samplerate
 
-function unsafe_read!(source::SinSource, buf::SampleBuf)
+function Base.read!(source::SinSource, buf::Array)
     inc = 2pi / float(samplerate(source))
     for ch in 1:nchannels(buf)
         f = float(source.freqs[ch])

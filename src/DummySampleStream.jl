@@ -38,8 +38,8 @@ queued the Sample will be played immediately. If a previously-written buffer is
 in progress the signal will be queued. To mix multiple signal see the `play`
 function. Currently we only implement the non-resampling, non-converting method.
 """
-function unsafe_write(sink::DummySampleSink, buf::SampleBuf)
-    sink.buf = vcat(sink.buf, buf.data)
+function Base.write(sink::DummySampleSink, buf::Array)
+    sink.buf = vcat(sink.buf, buf)
 
     nframes(buf)
 end
@@ -49,9 +49,9 @@ Fills the given buffer with the data from the stream. If there aren't enough
 frames in the stream then it's considered to be at its end and will only
 partally fill the buffer.
 """
-function unsafe_read!(src::DummySampleSource, buf::SampleBuf)
+function Base.read!(src::DummySampleSource, buf::Array)
     n = min(nframes(buf), size(src.buf, 1))
-    buf.data[1:n, :] = src.buf[1:n, :]
+    buf[1:n, :] = src.buf[1:n, :]
     src.buf = src.buf[(n+1):end, :]
 
     n
