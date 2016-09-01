@@ -10,6 +10,8 @@ else
     using BaseTestNext
 end
 using FixedPointNumbers
+using Gumbo
+using WAV
 
 include("util.jl")
 
@@ -19,6 +21,7 @@ try
         include("SampleBuf.jl")
         include("Interval.jl")
         include("SampleStream.jl")
+        include("WAVDisplay.jl")
         include("SignalGen/runtests.jl")
     end
 catch err

@@ -366,7 +366,7 @@ function unsafe_write(sink::ResampleSink, buf::SampleBuf)
             end
         end
         # only slice if we have to, to avoid allocating
-        actual::Int
+        local actual::Int
         if n == blocksize
             actual = unsafe_write(sink.wrapped, sink.buf)
         else
