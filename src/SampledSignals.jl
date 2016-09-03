@@ -34,5 +34,6 @@ include("SampleStream.jl")
 include("DummySampleStream.jl")
 include("SignalGen/SinSource.jl")
 include("WAVDisplay.jl")
+include("deprecated.jl")
 
 end # module
