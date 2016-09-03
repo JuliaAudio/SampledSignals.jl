@@ -33,7 +33,6 @@ Base.read(stream::SampleSource, t::SIQuantity) = read(stream, toindex(stream, t)
 
 function Base.read(src::SampleSource, nframes::Integer)
     buf = SampleBuf(eltype(src), samplerate(src), nframes, nchannels(src))
-    # println("created buffer:\n$buf")
     n = read!(src, buf)
 
     buf[1:n, :]
@@ -59,6 +58,24 @@ function Base.write{T <: Real}(sink::SampleSink, source::SampleSource,
     n == frames ? duration : n/sr
 end
 
+# wraps the given sink to match the sampling rate and channel count of the source
+function wrap_sink(sink::SampleSink, source::SampleSource, blocksize)
+    if samplerate(sink) != samplerate(source)
+        wrap_sink(ResampleSink(sink, samplerate(source), blocksize), source, blocksize)
+    elseif nchannels(sink) != nchannels(source)
+        if nchannels(sink) == 1
+            DownMixSink(sink, nchannels(source), blocksize)
+        elseif nchannels(source) == 1
+            UpMixSink(sink, blocksize)
+        else
+            error("General M-to-N channel mapping not supported")
+        end
+    else
+        # everything matches, just return the sink
+        sink
+    end
+end
+
 function Base.write(sink::SampleSink, source::SampleSource, frames=-1;
         blocksize=-1)
     if blocksize < 0
@@ -67,29 +84,9 @@ function Base.write(sink::SampleSink, source::SampleSource, frames=-1;
     if blocksize == 0
         blocksize = DEFAULT_BLOCKSIZE
     end
-    if samplerate(sink) != samplerate(source)
-        sink = ResampleSink(sink, samplerate(source), blocksize)
-    end
-
-    # if eltype(sink) != eltype(source)
-    #     sink = ReformatSink(sink, eltype(source), blocksize)
-    #     # return write(fmtwrapper, source, blocksize)
-    # end
-
-    if nchannels(sink) != nchannels(source)
-        if nchannels(sink) == 1
-            sink = DownMixSink(sink, nchannels(source), blocksize)
-            # return write(downwrapper, source, blocksize)
-        elseif nchannels(source) == 1
-            sink = UpMixSink(sink, blocksize)
-            # return write(upwrapper, source, blocksize)
-        else
-            error("General M-to-N channel mapping not supported")
-        end
-    end
     # looks like everything matches, now we can actually hook up the source
     # to the sink
-    unsafe_write(sink, source, frames, blocksize)
+    unsafe_write(wrap_sink(sink, source, blocksize), source, frames, blocksize)
 end
 
 # internal function to wire up a sink and source, assuming they have the same
@@ -112,12 +109,13 @@ function unsafe_write(sink::SampleSink, source::SampleSource, frames=-1, blocksi
             nw = write(sink, buf[1:nr, :])
             written += nw
             break
-        end
-        nw = write(sink, buf)
-        written += nw
-        if nw < n
-            # looks like the sink stream is closed
-            break
+        else
+            nw = write(sink, buf)
+            written += nw
+            if nw < n
+                # looks like the sink stream is closed
+                break
+            end
         end
     end
 
