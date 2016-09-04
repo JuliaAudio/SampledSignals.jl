@@ -23,15 +23,15 @@ Base.eltype{T, U}(::SinSource{T, U}) = T
 nchannels(source::SinSource) = length(source.freqs)
 samplerate(source::SinSource) = source.samplerate
 
-function Base.read!(source::SinSource, buf::Array)
+function unsafe_read!(source::SinSource, buf::Array, frameoffset, framecount)
     inc = 2pi / float(samplerate(source))
     for ch in 1:nchannels(buf)
         f = float(source.freqs[ch])
-        for i in 1:nframes(buf)
-            buf[i, ch] = sin((source.phase + (i-1)*inc)*f)
+        for i in 1:framecount
+            buf[i+frameoffset, ch] = sin((source.phase + (i-1)*inc)*f)
         end
     end
-    source.phase += nframes(buf) * inc
+    source.phase += framecount * inc
 
-    nframes(buf)
+    framecount
 end

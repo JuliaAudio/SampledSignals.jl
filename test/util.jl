@@ -1,4 +1,4 @@
-import SampledSignals: blocksize, samplerate, nchannels
+import SampledSignals: blocksize, samplerate, nchannels, unsafe_read!
 import Base: eltype
 
 # used in SampleStream tests to test blocked reading
@@ -11,11 +11,11 @@ samplerate(src::BlockedSampleSource) = 48000Hz
 eltype(src::BlockedSampleSource) = Float32
 nchannels(src::BlockedSampleSource) = 2
 
-function Base.read!(src::BlockedSampleSource, buf::Array)
-    @test nframes(buf) == blocksize(src)
-    toread = min(nframes(buf), src.framesleft)
+function unsafe_read!(src::BlockedSampleSource, buf::Array, frameoffset, framecount)
+    @test framecount == blocksize(src)
+    toread = min(framecount, src.framesleft)
     for ch in 1:nchannels(buf), i in 1:toread
-        buf[i, ch] = i * ch
+        buf[i+frameoffset, ch] = i * ch
     end
     src.framesleft -= toread
 
