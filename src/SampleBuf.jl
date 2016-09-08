@@ -79,8 +79,10 @@ end
 """Get a pointer to the underlying data for the buffer. Will return a Ptr{T},
 where T is the element type of the buffer. This is particularly useful for
 passing to C libraries to fill the buffer"""
-channelptr(buf::SampleBuf, channel) =
-    pointer(buf.data) + (channel-1)*nframes(buf) * sizeof(eltype(buf))
+channelptr(buf::Array, channel, frameoffset=0) =
+    pointer(buf) + ((channel-1)*nframes(buf)+frameoffset) * sizeof(eltype(buf))
+channelptr(buf::SampleBuf, channel, frameoffset=0) =
+    channelptr(buf.data, channel, frameoffset)
 
 # the index types that Base knows how to handle. Separate out those that index
 # multiple results
