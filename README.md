@@ -100,7 +100,7 @@ When working in a Jupyter notebook (which can display rich HTML representations)
 Say you have a library that moves audio over a network, or interfaces with some software-defined radio hardware. You should be able to easily tap into the SampledSignals infrastructure by doing the following:
 
 1. Subtype `SampleSink` or `SampleSource`
-2. Implement `SampledSignals.unsafe_read!(source::YourSource, buf::Array)` (for sources) or `SampledSignals.unsafe_write(sink::YourSink, buf::Array)` (for sinks), which can assume that the channel count, sample rate, and type match between your stream type and the buffer type. The methods listed above in the "Stream Read/Write Semantics" section are implemented in terms of these base `unsafe_read!` and `unsafe_write` calls. SampledSignals will call these methods with a 1D or 2D (nframes x nchannels) `Array`, with each channel in its own column.
+2. Implement `SampledSignals.unsafe_read!(source::YourSource, buf::Array, frameoffset, framecount)` (for sources) or `SampledSignals.unsafe_write(sink::YourSink, buf::Array, frameoffset, framecount)` (for sinks), which can assume that the channel count, sample rate, and type match between your stream type and the buffer type. The methods listed above in the "Stream Read/Write Semantics" section are implemented in terms of these base `unsafe_read!` and `unsafe_write` calls. SampledSignals will call these methods with a 1D or 2D (nframes x nchannels) `Array`, with each channel in its own column.
 3. Implement `SampledSignals.samplerate`, `SampledSignals.nchannels`, and `Base.eltype` for your type.
 4. If your type has a preferred blocksize, implement `SampledSignals.blocksize`. Otherwise the fallback implementation will return `0`, meaning there's no preferred blocksize.
 
