@@ -29,12 +29,12 @@
     end
 
     @testset "format conversion" begin
-        data = rand(Float64, 64, 2)
-        fdata = convert(Array{Float32}, data)
+        data = rand(Float32, 16, 2) - 0.5
         source = DummySampleSource(48000, data)
-        sink = DummySampleSink(Float32, 48000, 2)
-        write(sink, source, blocksize=20)
-        @test sink.buf == fdata
+        sink = DummySampleSink(Fixed{Int16, 15}, 48000, 2)
+        # the write function tests that the format matches
+        write(sink, source)
+        @test sink.buf == map(Fixed{Int16, 15}, data)
     end
 
     """Linearly interpolate the given array"""

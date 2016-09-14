@@ -87,9 +87,13 @@ function Base.write{T <: Real}(sink::SampleSink, source::SampleSource,
 end
 
 # wraps the given sink to match the sampling rate and channel count of the source
+# TODO: we should be able to add reformatting support to the ResampleSink and
+# xMixSink types, to avoid an extra buffer copy
 function wrap_sink(sink::SampleSink, source::SampleSource, blocksize)
     if samplerate(sink) != samplerate(source)
         wrap_sink(ResampleSink(sink, samplerate(source), blocksize), source, blocksize)
+    elseif eltype(sink) != eltype(source)
+        wrap_sink(ReformatSink(sink, eltype(source), blocksize), source, blocksize)
     elseif nchannels(sink) != nchannels(source)
         if nchannels(sink) == 1
             DownMixSink(sink, nchannels(source), blocksize)
@@ -249,48 +253,43 @@ function unsafe_write(sink::DownMixSink, buf::Array, frameoffset, framecount)
     written
 end
 
-# immutable ReformatSink{W <: SampleSink, B <: SampleBuf} <: SampleSink
-#     wrapped::W
-#     buf::B
-# end
-#
-# function ReformatSink(wrapped::SampleSink, T, blocksize=DEFAULT_BLOCKSIZE)
-#     SR = samplerate(wrapped)
-#     WT = eltype(wrapped)
-#     N = nchannels(wrapped)
-#     buf = SampleBuf(WT, SR, blocksize, N)
-#
-#     ReformatSink(wrapped, buf)
-# end
-#
-# samplerate(sink::ReformatSink) = samplerate(sink.wrapped)
-# nchannels(sink::ReformatSink) = nchannels(sink.wrapped)
-# Base.eltype(sink::ReformatSink) = eltype(sink.wrapped)
-#
-# function unsafe_write(sink::ReformatSink, buf::SampleBuf)
-#     blocksize = nframes(sink.buf)
-#     total = nframes(buf)
-#     written = 0
-#
-#     while written < total
-#         n = min(blocksize, total - written)
-#         # copy to the buffer, which will convert to the wrapped type
-#         sink.buf[1:n, :] = view(buf, (1:n) + written, :)
-#         # only slice if we have to
-#         if n == blocksize
-#             actual = unsafe_write(sink.wrapped, sink.buf)
-#         else
-#             actual = unsafe_write(sink.wrapped, sink.buf[1:n, :])
-#         end
-#         written += actual
-#         if actual != n
-#             # write stream closed early
-#             break
-#         end
-#     end
-#
-#     written
-# end
+type ReformatSink{W <: SampleSink, B <: Array, T} <: SampleSink
+    wrapped::W
+    buf::B
+    typ::T
+end
+
+function ReformatSink(wrapped::SampleSink, T, blocksize=DEFAULT_BLOCKSIZE)
+    WT = eltype(wrapped)
+    N = nchannels(wrapped)
+    buf = Array(WT, blocksize, N)
+
+    ReformatSink(wrapped, buf, T)
+end
+
+samplerate(sink::ReformatSink) = samplerate(sink.wrapped)
+nchannels(sink::ReformatSink) = nchannels(sink.wrapped)
+Base.eltype(sink::ReformatSink) = sink.typ
+blocksize(sink::ReformatSink) = nframes(sink.buf)
+
+function unsafe_write(sink::ReformatSink, buf::Array, frameoffset, framecount)
+    blocksize = nframes(sink.buf)
+    written = 0
+
+    while written < framecount
+        n = min(blocksize, framecount - written)
+        # copy to the buffer, which will convert to the wrapped type
+        sink.buf[1:n, :] = view(buf, (1:n) + written + frameoffset, :)
+        actual = unsafe_write(sink.wrapped, sink.buf, 0, n)
+        written += actual
+        if actual != n
+            # write stream closed early
+            break
+        end
+    end
+
+    written
+end
 
 type ResampleSink{W <: SampleSink, U, B <: Array, A <: Array} <: SampleSink
     wrapped::W

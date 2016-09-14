@@ -15,7 +15,6 @@ import Compat: view, UTF8String
 export SampleBuf
 export SampleSource, SampleSink
 export SampleRate
-export DummySampleSource, DummySampleSink, simulate_input
 export ResampleSink, ReformatSink, DownMixSink, UpMixSink
 export SampleBufSource, SampleBufSink
 export SinSource
@@ -31,7 +30,6 @@ typealias SecondsQuantity{T} SIUnits.SIQuantity{T,0,0,1,0,0,0,0,0,0}
 include("Interval.jl")
 include("SampleBuf.jl")
 include("SampleStream.jl")
-include("DummySampleStream.jl")
 include("SignalGen/SinSource.jl")
 include("WAVDisplay.jl")
 include("deprecated.jl")

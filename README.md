@@ -27,7 +27,7 @@ A `SampleBuf` represents multichannel, regularly-sampled data, providing handy i
 
 ### SampleSource
 
-`SampleSource` is an abstract type representing a source of samples, which might for instance represent a microphone input. The `read` method just gives you a single frame (an 1xN N-channel `SampleBuf`), but you can also read an integer number of samples or an amount of time given in seconds. This package includes the `DummySampleSource` concrete type that is useful for testing the stream interface.
+`SampleSource` is an abstract type representing a source of samples, which might for instance represent a microphone input. The `read` method just gives you a single frame (an 1xN N-channel `SampleBuf`), but you can also read an integer number of samples or an amount of time given in seconds. This package includes the `SampleBufSource` type that is a useful example and also can be used to test your implementations of the stream interface.
 
 #### Methods
 
@@ -37,7 +37,7 @@ A `SampleBuf` represents multichannel, regularly-sampled data, providing handy i
 
 ### SampleSink
 
-`SampleSink` is an abstract type representing a sink for samples to be written to, for instance representing your laptop speakers. The main method used here is `write` which writes a `SampleBuf` to a `SampleSink`. This package includes the `DummySampleSink` concrete type that is useful for testing the stream interface.
+`SampleSink` is an abstract type representing a sink for samples to be written to, for instance representing your laptop speakers. The main method used here is `write` which writes a `SampleBuf` to a `SampleSink`. This package includes the `SampleBufSink` type that is a useful example and also can be used to test your implementations of the stream interface.
 
 #### Methods
 
