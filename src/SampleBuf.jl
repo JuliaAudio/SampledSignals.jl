@@ -14,6 +14,9 @@ end
 # handle creation with a unitful sample rate
 SampleBuf(T, sr, dims...) = SampleBuf(Array(T, dims...), sr)
 
+SampleBuf(T, sr::SIQuantity, len::SIQuantity) = SampleBuf(T, sr, round(Int, len*sr))
+SampleBuf(T, sr::SIQuantity, len::SIQuantity, ch) = SampleBuf(T, sr, round(Int, len*sr), ch)
+
 # terminology:
 # sample - a single value representing the amplitude of 1 channel at some point in time (or frequency)
 # channel - a set of samples running in parallel

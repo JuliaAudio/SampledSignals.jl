@@ -142,6 +142,20 @@
         @test samplerate(buf) == TEST_SR
     end
 
+    @testset "Can be created with a length in seconds" begin
+        buf = SampleBuf(Float32, TEST_SR, 0.5s, 2)
+        @test nchannels(buf) == 2
+        @test nframes(buf) == TEST_SR.val/2
+        @test eltype(buf) == Float32
+        @test samplerate(buf) == TEST_SR
+
+        buf = SampleBuf(Float32, TEST_SR, 0.5s)
+        @test nchannels(buf) == 1
+        @test nframes(buf) == TEST_SR.val/2
+        @test eltype(buf) == Float32
+        @test samplerate(buf) == TEST_SR
+    end
+
     @testset "Can be created without units" begin
         buf = SampleBuf(Float32, 48000, 100, 2)
         @test samplerate(buf) == 48000
