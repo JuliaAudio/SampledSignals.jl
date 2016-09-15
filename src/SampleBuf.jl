@@ -50,6 +50,24 @@ function domain(buf::SampleBuf; units=true)
     arr
 end
 
+
+import Base: .*, +, ./, -
+
+for op in (:.*, :+, :./, :-)
+    @eval function $(op)(A1::SampleBuf, A2::SampleBuf)
+        if samplerate(A1) != samplerate(A2)
+            error("samplerate-converting arithmetic not supported yet")
+        end
+        SampleBuf($(op)(A1.data, A2.data), samplerate(A1))
+    end
+    @eval function $(op)(A1::SampleBuf, A2::Array)
+        SampleBuf($(op)(A1.data, A2), samplerate(A1))
+    end
+    @eval function $(op)(A1::Array, A2::SampleBuf)
+        SampleBuf($(op)(A1, A2.data), samplerate(A2))
+    end
+end
+
 # from @mbauman's Sparklines.jl package
 const ticks = ['▁','▂','▃','▄','▅','▆','▇','█']
 # 3-arg version (with explicit mimetype) is needed because we subtype AbstractArray,

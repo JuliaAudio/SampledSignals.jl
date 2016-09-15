@@ -194,13 +194,60 @@
     end
 
     @testset "Supports arithmetic" begin
-        arr1 = rand(TEST_T, 512, 2)
-        arr2 = rand(TEST_T, 512, 2)
+        arr1 = rand(TEST_T, 4, 2)
+        arr2 = rand(TEST_T, 4, 2)
         buf1 = SampleBuf(arr1, TEST_SR)
         buf2 = SampleBuf(arr2, TEST_SR)
 
-        @test buf1 + 1 == SampleBuf(arr1 + 1, TEST_SR)
-        @test buf1 + buf2 == SampleBuf(arr1 + arr2, TEST_SR)
+        sum = buf1 + buf2
+        @test sum == SampleBuf(arr1 + arr2, TEST_SR)
+        @test typeof(sum) == typeof(buf1)
+        prod = buf1 .* buf2
+        @test prod == SampleBuf(arr1 .* arr2, TEST_SR)
+        @test typeof(prod) == typeof(buf1)
+        diff = buf1 - buf2
+        @test diff == SampleBuf(arr1 - arr2, TEST_SR)
+        @test typeof(diff) == typeof(buf1)
+        quot = buf1 ./ buf2
+        @test quot == SampleBuf(arr1 ./ arr2, TEST_SR)
+        @test typeof(quot) == typeof(buf1)
+    end
+
+    @testset "Arithmetic with constants gives SampleBufs" begin
+        arr1 = rand(TEST_T, 4, 2)
+        buf1 = SampleBuf(arr1, TEST_SR)
+
+        sum = buf1 + 2.0f0
+        @test sum == SampleBuf(arr1 + 2.0f0, TEST_SR)
+        @test typeof(sum) == typeof(buf1)
+        prod = buf1 * 2.0f0
+        @test prod == SampleBuf(arr1 * 2.0f0, TEST_SR)
+        @test typeof(prod) == typeof(buf1)
+        diff = buf1 - 2.0f0
+        @test diff == SampleBuf(arr1 - 2.0f0, TEST_SR)
+        @test typeof(diff) == typeof(buf1)
+        quot = buf1 / 2.0f0
+        @test quot == SampleBuf(arr1 / 2.0f0, TEST_SR)
+        @test typeof(quot) == typeof(buf1)
+    end
+
+    @testset "Arithmetic with arrays gives SampleBufs" begin
+        arr1 = rand(TEST_T, 4, 2)
+        arr2 = rand(TEST_T, 4, 2)
+        buf1 = SampleBuf(arr1, TEST_SR)
+
+        sum = buf1 + arr2
+        @test sum == SampleBuf(arr1 + arr2, TEST_SR)
+        @test typeof(sum) == typeof(buf1)
+        prod = buf1 .* arr2
+        @test prod == SampleBuf(arr1 .* arr2, TEST_SR)
+        @test typeof(prod) == typeof(buf1)
+        diff = buf1 - arr2
+        @test diff == SampleBuf(arr1 - arr2, TEST_SR)
+        @test typeof(diff) == typeof(buf1)
+        quot = buf1 ./ arr2
+        @test quot == SampleBuf(arr1 ./ arr2, TEST_SR)
+        @test typeof(quot) == typeof(buf1)
     end
 
     @testset "FFT of SampleBuf gives FrequencySampleBuf" begin
