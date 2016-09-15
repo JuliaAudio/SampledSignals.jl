@@ -291,12 +291,12 @@ function unsafe_write(sink::ReformatSink, buf::Array, frameoffset, framecount)
     written
 end
 
-type ResampleSink{W <: SampleSink, U, B <: Array, A <: Array} <: SampleSink
+type ResampleSink{W <: SampleSink, U, B <: Array, R, F <: FIRFilter} <: SampleSink
     wrapped::W
     samplerate::U
     buf::B
-    phase::Float64
-    last::A
+    ratio::R
+    filters::Vector{F}
 end
 
 function ResampleSink(wrapped::SampleSink, SR, blocksize=DEFAULT_BLOCKSIZE)
@@ -312,7 +312,11 @@ function ResampleSink(wrapped::SampleSink, SR, blocksize=DEFAULT_BLOCKSIZE)
         error("Converting between units in samplerate conversion not yet supported")
     end
 
-    ResampleSink(wrapped, SR, buf, 0.0, zeros(T, N))
+    ratio = WSR/SR
+    coefs = resample_filter(ratio)
+    filters = [FIRFilter(coefs, ratio) for _ in 1:N]
+
+    ResampleSink(wrapped, SR, buf, ratio, filters)
 end
 
 samplerate(sink::ResampleSink) = sink.samplerate
@@ -321,40 +325,30 @@ Base.eltype(sink::ResampleSink) = eltype(sink.wrapped)
 # TODO: implement blocksize for this
 
 function unsafe_write(sink::ResampleSink, buf::Array, frameoffset, framecount)
-    blocksize = nframes(sink.buf)
-    # we have to help inference here because SIUnits isn't type-stable on
-    # division and multiplication
-    # TODO: clean this when SIUnits is more type-stable
-    ratio::Float64 = samplerate(sink) / samplerate(sink.wrapped)
-    # total is in terms of samples at the wrapped sink rate
-    total = trunc(Int, (framecount - 1) / ratio + sink.phase) + 1
-    written::Int = 0
+    # check here for a zero-channel sink so we don't crash below
+    nchannels(sink) < 1 && return framecount
+    dest_blocksize = nframes(sink.buf)
+    src_blocksize = trunc(Int, dest_blocksize / sink.ratio)
 
-    nframes(buf) == 0 && return 0
-
-    while written < total
-        n = min(nframes(sink.buf), total-written)
-        for i in 1:n
-            bufidx = (written + frameoffset + i-1 - sink.phase)*ratio + 1
-            leftidx = trunc(Int, bufidx)
-            offset = bufidx - leftidx
-            for ch in 1:nchannels(buf)
-                left = leftidx == 0 ? sink.last[ch] : buf[leftidx, ch]
-                sink.buf[i, ch] = (1-offset) * left + offset * buf[leftidx+1, ch]
+    written = 0
+    while written < framecount
+        towrite = min(src_blocksize, framecount - written)
+        # good thing we checked for a zero-channel sink up there
+        actual = filt!(view(sink.buf, :, 1),
+                       sink.filters[1],
+                       view(buf, (1:towrite)+written+frameoffset, 1))
+        for ch in 2:nchannels(sink)
+            if actual != filt!(view(sink.buf, :, ch),
+                               sink.filters[ch],
+                               view(buf, (1:towrite)+written+frameoffset, ch))
+                error("Something went wrong - resampling channels out-of-sync")
             end
         end
-        local actual::Int
-        actual = unsafe_write(sink.wrapped, sink.buf, 0, n)
-        written += actual
-        actual == n || break
+        unsafe_write(sink.wrapped, sink.buf, 0, actual)
+        written += towrite
     end
 
-    # return the amount written in terms of the buffer's samplerate
-    read = (written == total ? nframes(buf) : trunc(Int, written * ratio))
-    read > 0 && (sink.last[:] = view(buf, read, :))
-    sink.phase = read / ratio + sink.phase - written
-
-    read
+    written
 end
 
 """SampleBufSource is a SampleSource backed by a buffer. It's mostly useful to

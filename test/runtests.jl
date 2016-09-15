@@ -1,6 +1,7 @@
 using SampledSignals
 using Compat
 import SIUnits
+using DSP
 
 import Compat.view
 

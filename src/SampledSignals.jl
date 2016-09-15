@@ -6,6 +6,7 @@ using SIUnits
 using SIUnits.ShortUnits: ns, ms, µs, s, Hz, kHz, MHz, GHz, THz
 using SIUnits: SIQuantity
 using FixedPointNumbers
+using DSP
 using Compat
 # if/when we drop 0.4 support we can remove UTF8String and just call it "String".
 # we'll also be able to use view without importing it from Compat
