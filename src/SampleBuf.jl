@@ -6,7 +6,7 @@ MxC matrix. So a 1-second stereo audio buffer sampled at 44100Hz with
 32-bit floating-point samples in the time domain would have the type
 SampleBuf{Float32, 2, SIUnits.SIQuantity{Int64,0,0,-1,0,0,0,0,0,0}}.
 """
-immutable SampleBuf{T <: Number, N, U <: Number} <: AbstractArray{T, N}
+type SampleBuf{T <: Number, N, U <: Number} <: AbstractArray{T, N}
     data::Array{T, N}
     samplerate::U
 end
@@ -24,6 +24,9 @@ samplerate(buf::SampleBuf) = buf.samplerate
 nchannels{T, U}(buf::SampleBuf{T, 2, U}) = size(buf.data, 2)
 nchannels{T, U}(buf::SampleBuf{T, 1, U}) = 1
 nframes(buf::SampleBuf) = size(buf.data, 1)
+function samplerate!(buf::SampleBuf, sr)
+    buf.samplerate = sr
+end
 
 # define audio methods on raw buffers as well
 nframes(arr::AbstractArray) = size(arr, 1)

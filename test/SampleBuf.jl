@@ -10,6 +10,8 @@
         @test nframes(tbuf) == 64
         @test domain(tbuf) == collect((0:63)/TEST_SR)
         @test domain(tbuf, units=false) == map(float, (0:63)/TEST_SR)
+        samplerate!(tbuf, 24000Hz)
+        @test samplerate(tbuf) == 24000Hz
     end
 
     @testset "Supports size()" begin

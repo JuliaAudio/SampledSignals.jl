@@ -21,7 +21,7 @@ export SampleBufSource, SampleBufSink
 export SinSource
 export Interval, ..
 # general methods for types in SampledSignals
-export samplerate, nchannels, nframes, domain, channelptr, blocksize
+export samplerate, samplerate!, nchannels, nframes, domain, channelptr, blocksize
 # re-export the useful units
 export ns, ms, µs, s, Hz, kHz, MHz, GHz, THz
 
