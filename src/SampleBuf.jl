@@ -26,6 +26,8 @@ nchannels{T, U}(buf::SampleBuf{T, 1, U}) = 1
 nframes(buf::SampleBuf) = size(buf.data, 1)
 function samplerate!(buf::SampleBuf, sr)
     buf.samplerate = sr
+
+    buf
 end
 
 # define audio methods on raw buffers as well
