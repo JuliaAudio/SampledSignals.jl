@@ -51,7 +51,11 @@ function domain(buf::SampleBuf; units=true)
 end
 
 
-import Base: .*, +, ./, -
+# There's got to be a better way to define these functions, but the dispatch
+# and broadcast behavior for AbstractArrays is complex and has subtle differences
+# between Julia versions, so we basically just override functions here as they
+# come up as problems
+import Base: .*, +, ./, -, *, /
 
 for op in (:.*, :+, :./, :-)
     @eval function $(op)(A1::SampleBuf, A2::SampleBuf)
@@ -60,11 +64,20 @@ for op in (:.*, :+, :./, :-)
         end
         SampleBuf($(op)(A1.data, A2.data), samplerate(A1))
     end
-    @eval function $(op)(A1::SampleBuf, A2::Array)
+    @eval function $(op)(A1::SampleBuf, A2::Union{Array, SubArray, LinSpace})
         SampleBuf($(op)(A1.data, A2), samplerate(A1))
     end
-    @eval function $(op)(A1::Array, A2::SampleBuf)
+    @eval function $(op)(A1::Union{Array, SubArray, LinSpace}, A2::SampleBuf)
         SampleBuf($(op)(A1, A2.data), samplerate(A2))
+    end
+end
+
+for op in (:*, :/)
+    @eval function $(op)(A1::SampleBuf, a2::Number)
+        SampleBuf($(op)(A1.data, a2), samplerate(A1))
+    end
+    @eval function $(op)(a1::Number, A2::SampleBuf)
+        SampleBuf($(op)(a1, A2.data), samplerate(A2))
     end
 end
 
