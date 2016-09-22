@@ -42,7 +42,7 @@
         sr2 = 9000
 
         data1 = rand(Float32, 64, 2)
-        ratio = 9000/48000
+        ratio = 9000//48000
         data2 = mapslices(c->filt(FIRFilter(resample_filter(ratio), ratio), c),
                           data1,
                           1)

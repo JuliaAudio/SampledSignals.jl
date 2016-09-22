@@ -291,13 +291,18 @@ function unsafe_write(sink::ReformatSink, buf::Array, frameoffset, framecount)
     written
 end
 
-type ResampleSink{W <: SampleSink, U, B <: Array, R, F <: FIRFilter} <: SampleSink
+type ResampleSink{W <: SampleSink, U, B <: Array, R <: Rational, F <: FIRFilter} <: SampleSink
     wrapped::W
     samplerate::U
     buf::B
     ratio::R
     filters::Vector{F}
 end
+
+sampleratio(num::AbstractFloat, den::AbstractFloat) = rationalize(num)/rationalize(den)
+sampleratio(num::Integer, den::AbstractFloat) = num/rationalize(den)
+sampleratio(num::AbstractFloat, den::Integer) = rationalize(num)/den
+sampleratio(num::Integer, den::Integer) = num//den
 
 function ResampleSink(wrapped::SampleSink, SR, blocksize=DEFAULT_BLOCKSIZE)
     WSR = samplerate(wrapped)
@@ -312,7 +317,7 @@ function ResampleSink(wrapped::SampleSink, SR, blocksize=DEFAULT_BLOCKSIZE)
         error("Converting between units in samplerate conversion not yet supported")
     end
 
-    ratio = WSR/SR
+    ratio = sampleratio(WSR, SR)
     coefs = resample_filter(ratio)
     filters = [FIRFilter(coefs, ratio) for _ in 1:N]
 
