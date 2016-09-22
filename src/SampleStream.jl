@@ -401,3 +401,27 @@ function unsafe_write(sink::SampleBufSink, buf::Array, frameoffset, framecount)
 
     n
 end
+
+
+# we only need to define this until DSP.jl#133
+# (https://github.com/JuliaDSP/DSP.jl/pull/133) is merged
+function DSP.shiftin!{T}(a::AbstractVector{T}, b::AbstractVector{T})
+    aLen = length(a)
+    bLen = length(b)
+
+    if bLen >= aLen
+        copy!(a, 1, b, bLen - aLen + 1, aLen)
+    else
+
+        for i in 1:aLen-bLen
+            @inbounds a[i] = a[i+bLen]
+        end
+        bIdx = 1
+        for i in aLen-bLen+1:aLen
+            @inbounds a[i] = b[bIdx]
+            bIdx += 1
+        end
+    end
+
+    return a
+end
