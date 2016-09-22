@@ -42,7 +42,7 @@
         sr2 = 9000
 
         data1 = rand(Float32, 64, 2)
-        ratio = 9000//48000
+        ratio = sr2//sr1
         data2 = mapslices(c->filt(FIRFilter(resample_filter(ratio), ratio), c),
                           data1,
                           1)
@@ -54,24 +54,40 @@
         @test sink.buf == map(Float32, data2)
     end
 
-    # @testset "combined conversion" begin
-    #     sr1 = 48000
-    #     data1 = rand(Float32, 64, 1) - 0.5
-    #     sr2 = 44100
-    #     data2 = Array(Fixed{Int16, 15}, ((size(data1, 1)-1) * sr2)÷sr1+1, 2)
-    #     for i in 1:size(data2, 1)
-    #         t = (i-1) / sr2
-    #         v = linterp(data1, sr1, t)
-    #         data2[i, :] = [v v]
-    #     end
-    #
-    #     source = DummySampleSource(sr1, data1)
-    #     sink = DummySampleSink(Fixed{Int16, 15}, sr2, 2)
-    #     write(sink, source, blocksize=20)
-    #     # we can get slightly different results depending on whether we resample
-    #     # before or after converting data types
-    #     @test isapprox(sink.buf, data2)
-    # end
+    @testset "upsampling conversion" begin
+        sr1 = 9000
+        sr2 = 48000
+
+        data1 = rand(Float32, 64, 2)
+        ratio = sr2//sr1
+        data2 = mapslices(c->filt(FIRFilter(resample_filter(ratio), ratio), c),
+                          data1,
+                          1)
+
+        source = DummySampleSource(sr1, data1)
+        sink = DummySampleSink(Float32, sr2, 2)
+        write(sink, source, blocksize=20)
+        @test size(sink.buf) == size(data2)
+        @test sink.buf == map(Float32, data2)
+    end
+
+    @testset "combined conversion" begin
+        sr1 = 48000
+        data1 = rand(Float32, 64, 1) - 0.5
+        sr2 = 44100
+        ratio = sr2//sr1
+        data2 = map(Fixed{Int16, 15}, hcat(
+            filt(FIRFilter(resample_filter(ratio), ratio), vec(data1)),
+            filt(FIRFilter(resample_filter(ratio), ratio), vec(data1))
+        ))
+
+        source = DummySampleSource(sr1, data1)
+        sink = DummySampleSink(Fixed{Int16, 15}, sr2, 2)
+        write(sink, source, blocksize=20)
+        # we can get slightly different results depending on whether we resample
+        # before or after converting data types
+        @test isapprox(sink.buf, data2)
+    end
 
     @testset "stream reading supports frame count larger than blocksize" begin
         data = rand(Float32, 64, 2)
