@@ -303,19 +303,18 @@ sampleratio(num::AbstractFloat, den::AbstractFloat) = rationalize(num)/rationali
 sampleratio(num::Integer, den::AbstractFloat) = num/rationalize(den)
 sampleratio(num::AbstractFloat, den::Integer) = rationalize(num)/den
 sampleratio(num::Integer, den::Integer) = num//den
+function sampleratio{T1 <: SIQuantity, T2 <: SIQuantity}(num::T1, den::T2)
+    if T1 != T2
+        error("Can't resample between $num and $den")
+    end
+    sampleratio(num.val, den.val)
+end
 
 function ResampleSink(wrapped::SampleSink, SR, blocksize=DEFAULT_BLOCKSIZE)
     WSR = samplerate(wrapped)
     T = eltype(wrapped)
     N = nchannels(wrapped)
     buf = Array(T, blocksize, N)
-
-    sr_is_si = isa(SR, SIQuantity)
-    wsr_is_si = isa(WSR, SIQuantity)
-    if (wsr_is_si && !sr_is_si) || (!wsr_is_si && sr_is_si) ||
-            (wsr_is_si && sr_is_si && SIUnits.unit(WSR) != SIUnits.unit(SR))
-        error("Converting between units in samplerate conversion not yet supported")
-    end
 
     ratio = sampleratio(WSR, SR)
     coefs = resample_filter(ratio)
