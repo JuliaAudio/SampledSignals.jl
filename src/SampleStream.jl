@@ -90,10 +90,18 @@ end
 # TODO: we should be able to add reformatting support to the ResampleSink and
 # xMixSink types, to avoid an extra buffer copy
 function wrap_sink(sink::SampleSink, source::SampleSource, blocksize)
-    if samplerate(sink) != samplerate(source)
-        wrap_sink(ResampleSink(sink, samplerate(source), blocksize), source, blocksize)
+    if eltype(sink) != eltype(source) && samplerate(sink) != samplerate(source)
+        # we're going to resample AND reformat. We prefer to resample
+        # in the floating-point space because it seems to be about 40% faster
+        if eltype(sink) <: AbstractFloat
+            wrap_sink(ResampleSink(sink, samplerate(source), blocksize), source, blocksize)
+        else
+            wrap_sink(ReformatSink(sink, eltype(source), blocksize), source, blocksize)
+        end
     elseif eltype(sink) != eltype(source)
         wrap_sink(ReformatSink(sink, eltype(source), blocksize), source, blocksize)
+    elseif samplerate(sink) != samplerate(source)
+        wrap_sink(ResampleSink(sink, samplerate(source), blocksize), source, blocksize)
     elseif nchannels(sink) != nchannels(source)
         if nchannels(sink) == 1
             DownMixSink(sink, nchannels(source), blocksize)
