@@ -31,3 +31,35 @@ function unsafe_write{T <: SampleSink}(sink::T, buf::Array, frameoffset, frameco
     tmp = SampleBuf(buf[(1:framecount)+frameoffset, :], samplerate(sink))
     unsafe_write(sink, tmp)
 end
+
+const unit_depwarned = Ref(false)
+function SampleBuf(arr::Array, sr::HertzQuantity)
+    if !unit_depwarned[]
+        warn("Samplerates with units are deprecated. Switch to plain floats")
+        unit_depwarned[] = true
+    end
+    SampleBuf(arr, float(sr))
+end
+
+function SampleBuf(T::Type, sr::HertzQuantity, args...)
+    if !unit_depwarned[]
+        warn("Samplerates with units are deprecated. Switch to plain floats")
+        unit_depwarned[] = true
+    end
+    SampleBuf(T, float(sr), args...)
+end
+
+# wrapper for samplerate that converts to floating point from unitful values
+# and prints a depwarn. We use this internally to keep backwards compatibility,
+# but it can be removed and replaced with normal `samplerate` calls when we
+# remove compatibility
+compat_samplerate(x) = warn_if_unitful(samplerate(x))
+
+warn_if_unitful(x) = x
+function warn_if_unitful(x::SIQuantity)
+    if !unit_depwarned[]
+        warn("Samplerates with units are deprecated. Switch to plain floats")
+        unit_depwarned[] = true
+    end
+    float(x)
+end
