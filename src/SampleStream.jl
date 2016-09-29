@@ -51,13 +51,13 @@ function unsafe_write end
 blocksize(src::SampleSource) = 0
 blocksize(src::SampleSink) = 0
 
-toindex(stream::SampleSource, t::SIQuantity) = round(Int, t*samplerate(stream)) + 1
+toindex(stream::SampleSource, t::SecondsQuantity) = round(Int, float(t)*samplerate(stream)) + 1
 
 # subtypes should only have to implement the `unsafe_read!` and `unsafe_write` methods, so
 # here we implement all the converting wrapper methods
 
 # when used as an amount of time to read, subtract one from the result of `toindex`
-Base.read(stream::SampleSource, t::SIQuantity) = read(stream, toindex(stream, t)-1)
+Base.read(stream::SampleSource, t::SecondsQuantity) = read(stream, toindex(stream, t)-1)
 
 function Base.read(src::SampleSource, nframes::Integer)
     buf = SampleBuf(eltype(src), samplerate(src), nframes, nchannels(src))
@@ -69,14 +69,10 @@ end
 const DEFAULT_BLOCKSIZE=4096
 
 # handle sink-to-source writing with a duration in seconds
-function Base.write{T <: Real}(sink::SampleSink, source::SampleSource,
-        duration::quantity(T, Second); blocksize=-1)
-    if SIUnits.unit(samplerate(sink)) != Hertz
-        error("Specifying duration in seconds only supported with a sink samplerate in Hz")
-    end
-
+function Base.write(sink::SampleSink, source::SampleSource,
+        duration::SecondsQuantity; blocksize=-1)
     sr = samplerate(sink)
-    frames = trunc(Int, duration * sr)
+    frames = trunc(Int, float(duration) * sr)
     n = write(sink, source, frames; blocksize=blocksize)
 
     # if we completed the operation return back the original duration so the
@@ -90,7 +86,7 @@ end
 # TODO: we should be able to add reformatting support to the ResampleSink and
 # xMixSink types, to avoid an extra buffer copy
 function wrap_sink(sink::SampleSink, source::SampleSource, blocksize)
-    if eltype(sink) != eltype(source) && samplerate(sink) != samplerate(source)
+    if eltype(sink) != eltype(source) && !isapprox(samplerate(sink), samplerate(source))
         # we're going to resample AND reformat. We prefer to resample
         # in the floating-point space because it seems to be about 40% faster
         if eltype(sink) <: AbstractFloat
@@ -100,7 +96,7 @@ function wrap_sink(sink::SampleSink, source::SampleSource, blocksize)
         end
     elseif eltype(sink) != eltype(source)
         wrap_sink(ReformatSink(sink, eltype(source), blocksize), source, blocksize)
-    elseif samplerate(sink) != samplerate(source)
+    elseif !isapprox(samplerate(sink), samplerate(source))
         wrap_sink(ResampleSink(sink, samplerate(source), blocksize), source, blocksize)
     elseif nchannels(sink) != nchannels(source)
         if nchannels(sink) == 1
@@ -299,36 +295,25 @@ function unsafe_write(sink::ReformatSink, buf::Array, frameoffset, framecount)
     written
 end
 
-type ResampleSink{W <: SampleSink, U, B <: Array, R <: Rational, F <: FIRFilter} <: SampleSink
+type ResampleSink{W <: SampleSink, B <: Array, F <: FIRFilter} <: SampleSink
     wrapped::W
-    samplerate::U
+    samplerate::Float32
     buf::B
-    ratio::R
+    ratio::Rational{Int}
     filters::Vector{F}
 end
 
-sampleratio(num::AbstractFloat, den::AbstractFloat) = rationalize(num)/rationalize(den)
-sampleratio(num::Integer, den::AbstractFloat) = num/rationalize(den)
-sampleratio(num::AbstractFloat, den::Integer) = rationalize(num)/den
-sampleratio(num::Integer, den::Integer) = num//den
-function sampleratio{T1 <: SIQuantity, T2 <: SIQuantity}(num::T1, den::T2)
-    if T1 != T2
-        error("Can't resample between $num and $den")
-    end
-    sampleratio(num.val, den.val)
-end
-
-function ResampleSink(wrapped::SampleSink, SR, blocksize=DEFAULT_BLOCKSIZE)
-    WSR = samplerate(wrapped)
+function ResampleSink(wrapped::SampleSink, sr, blocksize=DEFAULT_BLOCKSIZE)
+    wsr = samplerate(wrapped)
     T = eltype(wrapped)
     N = nchannels(wrapped)
     buf = Array(T, blocksize, N)
 
-    ratio = sampleratio(WSR, SR)
+    ratio = rationalize(wsr/sr)
     coefs = resample_filter(ratio)
     filters = [FIRFilter(coefs, ratio) for _ in 1:N]
 
-    ResampleSink(wrapped, SR, buf, ratio, filters)
+    ResampleSink{typeof(wrapped), typeof(buf), eltype(filters)}(wrapped, sr, buf, ratio, filters)
 end
 
 samplerate(sink::ResampleSink) = sink.samplerate

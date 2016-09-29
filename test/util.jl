@@ -1,14 +1,15 @@
 import SampledSignals: blocksize, samplerate, nchannels, unsafe_read!, unsafe_write
 import Base: eltype
 
-type DummySampleSource{T, U} <: SampleSource
-    samplerate::U
+type DummySampleSource{T} <: SampleSource
+    samplerate::Float64
     buf::Array{T, 2}
 end
 
+DummySampleSource{T}(sr, buf::Array{T}) = DummySampleSource{T}(sr, buf)
 samplerate(source::DummySampleSource) = source.samplerate
 nchannels(source::DummySampleSource) = size(source.buf, 2)
-Base.eltype{T, U}(source::DummySampleSource{T, U}) = T
+Base.eltype{T}(source::DummySampleSource{T}) = T
 
 function unsafe_read!(src::DummySampleSource, buf::Array, frameoffset, framecount)
     eltype(buf) == eltype(src) || error("buffer type ($(eltype(buf))) doesn't match source type ($(eltype(src)))")
@@ -22,17 +23,17 @@ function unsafe_read!(src::DummySampleSource, buf::Array, frameoffset, framecoun
 end
 
 
-type DummySampleSink{T, U} <: SampleSink
+type DummySampleSink{T} <: SampleSink
+    samplerate::Float64
     buf::Array{T, 2}
-    samplerate::U
 end
 
 DummySampleSink(eltype, samplerate, channels) =
-    DummySampleSink(Array(eltype, 0, channels), samplerate)
+    DummySampleSink{eltype}(samplerate, Array(eltype, 0, channels))
 
 samplerate(sink::DummySampleSink) = sink.samplerate
 nchannels(sink::DummySampleSink) = size(sink.buf, 2)
-Base.eltype{T, U}(sink::DummySampleSink{T, U}) = T
+Base.eltype{T}(sink::DummySampleSink{T}) = T
 
 function unsafe_write(sink::DummySampleSink, buf::Array, frameoffset, framecount)
     eltype(buf) == eltype(sink) || error("buffer type ($(eltype(buf))) doesn't match sink type ($(eltype(sink)))")
@@ -62,7 +63,7 @@ type BlockedSampleSource <: SampleSource
 end
 
 blocksize(::BlockedSampleSource) = 16
-samplerate(::BlockedSampleSource) = 48kHz
+samplerate(::BlockedSampleSource) = 48.0
 eltype(::BlockedSampleSource) = Float32
 nchannels(::BlockedSampleSource) = 2
 

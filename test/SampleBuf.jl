@@ -1,5 +1,5 @@
 @testset "SampleBuf Tests" begin
-    TEST_SR = 48000Hz
+    TEST_SR = 48000
     TEST_T = Float32
     Buf(arr) = SampleBuf(arr, TEST_SR)
 
@@ -8,10 +8,9 @@
         @test samplerate(tbuf) == TEST_SR
         @test nchannels(tbuf) == 2
         @test nframes(tbuf) == 64
-        @test domain(tbuf) == collect((0:63)/TEST_SR)
-        @test domain(tbuf, units=false) == map(float, (0:63)/TEST_SR)
-        ret = samplerate!(tbuf, 24000Hz)
-        @test samplerate(tbuf) == 24000Hz
+        @test isapprox(domain(tbuf), ((0:63)/TEST_SR))
+        ret = samplerate!(tbuf, 24000)
+        @test samplerate(tbuf) == 24000
         @test ret === tbuf
     end
 
@@ -32,7 +31,7 @@
         arr3 = arr1[:, 1]
         buf1 = SampleBuf(arr1, TEST_SR)
         buf2 = SampleBuf(arr1, TEST_SR)
-        buf3 = SampleBuf(arr1, TEST_SR+1Hz)
+        buf3 = SampleBuf(arr1, TEST_SR+1)
         buf4 = SampleBuf(arr2, TEST_SR)
         buf5 = SampleBuf(arr3, TEST_SR)
         buf6 = SampleBuf(arr1, 1/TEST_SR)
@@ -145,13 +144,13 @@
     @testset "Can be created with a length in seconds" begin
         buf = SampleBuf(Float32, TEST_SR, 0.5s, 2)
         @test nchannels(buf) == 2
-        @test nframes(buf) == TEST_SR.val/2
+        @test nframes(buf) == TEST_SR/2
         @test eltype(buf) == Float32
         @test samplerate(buf) == TEST_SR
 
         buf = SampleBuf(Float32, TEST_SR, 0.5s)
         @test nchannels(buf) == 1
-        @test nframes(buf) == TEST_SR.val/2
+        @test nframes(buf) == TEST_SR/2
         @test eltype(buf) == Float32
         @test samplerate(buf) == TEST_SR
     end
@@ -175,14 +174,14 @@
     end
 
     @testset "Invalid units throw an error" begin
-        arr = rand(TEST_T, (round(Int, 0.01s*TEST_SR), 2))
+        arr = rand(TEST_T, (round(Int, 0.01*TEST_SR), 2))
         buf = SampleBuf(arr, TEST_SR)
         @test_throws MethodError buf[1*SIUnits.Ampere]
     end
 
     @testset "SampleBufs can be indexed in seconds" begin
         # array with 10ms of audio
-        arr = rand(TEST_T, (round(Int, 0.01s*TEST_SR), 2))
+        arr = rand(TEST_T, (round(Int, 0.01*TEST_SR), 2))
         buf = SampleBuf(arr, TEST_SR)
         @test buf[0.0s] == arr[1]
         @test buf[0.005s] == arr[241]
@@ -191,16 +190,12 @@
         @test buf[0.004s..0.005s] == SampleBuf(arr[193:241], TEST_SR)
         @test buf[0.004s..0.005s, 2] == SampleBuf(arr[193:241, 2], TEST_SR)
         @test buf[0.004s..0.005s, 1:2] == SampleBuf(arr[193:241, 1:2], TEST_SR)
-
-        # throws an error if we sample non-unit buffer
-        buf2 = SampleBuf(arr, 48000)
-        @test_throws ErrorException buf2[0.005s]
     end
 
-    @testset "Frequency-domain SampleBufs can be indexed in Hz" begin
+    @testset "SpectrumBufs can be indexed in Hz" begin
         N = 512
         arr = rand(TEST_T, N, 2)
-        buf = SampleBuf(arr, N / TEST_SR)
+        buf = SpectrumBuf(arr, N / TEST_SR)
         @test buf[0.0Hz] == arr[1]
         @test buf[843.75Hz] == arr[10]
         @test buf[843.75Hz, 1] == arr[10, 1]
@@ -283,15 +278,15 @@
         @test typeof(quot) == typeof(buf1)
     end
 
-    @testset "FFT of SampleBuf gives FrequencySampleBuf" begin
+    @testset "FFT of SampleBuf gives SpectrumBuf" begin
         arr = rand(TEST_T, 512)
         buf = SampleBuf(arr, TEST_SR)
         spec = fft(buf)
-        @test isa(spec, SampleBuf)
+        @test isa(spec, SpectrumBuf)
         @test eltype(spec) == Complex{TEST_T}
-        @test samplerate(spec) == 512//TEST_SR
+        @test samplerate(spec) == 512/TEST_SR
         @test nchannels(spec) == 1
-        @test spec == SampleBuf(fft(arr), 512//TEST_SR)
+        @test spec == SpectrumBuf(fft(arr), 512/TEST_SR)
         buf2 = ifft(spec)
         # TODO: real time signals should become symmetric spectra, and then
         # back to real time signals with ifft
@@ -304,9 +299,9 @@
 
     @testset "multichannel buf prints prettily" begin
         t = collect(linspace(0, 2pi, 300))
-        buf = SampleBuf([cos(t) sin(t)]*0.2, 48000Hz)
-        expected = """300-frame, 2-channel SampleBuf{Float64, 2, SIUnits.SIQuantity{$Int,0,0,-1,0,0,0,0,0,0}}
-                   0.00625 s at 48000 s⁻¹
+        buf = SampleBuf([cos(t) sin(t)]*0.2, 48000)
+        expected = """300-frame, 2-channel SampleBuf{Float64, 2}
+                   0.00625s sampled at 48000.0Hz
                    ▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▃▃▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▃▃▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆
                    ▃▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▂▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▃"""
         iobuf = IOBuffer()
@@ -315,18 +310,18 @@
     end
     @testset "1D buf prints prettily" begin
         t = collect(linspace(0, 2pi, 300))
-        buf = SampleBuf(cos(t)*0.2, 48000Hz)
-        expected = """300-frame, 1-channel SampleBuf{Float64, 1, SIUnits.SIQuantity{$Int,0,0,-1,0,0,0,0,0,0}}
-                   0.00625 s at 48000 s⁻¹
+        buf = SampleBuf(cos(t)*0.2, 48000)
+        expected = """300-frame, 1-channel SampleBuf{Float64, 1}
+                   0.00625s sampled at 48000.0Hz
                    ▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▃▃▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▃▃▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆"""
         iobuf = IOBuffer()
         display(TextDisplay(iobuf), buf)
         @test takebuf_string(iobuf) == expected
     end
     @testset "zero-length buf prints prettily" begin
-        buf = SampleBuf(Float64, 48000Hz, 0, 2)
-        expected = """0-frame, 2-channel SampleBuf{Float64, 2, SIUnits.SIQuantity{$Int,0,0,-1,0,0,0,0,0,0}}
-                   0.0 s at 48000 s⁻¹"""
+        buf = SampleBuf(Float64, 48000, 0, 2)
+        expected = """0-frame, 2-channel SampleBuf{Float64, 2}
+                   0.0s sampled at 48000.0Hz"""
         iobuf = IOBuffer()
         display(TextDisplay(iobuf), buf)
         @test takebuf_string(iobuf) == expected

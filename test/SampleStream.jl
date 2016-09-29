@@ -54,23 +54,6 @@
         @test sink.buf == map(Float32, data2)
     end
 
-    @testset "downsampling conversion with SI Units" begin
-        sr1 = 48000Hz
-        sr2 = 9000Hz
-
-        data1 = rand(Float32, 64, 2)
-        ratio = sr2//sr1
-        data2 = mapslices(c->filt(FIRFilter(resample_filter(ratio), ratio), c),
-                          data1,
-                          1)
-
-        source = DummySampleSource(sr1, data1)
-        sink = DummySampleSink(Float32, sr2, 2)
-        write(sink, source, blocksize=20)
-        @test size(sink.buf) == size(data2)
-        @test sink.buf == map(Float32, data2)
-    end
-
     @testset "upsampling conversion" begin
         sr1 = 9000
         sr2 = 48000
@@ -126,8 +109,8 @@
 
     @testset "stream reading supports duration in seconds" begin
         data = rand(Float32, 64, 2)
-        source = DummySampleSource(48000Hz, data)
-        sink = DummySampleSink(Float32, 48000Hz, 2)
+        source = DummySampleSource(48000, data)
+        sink = DummySampleSink(Float32, 48000, 2)
         duration = 20 / 48000
         # we should get back the exact duration given even if it's not exactly
         # on a sample boundary
@@ -139,46 +122,46 @@
 
     @testset "stream reading supports duration in seconds when stream ends" begin
         data = rand(Float32, 64, 2)
-        source = DummySampleSource(48000Hz, data)
-        sink = DummySampleSink(Float32, 48000Hz, 2)
+        source = DummySampleSource(48000, data)
+        sink = DummySampleSink(Float32, 48000, 2)
         duration = 1.0s
         t = write(sink, source, duration, blocksize=8)
-        @test t == (64/48000) * s
+        @test t == (64/48000)
         @test sink.buf == data
     end
 
     @testset "SampleBufSource can wrap SampleBuf" begin
-        buf = SampleBuf(rand(16, 2), 48000Hz)
+        buf = SampleBuf(rand(16, 2), 48000)
         source = SampleBufSource(buf)
         @test read(source, 8) == buf[1:8, :]
     end
 
     @testset "SampleBufs can be written to sinks with conversion" begin
-        buf = SampleBuf(rand(16, 2), 48000Hz)
-        sink = DummySampleSink(Float64, 48000Hz, 1)
+        buf = SampleBuf(rand(16, 2), 48000)
+        sink = DummySampleSink(Float64, 48000, 1)
         write(sink, buf)
         @test sink.buf[:] == buf[:, 1] + buf[:, 2]
     end
 
     @testset "SampleBufSink can wrap SampleBuf" begin
-        sourcebuf = SampleBuf(rand(Float32, 64, 2), 48000Hz)
-        sinkbuf = SampleBuf(Float32, 48000Hz, 32, 2)
+        sourcebuf = SampleBuf(rand(Float32, 64, 2), 48000)
+        sinkbuf = SampleBuf(Float32, 48000, 32, 2)
         sink = SampleBufSink(sinkbuf)
         @test write(sink, sourcebuf) == 32
         @test sinkbuf == sourcebuf[1:32, :]
     end
 
     @testset "SampleBufs can be read from sources with conversion" begin
-        buf = SampleBuf(Float64, 48000Hz, 32)
+        buf = SampleBuf(Float64, 48000, 32)
         data = rand(Float64, 64, 2)
-        source = DummySampleSource(48000Hz, data)
+        source = DummySampleSource(48000, data)
         read!(source, buf)
         @test buf == data[1:32, 1] + data[1:32, 2]
     end
 
     @testset "blocksize fallback returns 0" begin
-        @test blocksize(DummySampleSource(48000Hz, zeros(5, 2))) == 0
-        @test blocksize(DummySampleSink(Float32, 48000Hz, 2)) == 0
+        @test blocksize(DummySampleSource(48000, zeros(5, 2))) == 0
+        @test blocksize(DummySampleSink(Float32, 48000, 2)) == 0
     end
 
     @testset "Writing source to sink goes blockwise" begin

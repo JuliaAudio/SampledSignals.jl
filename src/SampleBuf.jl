@@ -1,21 +1,43 @@
+abstract AbstractSampleBuf{T, N} <: AbstractArray{T, N}
+
 """
 Represents a multi-channel regularly-sampled buffer that stores its own sample
-rate. The wrapped data is an N-dimensional array. A 1-channel sample can be
-represented with a 1D array or an Mx1 matrix, and a C-channel buffer will be an
-MxC matrix. So a 1-second stereo audio buffer sampled at 44100Hz with
-32-bit floating-point samples in the time domain would have the type
-SampleBuf{Float32, 2, SIUnits.SIQuantity{Int64,0,0,-1,0,0,0,0,0,0}}.
+rate (in samples/second). The wrapped data is an N-dimensional array. A 1-channel
+sample can be represented with a 1D array or an Mx1 matrix, and a C-channel
+buffer will be an MxC matrix. So a 1-second stereo audio buffer sampled at
+44100Hz with 32-bit floating-point samples in the time domain would have the
+type SampleBuf{Float32, 2}.
 """
-type SampleBuf{T <: Number, N, U <: Number} <: AbstractArray{T, N}
+type SampleBuf{T, N} <: AbstractSampleBuf{T, N}
     data::Array{T, N}
-    samplerate::U
+    samplerate::Float64
 end
 
-# handle creation with a unitful sample rate
-SampleBuf(T, sr, dims...) = SampleBuf(Array(T, dims...), sr)
+# define constructor so conversion is applied to `sr`
+SampleBuf{T, N}(arr::Array{T, N}, sr::Real) = SampleBuf{T, N}(arr, sr)
 
-SampleBuf(T, sr::SIQuantity, len::SIQuantity) = SampleBuf(T, sr, round(Int, len*sr))
-SampleBuf(T, sr::SIQuantity, len::SIQuantity, ch) = SampleBuf(T, sr, round(Int, len*sr), ch)
+"""
+Represents a multi-channel regularly-sampled buffer representing the frequency-
+domain spectrum of a `SampleBuf`. The wrapped data is an N-dimensional array. A
+1-channel sample can be represented with a 1D array or an Mx1 matrix, and a
+C-channel buffer will be an MxC matrix. So a 1-second stereo audio buffer
+sampled at 44100Hz with 32-bit floating-point samples in the time domain would
+have the type SampleBuf{Float32, 2}.
+"""
+type SpectrumBuf{T, N} <: AbstractSampleBuf{T, N}
+    data::Array{T, N}
+    samplerate::Float64
+end
+
+# define constructor so conversion is applied to `sr`
+SpectrumBuf{T, N}(arr::Array{T, N}, sr::Real) = SpectrumBuf{T, N}(arr, sr)
+
+SampleBuf(T::Type, sr, dims...) = SampleBuf(Array(T, dims...), sr)
+SpectrumBuf(T::Type, sr, dims...) = SpectrumBuf(Array(T, dims...), sr)
+SampleBuf(T::Type, sr, len::SecondsQuantity) = SampleBuf(T, sr, round(Int, float(len)*sr))
+SampleBuf(T::Type, sr, len::SecondsQuantity, ch) = SampleBuf(T, sr, round(Int, float(len)*sr), ch)
+SpectrumBuf(T::Type, sr, len::HertzQuantity) = SpectrumBuf(T, sr, round(Int, float(len)*sr))
+SpectrumBuf(T::Type, sr, len::HertzQuantity, ch) = SpectrumBuf(T, sr, round(Int, float(len)*sr), ch)
 
 # terminology:
 # sample - a single value representing the amplitude of 1 channel at some point in time (or frequency)
@@ -23,11 +45,12 @@ SampleBuf(T, sr::SIQuantity, len::SIQuantity, ch) = SampleBuf(T, sr, round(Int, 
 # frame - a collection of samples from each channel that were sampled simultaneously
 
 # audio methods
-samplerate(buf::SampleBuf) = buf.samplerate
-nchannels{T, U}(buf::SampleBuf{T, 2, U}) = size(buf.data, 2)
-nchannels{T, U}(buf::SampleBuf{T, 1, U}) = 1
-nframes(buf::SampleBuf) = size(buf.data, 1)
-function samplerate!(buf::SampleBuf, sr)
+samplerate(buf::AbstractSampleBuf) = buf.samplerate
+nchannels{T}(buf::AbstractSampleBuf{T, 2}) = size(buf.data, 2)
+nchannels{T}(buf::AbstractSampleBuf{T, 1}) = 1
+nframes(buf::AbstractSampleBuf) = size(buf.data, 1)
+
+function samplerate!(buf::AbstractSampleBuf, sr)
     buf.samplerate = sr
 
     buf
@@ -40,19 +63,8 @@ nchannels(arr::AbstractArray) = size(arr, 2)
 # it's important to define Base.similar so that range-indexing returns the
 # right type, instead of just a bare array
 Base.similar{T}(buf::SampleBuf, ::Type{T}, dims::Dims) = SampleBuf(Array(T, dims), samplerate(buf))
-# TODO: we shouldn't need the `collect` once SIUnits supports LinSpace
-# domain(buf::SampleBuf) = collect((0/samplerate(buf)):(nframes(buf)-1)/samplerate(buf))
-function domain(buf::SampleBuf; units=true)
-    if units
-        T = typeof(1/samplerate(buf))
-        arr = T[n/samplerate(buf) for n in 0:(nframes(buf)-1)]
-    else
-        sr = float(samplerate(buf))
-        arr = Float64[n/sr for n in 0:(nframes(buf)-1)]
-    end
-    arr
-end
-
+Base.similar{T}(buf::SpectrumBuf, ::Type{T}, dims::Dims) = SpectrumBuf(Array(T, dims), samplerate(buf))
+domain(buf::AbstractSampleBuf) = linspace(0.0, (nframes(buf)-1)/samplerate(buf), nframes(buf))
 
 # There's got to be a better way to define these functions, but the dispatch
 # and broadcast behavior for AbstractArrays is complex and has subtle differences
@@ -60,42 +72,53 @@ end
 # come up as problems
 import Base: .*, +, ./, -, *, /
 
-for op in (:.*, :+, :./, :-)
-    @eval function $(op)(A1::SampleBuf, A2::SampleBuf)
-        if samplerate(A1) != samplerate(A2)
-            error("samplerate-converting arithmetic not supported yet")
+for btype in (:SampleBuf, :SpectrumBuf)
+    for op in (:.*, :+, :./, :-)
+        @eval function $(op)(A1::$btype, A2::$btype)
+            if !isapprox(samplerate(A1), samplerate(A2))
+                error("samplerate-converting arithmetic not supported yet")
+            end
+            $btype($(op)(A1.data, A2.data), samplerate(A1))
         end
-        SampleBuf($(op)(A1.data, A2.data), samplerate(A1))
+        @eval function $(op)(A1::$btype, A2::Union{Array, SubArray, LinSpace})
+            $btype($(op)(A1.data, A2), samplerate(A1))
+        end
+        @eval function $(op)(A1::Union{Array, SubArray, LinSpace}, A2::$btype)
+            $btype($(op)(A1, A2.data), samplerate(A2))
+        end
     end
-    @eval function $(op)(A1::SampleBuf, A2::Union{Array, SubArray, LinSpace})
-        SampleBuf($(op)(A1.data, A2), samplerate(A1))
-    end
-    @eval function $(op)(A1::Union{Array, SubArray, LinSpace}, A2::SampleBuf)
-        SampleBuf($(op)(A1, A2.data), samplerate(A2))
+
+    for op in (:*, :/)
+        @eval function $(op)(A1::$btype, a2::Number)
+            $btype($(op)(A1.data, a2), samplerate(A1))
+        end
+        @eval function $(op)(a1::Number, A2::$btype)
+            $btype($(op)(a1, A2.data), samplerate(A2))
+        end
     end
 end
 
-for op in (:*, :/)
-    @eval function $(op)(A1::SampleBuf, a2::Number)
-        SampleBuf($(op)(A1.data, a2), samplerate(A1))
-    end
-    @eval function $(op)(a1::Number, A2::SampleBuf)
-        SampleBuf($(op)(a1, A2.data), samplerate(A2))
-    end
-end
+typename{T, N}(::SampleBuf{T, N}) = "SampleBuf{$T, $N}"
+unitname(::SampleBuf) = "s"
+srname(::SampleBuf) = "Hz"
+typename{T, N}(::SpectrumBuf{T, N}) = "SpectrumBuf{$T, $N}"
+unitname(::SpectrumBuf) = "Hz"
+srname(::SpectrumBuf) = "s"
 
 # from @mbauman's Sparklines.jl package
 const ticks = ['▁','▂','▃','▄','▅','▆','▇','█']
 # 3-arg version (with explicit mimetype) is needed because we subtype AbstractArray,
 # and there's a 3-arg version defined in show.jl
-@compat function show{T, N, U}(io::IO, ::MIME"text/plain", buf::SampleBuf{T, N, U})
-    println(io, "$(nframes(buf))-frame, $(nchannels(buf))-channel SampleBuf{$T, $N, $U}")
+@compat function show(io::IO, ::MIME"text/plain", buf::AbstractSampleBuf)
+    println(io, "$(nframes(buf))-frame, $(nchannels(buf))-channel $(typename(buf))")
     len = nframes(buf) / samplerate(buf)
-    print(io, "$len at $(samplerate(buf))")
+    ustring = unitname(buf)
+    srstring = srname(buf)
+    print(io, "$(len)$ustring sampled at $(samplerate(buf))$srstring")
     nframes(buf) > 0 && showchannels(io, buf)
 end
 
-function showchannels(io::IO, buf::SampleBuf, widthchars=80)
+function showchannels(io::IO, buf::AbstractSampleBuf, widthchars=80)
     # number of samples per block
     blockwidth = round(Int, nframes(buf)/widthchars, RoundUp)
     nblocks = round(Int, nframes(buf)/blockwidth, RoundUp)
@@ -120,7 +143,7 @@ where T is the element type of the buffer. This is particularly useful for
 passing to C libraries to fill the buffer"""
 channelptr(buf::Array, channel, frameoffset=0) =
     pointer(buf) + ((channel-1)*nframes(buf)+frameoffset) * sizeof(eltype(buf))
-channelptr(buf::SampleBuf, channel, frameoffset=0) =
+channelptr(buf::AbstractSampleBuf, channel, frameoffset=0) =
     channelptr(buf.data, channel, frameoffset)
 
 # the index types that Base knows how to handle. Separate out those that index
@@ -146,43 +169,40 @@ indexing
 """
 function toindex end
 
-# if the unit of the given value is the inverse of the sampling rate unit,
-# the result should be unitless
-# TODO: clearer error message when the given unit is not the inverse of the sampling rate
-toindex{T <: Number, N, U <: SIQuantity}(buf::SampleBuf{T, N, U}, t::SIQuantity) = round(Int, t*samplerate(buf)) + 1
-toindex(buf::SampleBuf, t::SIQuantity) = error("Indexing with units only supported with unitful sampling rates")
+toindex{T <: Number, N}(buf::SampleBuf{T, N}, t::SecondsQuantity) = round(Int, float(t)*samplerate(buf)) + 1
+toindex{T <: Number, N}(buf::SpectrumBuf{T, N}, t::HertzQuantity) = round(Int, float(t)*samplerate(buf)) + 1
 
 # indexing by vectors of SIQuantities not yet supported
 # toindex{T <: SIUnits.SIQuantity}(buf::SampleBuf, I::Vector{T}) = Int[toindex(buf, i) for i in I]
-toindex(buf::SampleBuf, I::Interval{Int}) = I.lo:I.hi
-toindex{T <: SIQuantity}(buf::SampleBuf, I::Interval{T}) = toindex(buf, I.lo):toindex(buf, I.hi)
+toindex(buf::AbstractSampleBuf, I::Interval{Int}) = I.lo:I.hi
+toindex{T <: SIQuantity}(buf::AbstractSampleBuf, I::Interval{T}) = toindex(buf, I.lo):toindex(buf, I.hi)
 
 # AbstractArray interface methods
-Base.size(buf::SampleBuf) = size(buf.data)
-Base.linearindexing{T <: SampleBuf}(::Type{T}) = Base.LinearFast()
+Base.size(buf::AbstractSampleBuf) = size(buf.data)
+Base.linearindexing{T <: AbstractSampleBuf}(::Type{T}) = Base.LinearFast()
 # this is the fundamental indexing operation needed for the AbstractArray interface
-Base.getindex(buf::SampleBuf, i::Int) = buf.data[i];
+Base.getindex(buf::AbstractSampleBuf, i::Int) = buf.data[i];
 
 # now we implement the methods that need to convert indices. luckily we only
 # need to support up to 2D
-Base.getindex(buf::SampleBuf, I::ConvertIdx) = buf[toindex(buf, I)]
-Base.getindex(buf::SampleBuf, I1::ConvertIdx, I2::BuiltinIdx) = buf[toindex(buf, I1), I2]
-Base.getindex(buf::SampleBuf, I1::BuiltinIdx, I2::ConvertIdx) = buf[I1, toindex(buf, I2)]
-Base.getindex(buf::SampleBuf, I1::ConvertIdx, I2::ConvertIdx) = buf[toindex(buf, I1), toindex(buf, I2)]
+Base.getindex(buf::AbstractSampleBuf, I::ConvertIdx) = buf[toindex(buf, I)]
+Base.getindex(buf::AbstractSampleBuf, I1::ConvertIdx, I2::BuiltinIdx) = buf[toindex(buf, I1), I2]
+Base.getindex(buf::AbstractSampleBuf, I1::BuiltinIdx, I2::ConvertIdx) = buf[I1, toindex(buf, I2)]
+Base.getindex(buf::AbstractSampleBuf, I1::ConvertIdx, I2::ConvertIdx) = buf[toindex(buf, I1), toindex(buf, I2)]
 # In Julia 0.5 scalar indices are now dropped, so by default indexing
 # buf[5, 1:2] gives you a 2-frame single-channel buffer instead of a 1-frame
 # two-channel buffer. The following getindex method defeats the index dropping
-Base.getindex(buf::SampleBuf, I1::Int, I2::BuiltinMultiIdx) = buf[I1:I1, I2]
+Base.getindex(buf::AbstractSampleBuf, I1::Int, I2::BuiltinMultiIdx) = buf[I1:I1, I2]
 
-function Base.setindex!(buf::SampleBuf, val, i::Int)
+function Base.setindex!(buf::AbstractSampleBuf, val, i::Int)
     buf.data[i] = val
 end
 
 # equality
 import Base.==
-==(buf1::SampleBuf, buf2::SampleBuf) =
+==(buf1::AbstractSampleBuf, buf2::AbstractSampleBuf) =
     samplerate(buf1) == samplerate(buf2) &&
     buf1.data == buf2.data
 
-Base.fft(buf::SampleBuf) = SampleBuf(fft(buf.data), nframes(buf)//samplerate(buf))
-Base.ifft(buf::SampleBuf) = SampleBuf(ifft(buf.data), nframes(buf)//samplerate(buf))
+Base.fft(buf::SampleBuf) = SpectrumBuf(fft(buf.data), nframes(buf)/samplerate(buf))
+Base.ifft(buf::SpectrumBuf) = SampleBuf(ifft(buf.data), nframes(buf)/samplerate(buf))

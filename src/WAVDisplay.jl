@@ -2,18 +2,22 @@
 # WAV.jl package. Rather than full WAV support here we just want to support
 # enough for simple HTML display of SampleBufs
 
-@compat function show{T<:Real, N, U<:HertzQuantity}(io::IO, ::MIME"text/html", buf::SampleBuf{T, N, U})
+@compat function show{T<:AbstractSampleBuf}(io::IO, ::MIME"text/html", buf::T)
     tempio = IOBuffer()
     wavwrite(tempio, buf)
     data = base64encode(takebuf_array(tempio))
     # we want the divID to start with a letter
     divid = string("a", randstring(10))
-    print(io, """
-    <div id=$divid></div>
-    <button id=$divid-skipback class="btn"><span class="fa fa-step-backward"></span></button>
-    <button id=$divid-playpause class="btn"><span class="fa fa-play"></span></button>
-    <button id=$divid-stop class="btn"><span class="fa fa-stop"></span></button>
-    <button id=$divid-skipahead class="btn"><span class="fa fa-step-forward"></span></button>
+    println(io, "<div id=$divid></div>")
+    # only show playback controls for real-valued SampleBufs
+    if T <: SampleBuf && eltype(buf) <: Real
+        println(io, """
+        <button id=$divid-skipback class="btn"><span class="fa fa-step-backward"></span></button>
+        <button id=$divid-playpause class="btn"><span class="fa fa-play"></span></button>
+        <button id=$divid-stop class="btn"><span class="fa fa-stop"></span></button>
+        <button id=$divid-skipahead class="btn"><span class="fa fa-step-forward"></span></button>""")
+    end
+    println(io, """
     <script type="text/javascript">
         require.config({
             paths: {
@@ -106,6 +110,7 @@ function wavwrite(io::IO, buf::SampleBuf)
 end
 
 
+write_le(stream::IO, val::Complex) = write_le(stream, abs(val))
 write_le(stream::IO, val::AbstractFloat) = write_le(stream,
     SAMPLE_TYPE(clamp(val, typemin(SAMPLE_TYPE), typemax(SAMPLE_TYPE))))
 write_le(stream::IO, val::FixedPoint) = write_le(stream, reinterpret(val))

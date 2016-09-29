@@ -1,37 +1,36 @@
 """
-SinSource is a multi-channel sine-tone signal generator. Frequency and samplerate
-must have the same units (if any).
+SinSource is a multi-channel sine-tone signal generator.
 """
-# TODO: type instabilities in SIUnits.jl were causing major slowdowns here, so
-# for now I'm just stripping the units for the calculations and phase storage
-# phase will have the inverse units (probably s) to freq and samplerate (probably Hz)
-type SinSource{T, U} <: SampleSource
-    samplerate::U
-    freqs::Vector{U}
-    phase::Float64
+type SinSource{T} <: SampleSource
+    samplerate::Float64
+    freqs::Vector{Float64} # in radians/sample
+    phases::Vector{Float64}
 end
 
 function SinSource(eltype, samplerate, freqs::Array)
-    U = typeof(samplerate)
-    SinSource{eltype, U}(samplerate, freqs, 0.0)
+    # convert frequencies from cycles/sec to rad/sample
+    radfreqs = map(f->2pi*f/samplerate, freqs)
+    SinSource{eltype}(Float64(samplerate), radfreqs, zeros(length(freqs)))
 end
 
 # also allow a single frequency
-SinSource(eltype, samplerate, freq::Number) = SinSource(eltype, samplerate, [freq])
+SinSource(eltype, samplerate, freq::Real) = SinSource(eltype, samplerate, [freq])
 
-Base.eltype{T, U}(::SinSource{T, U}) = T
+Base.eltype{T}(::SinSource{T}) = T
 nchannels(source::SinSource) = length(source.freqs)
 samplerate(source::SinSource) = source.samplerate
 
 function unsafe_read!(source::SinSource, buf::Array, frameoffset, framecount)
-    inc = 2pi / float(samplerate(source))
+    inc = 2pi / samplerate(source)
     for ch in 1:nchannels(buf)
-        f = float(source.freqs[ch])
+        f = source.freqs[ch]
+        ph = source.phases[ch]
         for i in 1:framecount
-            buf[i+frameoffset, ch] = sin((source.phase + (i-1)*inc)*f)
+            buf[i+frameoffset, ch] = sin(ph)
+            ph += f
         end
+        source.phases[ch] = ph
     end
-    source.phase += framecount * inc
 
     framecount
 end

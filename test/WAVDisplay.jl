@@ -38,12 +38,12 @@ end
 
 @testset "WAVDisplay Tests" begin
     @testset "SampleBuf display Generates valid HTML" begin
-        buf = SampleBuf(rand(16, 2), 48000Hz)
+        buf = SampleBuf(rand(16, 2), 48000)
         parsehtmldisplay(buf)
     end
 
     @testset "SampleBuf display has the right buttons" begin
-        buf = SampleBuf(rand(16, 2), 48000Hz)
+        buf = SampleBuf(rand(16, 2), 48000)
         output = parsehtmldisplay(buf)
         @test hasiconbtn(output, "fa-step-backward")
         @test hasiconbtn(output, "fa-step-forward")
@@ -52,7 +52,7 @@ end
     end
 
     @testset "wavwrite Generates valid WAV file" begin
-        buf = SampleBuf(rand(Int16, 16, 2), 48000Hz)
+        buf = SampleBuf(rand(Int16, 16, 2), 48000)
         io = IOBuffer()
         SampledSignals.wavwrite(io, buf)
         samples, fs, nbits, opt = wavread(IOBuffer(takebuf_array(io)), format="native")
@@ -62,7 +62,7 @@ end
     end
 
     @testset "wavwrite converts float values to 16-bit int wav" begin
-        buf = SampleBuf(rand(16, 2), 48000Hz)
+        buf = SampleBuf(rand(16, 2), 48000)
         io = IOBuffer()
         SampledSignals.wavwrite(io, buf)
         samples, fs, nbits, opt = wavread(IOBuffer(takebuf_array(io)), format="native")

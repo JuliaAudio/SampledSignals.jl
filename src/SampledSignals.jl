@@ -13,7 +13,7 @@ using Compat
 import Compat: view, UTF8String
 @compat import Base.show
 
-export SampleBuf
+export AbstractSampleBuf, SampleBuf, SpectrumBuf
 export SampleSource, SampleSink
 export SampleRate
 export ResampleSink, ReformatSink, DownMixSink, UpMixSink

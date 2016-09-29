@@ -1,5 +1,5 @@
 @testset "DummySampleStream Tests" begin
-    const DEFAULT_SR = 48000Hz
+    const DEFAULT_SR = 48000
     const DEFAULT_T = Float32
 
     DummySource(buf) = DummySampleSource(DEFAULT_SR, buf)
@@ -22,10 +22,10 @@
 
     @testset "read can read in seconds" begin
         # fill with 1s of data
-        data = rand(DEFAULT_T, (DEFAULT_SR*1s, 2))
+        data = rand(DEFAULT_T, (DEFAULT_SR, 2))
         source = DummySource(data)
         buf = read(source, 0.0005s)
-        @test buf.data == data[1:round(Int, 0.0005s*DEFAULT_SR), :]
+        @test buf.data == data[1:round(Int, 0.0005*DEFAULT_SR), :]
     end
 
     @testset "supports audio interface" begin
