@@ -31,10 +31,10 @@
     @testset "format conversion" begin
         data = rand(Float32, 16, 2) - 0.5
         source = DummySampleSource(48000, data)
-        sink = DummySampleSink(Fixed{Int16, 15}, 48000, 2)
+        sink = DummySampleSink(PCM16Sample, 48000, 2)
         # the write function tests that the format matches
         write(sink, source)
-        @test sink.buf == map(Fixed{Int16, 15}, data)
+        @test sink.buf == map(PCM16Sample, data)
     end
 
     @testset "downsampling conversion" begin
@@ -76,13 +76,13 @@
         data1 = rand(Float32, 64, 1) - 0.5
         sr2 = 44100
         ratio = sr2//sr1
-        data2 = map(Fixed{Int16, 15}, hcat(
+        data2 = map(PCM16Sample, hcat(
             filt(FIRFilter(resample_filter(ratio), ratio), vec(data1)),
             filt(FIRFilter(resample_filter(ratio), ratio), vec(data1))
         ))
 
         source = DummySampleSource(sr1, data1)
-        sink = DummySampleSink(Fixed{Int16, 15}, sr2, 2)
+        sink = DummySampleSink(PCM16Sample, sr2, 2)
         write(sink, source, blocksize=20)
         # we can get slightly different results depending on whether we resample
         # before or after converting data types

@@ -66,7 +66,7 @@ end
         io = IOBuffer()
         SampledSignals.wavwrite(io, buf)
         samples, fs, nbits, opt = wavread(IOBuffer(takebuf_array(io)), format="native")
-        @test samples == map(reinterpret, convert(Array{Fixed{Int16, 15}}, buf))
+        @test samples == map(reinterpret, convert(Array{PCM16Sample}, buf))
         @test fs == 48000
         @test nbits == 16
     end

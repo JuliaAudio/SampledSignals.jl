@@ -11,7 +11,7 @@
     divid = string("a", randstring(10))
     println(io, "<div id=$divid></div>")
     # only show playback controls for real-valued SampleBufs
-    if T <: SampleBuf && eltype(buf) <: Real
+    if isa(buf, SampleBuf) && eltype(buf) <: Real
         println(io, """
         <button id=$divid-skipback class="btn"><span class="fa fa-step-backward"></span></button>
         <button id=$divid-playpause class="btn"><span class="fa fa-play"></span></button>
@@ -87,7 +87,7 @@ end
 
 # we'll only ever write these formats
 const WAVE_FORMAT_PCM = 0x0001
-const SAMPLE_TYPE = Fixed{Int16, 15}
+const SAMPLE_TYPE = PCM16Sample
 
 # we always write 16-bit PCM wav data, because that's what Firefox understands
 function wavwrite(io::IO, buf::SampleBuf)

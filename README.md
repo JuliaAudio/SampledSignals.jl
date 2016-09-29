@@ -83,8 +83,8 @@ shows the signal amplitude in dB.
 
 ```julia
 julia> [buf[1:44100] buf[44100:88199]]
-44100-frame, 2-channel SampleBuf{FixedPointNumbers.Fixed{Int16,15}, 2, SIUnits.SIQuantity{Int64,0,0,-1,0,0,0,0,0,0}}
-1.0 s at 44100 s⁻¹
+44100-frame, 2-channel SampleBuf{PCM16Sample, 2}
+1.0s sampled at 44100Hz
 ▁▁▁▁▁▁▁▁▂▁▁▁▃▂▅▅▅▅▅▅▅▅▆▅▅▅▄▃▃▄▅▅▄▄▄▃▄▃▂▅▅▅▄▃▁▂▄▄▄▄▄▄▄▄▅▅▅▅▅▄▃▂▄▅▅▅▅▅▅▅▅▅▅▅▅▄▃▂▄▄
 ▃▃▄▄▄▃▂▂▂▂▄▃▄▄▄▄▄▄▅▅▅▅▅▅▅▅▅▅▄▂▂▁▁▅▃▃▂▄▂▄▃▃▄▃▄▂▁▃▂▂▃▃▃▃▃▃▃▃▃▃▃▄▄▄▅▅▄▄▄▆▆▄▃▅▄▂▁▁▂▁
 ```
@@ -142,7 +142,7 @@ The `UpMixSink` and `DownMixSink` types wrap around a multi-channel or single-ch
 
 ### Format Conversion
 
-Format conversion is handled automatically by Julia when we write data from one buffer type to another. There are several potential gotchas to consider. When dealing with integer samples, it's better to represent them with `Fixed` from [FixedPointNumbers.jl](https://github.com/JeffBezanson/FixedPointNumbers.jl). For example, 16-bit integer samples can be represented by `Fixed{Int16, 15}`. This way julia knows how to convert properly between fixed and floating-point values. One problem with this is that 16-bit fixed-point data can only represent values in the interval [-1.0, 0.99997], so if you have full-scale [-1.0, 1.0] floating point data, you will run into problems converting to fixed point values.
+Format conversion is handled automatically by Julia when we write data from one buffer type to another. There are several potential gotchas to consider. When dealing with integer samples, it's better to represent them with `Fixed` from [FixedPointNumbers.jl](https://github.com/JeffBezanson/FixedPointNumbers.jl). For example, 16-bit integer samples can be represented by `Fixed{Int16, 15}`. In fact SampledSignals provides some handy aliases for signed fixed-point samples: `PCM8Sample`, `PCM16Sample`, `PCM24Sample`, and `PCM32Sample`. This way julia knows how to convert properly between fixed and floating-point values. One problem with this is that 16-bit fixed-point data can only represent values in the interval [-1.0, 0.99997], so if you have full-scale [-1.0, 1.0] floating point data, you will run into problems converting to fixed point values. One solution would be to first multiply your signal by `typemax(PCM16Sample)` before converting.
 
 ## Sticky Design Issues
 

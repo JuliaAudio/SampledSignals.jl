@@ -24,9 +24,15 @@ export Interval, ..
 export samplerate, samplerate!, nchannels, nframes, domain, channelptr, blocksize
 # re-export the useful units
 export ns, ms, µs, s, Hz, kHz, MHz, GHz, THz
+export PCM8Sample, PCM16Sample, PCM24Sample, PCM32Sample
 
 typealias HertzQuantity{T} SIUnits.SIQuantity{T,0,0,-1,0,0,0,0,0,0}
 typealias SecondsQuantity{T} SIUnits.SIQuantity{T,0,0,1,0,0,0,0,0,0}
+
+typealias PCM8Sample Fixed{Int8, 7}
+typealias PCM16Sample Fixed{Int16, 15}
+typealias PCM24Sample Fixed{Int32, 23}
+typealias PCM32Sample Fixed{Int32, 31}
 
 include("Interval.jl")
 include("SampleBuf.jl")
