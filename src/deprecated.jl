@@ -41,6 +41,14 @@ function SampleBuf(arr::Array, sr::HertzQuantity)
     SampleBuf(arr, float(sr))
 end
 
+function SampleBuf(T::Type, sr::HertzQuantity, len::SecondsQuantity)
+    if !unit_depwarned[]
+        warn("Samplerates with units are deprecated. Switch to plain floats")
+        unit_depwarned[] = true
+    end
+    SampleBuf(T, float(sr), len)
+end
+
 function SampleBuf(T::Type, sr::HertzQuantity, args...)
     if !unit_depwarned[]
         warn("Samplerates with units are deprecated. Switch to plain floats")
@@ -62,4 +70,16 @@ function warn_if_unitful(x::SIQuantity)
         unit_depwarned[] = true
     end
     float(x)
+end
+
+function SinSource{T <: SIQuantity}(eltype, samplerate::SIQuantity, freqs::Array{T})
+    SinSource(eltype, warn_if_unitful(samplerate), map(float, freqs))
+end
+
+function SinSource(eltype, samplerate::SIQuantity, freqs::Array)
+    SinSource(eltype, warn_if_unitful(samplerate), freqs)
+end
+
+function SinSource{T <: SIQuantity}(eltype, samplerate, freqs::Array{T})
+    SinSource(eltype, samplerate, map(warn_if_unitful, freqs))
 end

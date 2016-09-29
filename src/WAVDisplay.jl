@@ -2,7 +2,8 @@
 # WAV.jl package. Rather than full WAV support here we just want to support
 # enough for simple HTML display of SampleBufs
 
-@compat function show{T<:AbstractSampleBuf}(io::IO, ::MIME"text/html", buf::T)
+# need to specify that T <: Number to avoid a method ambiguity with AbstractArray{Method} on 0.4
+@compat function show{T <: Number, N}(io::IO, ::MIME"text/html", buf::AbstractSampleBuf{T, N})
     tempio = IOBuffer()
     wavwrite(tempio, buf)
     data = base64encode(takebuf_array(tempio))
