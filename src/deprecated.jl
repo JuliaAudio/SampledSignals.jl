@@ -9,6 +9,7 @@ function unsafe_read!{T <: SampleSource}(src::T, buf::Array, frameoffset, framec
         warn("""`unsafe_read!(src::$T, buf::Array, frameoffset, framecount)` not defined,
                 falling back to deprecated `unsafe_read!(src::$T, buf::SampleBuf)`. Please
                 check the SampledSignals README for the new API""")
+        map(println, stacktrace())
     end
 
     tmp = SampleBuf(Array(eltype(src), framecount, nchannels(src)), samplerate(src))
@@ -26,6 +27,7 @@ function unsafe_write{T <: SampleSink}(sink::T, buf::Array, frameoffset, frameco
         warn("""`unsafe_write(src::$T, buf::Array, frameoffset, framecount)` not defined,
                 falling back to deprecated `unsafe_write(src::$T, buf::SampleBuf)`. Please
                 check the SampledSignals README for the new API""")
+        map(println, stacktrace())
     end
 
     tmp = SampleBuf(buf[(1:framecount)+frameoffset, :], samplerate(sink))
@@ -36,6 +38,7 @@ const unit_depwarned = Ref(false)
 function SampleBuf(arr::Array, sr::HertzQuantity)
     if !unit_depwarned[]
         warn("Samplerates with units are deprecated. Switch to plain floats")
+        map(println, stacktrace())
         unit_depwarned[] = true
     end
     SampleBuf(arr, float(sr))
@@ -44,6 +47,7 @@ end
 function SampleBuf(T::Type, sr::HertzQuantity, len::SecondsQuantity)
     if !unit_depwarned[]
         warn("Samplerates with units are deprecated. Switch to plain floats")
+        map(println, stacktrace())
         unit_depwarned[] = true
     end
     SampleBuf(T, float(sr), len)
@@ -52,6 +56,7 @@ end
 function SampleBuf(T::Type, sr::HertzQuantity, args...)
     if !unit_depwarned[]
         warn("Samplerates with units are deprecated. Switch to plain floats")
+        map(println, stacktrace())
         unit_depwarned[] = true
     end
     SampleBuf(T, float(sr), args...)
@@ -67,6 +72,7 @@ warn_if_unitful(x) = x
 function warn_if_unitful(x::SIQuantity)
     if !unit_depwarned[]
         warn("Samplerates with units are deprecated. Switch to plain floats")
+        map(println, stacktrace())
         unit_depwarned[] = true
     end
     float(x)
