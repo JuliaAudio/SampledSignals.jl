@@ -136,11 +136,46 @@
         @test read(source, 8) == buf[1:8, :]
     end
 
-    @testset "SampleBufs can be written to sinks with conversion" begin
+    @testset "SampleBufs can be written to sinks with downmixing" begin
         buf = SampleBuf(rand(16, 2), 48000)
         sink = DummySampleSink(Float64, 48000, 1)
         write(sink, buf)
         @test sink.buf[:] == buf[:, 1] + buf[:, 2]
+    end
+
+    @testset "SampleBufs can be written to sinks with duration in frames" begin
+        buf = SampleBuf(rand(16), 48000)
+        sink = DummySampleSink(Float64, 48000, 1)
+        write(sink, buf, 10)
+        @test sink.buf[:] == buf[1:10]
+    end
+
+    @testset "SampleBufs can be written to sinks with duration in seconds" begin
+        buf = SampleBuf(rand(100), 48000)
+        sink = DummySampleSink(Float64, 48000, 1)
+        write(sink, buf, 0.001s)
+        @test sink.buf[:] == buf[1:48]
+    end
+
+    @testset "SampleBufs can be written to sinks with duration in frames and format conversion" begin
+        buf = SampleBuf(map(PCM16Sample, rand(16)-0.5), 48000)
+        sink = DummySampleSink(Float64, 48000, 1)
+        write(sink, buf, 10)
+        @test sink.buf[:] == map(Float64, buf[1:10])
+    end
+
+    @testset "SampleBufs can be written to sinks with duration in seconds and format conversion" begin
+        buf = SampleBuf(map(PCM16Sample, rand(100)-0.5), 48000)
+        sink = DummySampleSink(Float64, 48000, 1)
+        write(sink, buf, 0.001s)
+        @test sink.buf[:] == map(Float64, buf[1:48])
+    end
+
+    @testset "SampleBufs can be written to sinks with format conversion" begin
+        buf = SampleBuf(map(PCM16Sample, rand(16)-0.5), 48000)
+        sink = DummySampleSink(Float64, 48000, 1)
+        write(sink, buf)
+        @test sink.buf[:] == map(Float64, buf)
     end
 
     @testset "SampleBufSink can wrap SampleBuf" begin
@@ -152,6 +187,14 @@
     end
 
     @testset "SampleBufs can be read from sources with conversion" begin
+        buf = SampleBuf(Float64, 48000, 32)
+        data = rand(Float64, 64, 2)
+        source = DummySampleSource(48000, data)
+        read!(source, buf)
+        @test buf == data[1:32, 1] + data[1:32, 2]
+    end
+
+    @testset "SampleBufs can be read from sources with duration in frames" begin
         buf = SampleBuf(Float64, 48000, 32)
         data = rand(Float64, 64, 2)
         source = DummySampleSource(48000, data)

@@ -144,17 +144,21 @@ function unsafe_write(sink::SampleSink, source::SampleSource, frames=-1, blocksi
     written
 end
 
-function Base.write(sink::SampleSink, buf::SampleBuf)
+function Base.write(sink::SampleSink, buf::SampleBuf, nframes=nframes(buf))
     if nchannels(sink) == nchannels(buf) &&
             eltype(sink) == eltype(buf) &&
             isapprox(compat_samplerate(sink), compat_samplerate(buf))
         # everything matches, call the sink's low-level write method
-        unsafe_write(sink, buf.data, 0, nframes(buf))
+        unsafe_write(sink, buf.data, 0, nframes)
     else
         # some conversion is necessary. Wrap in a source so we can use the
         # stream conversion machinery
-        write(sink, SampleBufSource(buf))
+        write(sink, SampleBufSource(buf), nframes)
     end
+end
+
+function Base.write(sink::SampleSink, buf::SampleBuf, duration::SecondsQuantity)
+    write(sink, buf, round(Int, float(duration)*samplerate(buf)))
 end
 
 function Base.read!(source::SampleSource, buf::SampleBuf)
