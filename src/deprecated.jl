@@ -1,6 +1,12 @@
 function unsafe_read! end
 function unsafe_write end
 
+# apparently stacktrace doesn't exist on 0.4, so too bad, 0.4 users don't get
+# stack traces on their deprecation warnings
+if !isdefined(:stacktrace)
+    stacktrace() = []
+end
+
 # fallback function for libraries using the old unsafe_read! function
 const read_depwarned = Set{Type}()
 function unsafe_read!{T <: SampleSource}(src::T, buf::Array, frameoffset, framecount)
