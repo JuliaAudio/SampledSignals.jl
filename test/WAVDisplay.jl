@@ -51,6 +51,20 @@ end
         @test hasiconbtn(output, "fa-stop")
     end
 
+    # @testset "SpectrumBuf display Generates valid HTML" begin
+    #     buf = SpectrumBuf(rand(16, 2), 48000)
+    #     parsehtmldisplay(buf)
+    # end
+
+    # @testset "SpectrumBuf display doesn't show buttons" begin
+    #     buf = SpectrumBuf(rand(16, 2), 48000)
+    #     output = parsehtmldisplay(buf)
+    #     @test !hasiconbtn(output, "fa-step-backward")
+    #     @test !hasiconbtn(output, "fa-step-forward")
+    #     @test !hasiconbtn(output, "fa-play")
+    #     @test !hasiconbtn(output, "fa-stop")
+    # end
+
     @testset "wavwrite Generates valid WAV file" begin
         buf = SampleBuf(rand(Int16, 16, 2), 48000)
         io = IOBuffer()
@@ -70,4 +84,20 @@ end
         @test fs == 48000
         @test nbits == 16
     end
+
+    # this is used to display spectrum magnitudes using the same infrastructure
+    # as displaying/playing time-domain buffers
+    # @testset "wavwrite converts complex float values to 16-bit int wav" begin
+    #     complexbuf = SpectrumBuf(rand(Complex{Float32}, 16, 2), 48000)
+    #     floatbuf = map(abs, complexbuf)
+    #     complexio = IOBuffer()
+    #     floatio = IOBuffer()
+    #     SampledSignals.wavwrite(complexio, complexbuf)
+    #     SampledSignals.wavwrite(floatio, floatbuf)
+    #     complexsamples, fs, nbits, opt = wavread(IOBuffer(takebuf_array(complexio)), format="native")
+    #     floatsamples, _, _, _ = wavread(IOBuffer(takebuf_array(floatio)), format="native")
+    #     @test isapprox(complexsamples, floatsamples)
+    #     @test fs == 48000
+    #     @test nbits == 16
+    # end
 end
