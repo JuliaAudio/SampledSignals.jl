@@ -6,7 +6,7 @@
 
 SampledSignals is a collection of types intended to be used on multichannel sampled signals like audio or radio data, EEG signals, etc., to provide better interoperability between packages that read data from files or streams, DSP packages, and output and display packages.
 
-SampledSignals provides several types to stream and store sampled data: `SampleBuf`, `SampleSource`, `SampleSink` and also an `Interval` type that can be used to represent contiguous ranges using a convenient `a..b` syntax, this feature is copied mostly from the [AxisArrays](https://github.com/mbauman/AxisArrays.jl) package, which also inspired much of the implementation of this package.
+SampledSignals provides several types to stream and store sampled data: `SampleBuf`, `SpectrumBuf`, `SampleSource`, `SampleSink` and also an `Interval` type that can be used to represent contiguous ranges using a convenient `a..b` syntax, this feature is copied mostly from the [AxisArrays](https://github.com/mbauman/AxisArrays.jl) package, which also inspired much of the implementation of this package.
 
 We also use the [SIUnits](https://github.com/keno/SIUnits.jl) package to enable indexing using real-world units like seconds or hertz. `SampledSignals` re-exports the relevant `SIUnits` units (`ns`, `ms`, `µs`, `s`, `Hz`, `kHz`, `MHz`, `GHz`, `THz`) so you don't need to import `SIUnits` explicitly.
 
@@ -14,16 +14,18 @@ Because these buffer and stream types are sample-rate and channel-count aware, t
 
 ## Types
 
-### SampleBuf
+### SampleBuf/SpectrumBuf
 
-A `SampleBuf` represents multichannel, regularly-sampled data, providing handy indexing operations. It subtypes AbstractArray and should be drop-in compatible with raw arrays, with the exception that indexing a row (a single frame of multiple channels) will result in a 1xN result (a 1-frame multichannel buffer) instead of a 1D Vector, which is the Array behavior as of 0.5. The two main advantages of SampleBufs are they are sample-rate aware and that they support indexing with real-world units like seconds or hertz (depending on the domain).
+`SampleBuf`s and `SpectrumBuf`s represent multichannel, regularly-sampled data, providing handy indexing operations. The only difference between them is that `SampleBuf`s are time-domain and `SpectrumBuf`s are frequency-domain, which affects how they can be indexed and how they are displayed. They subtypes AbstractArray and should be drop-in compatible with raw arrays, with the exception that indexing a row (a single frame of multiple channels) will result in a 1xN result (a 1-frame multichannel buffer) instead of a 1D Vector, which is the Array behavior as of 0.5. The two main advantages of these types are they are sample-rate aware and that they support indexing with real-world units like seconds or hertz (depending on the domain). When defining methods on these types you can use the `AbstractSampleBuf` type to refer to both of them collectively.
 
 #### Methods
 
 * `samplerate`
+* `samplerate!`
 * `nchannels`
 * `nframes`
 * `domain`
+* `channelptr`
 
 ### SampleSource
 
@@ -67,11 +69,11 @@ Note that when connecting `source`s to `sink`s, the only difference between `rea
 
 ## Plotting Support
 
-SampledSignals adds the `domain` function for `SampleBuf`s, which gives you the domain in real-world units at the buffer's sampling rate. This is especially useful for plotting because you can simply run `plot(x=domain(buf), y=buf)` and see your x axis in seconds. This also works for frequency-domain buffers, so you can do:
+SampledSignals adds the `domain` function for `SampleBuf`s, which gives you the domain in real-world units at the buffer's sampling rate. This is especially useful for plotting because you can simply run `plot(domain(buf), buf)` and see your x axis in seconds. This also works for frequency-domain buffers, so you can do:
 
 ```julia
 spec = fft(buf)
-plot(x=domain(spec), y=abs(spec))
+plot(domain(spec), abs(spec))
 ```
 
 and see the magnitude spectrum plotted against actual frequencies.
@@ -100,8 +102,8 @@ When working in a Jupyter notebook (which can display rich HTML representations)
 Say you have a library that moves audio over a network, or interfaces with some software-defined radio hardware. You should be able to easily tap into the SampledSignals infrastructure by doing the following:
 
 1. Subtype `SampleSink` or `SampleSource`
-2. Implement `SampledSignals.unsafe_read!(source::YourSource, buf::Array, frameoffset, framecount)` (for sources) or `SampledSignals.unsafe_write(sink::YourSink, buf::Array, frameoffset, framecount)` (for sinks), which can assume that the channel count, sample rate, and type match between your stream type and the buffer type. The methods listed above in the "Stream Read/Write Semantics" section are implemented in terms of these base `unsafe_read!` and `unsafe_write` calls. SampledSignals will call these methods with a 1D or 2D (nframes x nchannels) `Array`, with each channel in its own column.
-3. Implement `SampledSignals.samplerate`, `SampledSignals.nchannels`, and `Base.eltype` for your type.
+2. Implement `SampledSignals.unsafe_read!(source::YourSource, buf::Array, frameoffset, framecount)` (for sources) or `SampledSignals.unsafe_write(sink::YourSink, buf::Array, frameoffset, framecount)` (for sinks), which can assume that the channel count, sample rate, and type match between your stream type and the buffer type. The methods listed above in the "Stream Read/Write Semantics" section are implemented in terms of these base `unsafe_read!` and `unsafe_write` calls. SampledSignals will call these methods with a 1D or 2D (nframes x nchannels) `Array`, with each channel in its own column. Note that these `unsafe_*` methods might be called many times for a given high-level `read` or `write`, so you'll want to avoid allocating buffers within them, and instead store any temporary buffers you need inside of your stream type, so they're only created once.
+3. Implement `SampledSignals.samplerate`, `SampledSignals.nchannels`, and `Base.eltype` for your type. SampledSignals uses your stream's reported properties through these methods to decide what conversions it needs to do when plugging together streams, so for instance if your stream type only supports writing 16-bit integer data, you might just have `SampledSignals.eltype(sink::MySink) = PCM16Sample`, and then SampledSignals will make sure that by the time it calls your `unsafe_write` method it will have converted things to the right datatype.
 4. If your type has a preferred blocksize, implement `SampledSignals.blocksize`. Otherwise the fallback implementation will return `0`, meaning there's no preferred blocksize.
 
 For example, to define a `MySource` type, you would implement:
@@ -117,7 +119,7 @@ Other methods, such as the non-modifying `read`, sample-rate converting versions
 
 ## Connecting Streams
 
-In addition to reading and writing buffers to streams, you can also set up direct stream-to-stream connections using the `write` function. For instance, if you have a sink `in` and a source `out`, you can connect them with `write(out, in)`. This will block the current task until the `in` stream ends, but you can give an optional third argument in samples or seconds to write a limited amount. The implementation just reads a block at a time from `in` and writes the received data to `out`. You can set the blocksize with a keyword argument, e.g. `write(out, in, blocksize=1024)` will read blocks of 1024 frames at a time. The default blocksize is 4096.
+In addition to reading and writing buffers to streams, you can also set up direct stream-to-stream connections using the `write` function. For instance, if you have a sink `in` and a source `out`, you can connect them with `write(out, in)`. This will block the current task until the `in` stream ends, but you can give an optional third argument in samples or seconds to write a limited amount. The implementation just reads a block at a time from `in` and writes the received data to `out`. You can set the blocksize with a keyword argument, e.g. `write(out, in, blocksize=1024)` will read blocks of 1024 frames at a time. The default blocksize is 4096 frames.
 
 ## Conversions
 
