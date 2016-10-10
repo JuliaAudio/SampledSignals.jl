@@ -297,6 +297,30 @@
         @test isapprox(buf2, buf)
     end
 
+    @testset "1D SampleBufs and SpectrumBufs can be convolved" begin
+        arr1 = rand(TEST_T, 8)
+        arr2 = rand(TEST_T, 10)
+        for T in (SampleBuf, SpectrumBuf)
+            result = T(conv(arr1, arr2), TEST_SR)
+            @test conv(T(arr1, TEST_SR), T(arr2, TEST_SR)) == result
+            @test conv(T(arr1, TEST_SR), arr2) == result
+            @test conv(arr1, T(arr2, TEST_SR)) == result
+        end
+    end
+
+    @testset "2D SampleBufs and SpectrumBufs can be convolved" begin
+        arr1 = rand(TEST_T, 8, 2)
+        arr2 = rand(TEST_T, 10, 2)
+        for T in (SampleBuf, SpectrumBuf)
+            result = T(
+                    hcat(conv(arr1[:, 1], arr2[:, 1]), conv(arr1[:, 2], arr2[:, 2])),
+                    TEST_SR)
+            @test conv(T(arr1, TEST_SR), T(arr2, TEST_SR)) == result
+            @test conv(T(arr1, TEST_SR), arr2) == result
+            @test conv(arr1, T(arr2, TEST_SR)) == result
+        end
+    end
+
     @testset "multichannel buf prints prettily" begin
         t = collect(linspace(0, 2pi, 300))
         buf = SampleBuf([cos(t) sin(t)]*0.2, 48000)

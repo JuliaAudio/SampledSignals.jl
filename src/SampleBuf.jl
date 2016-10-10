@@ -206,3 +206,48 @@ import Base.==
 
 Base.fft(buf::SampleBuf) = SpectrumBuf(fft(buf.data), nframes(buf)/samplerate(buf))
 Base.ifft(buf::SpectrumBuf) = SampleBuf(ifft(buf.data), nframes(buf)/samplerate(buf))
+
+# does a per-channel convolution on SampleBufs
+for buftype in (:SampleBuf, :SpectrumBuf)
+    @eval function Base.conv{T}(b1::$buftype{T, 1}, b2::$buftype{T, 1})
+        if !isapprox(samplerate(b1), samplerate(b2))
+            error("Resampling convolution not yet supported")
+        end
+        $buftype(conv(b1.data, b2.data), samplerate(b1))
+    end
+
+    @eval function Base.conv{T, N1, N2}(b1::$buftype{T, N1}, b2::$buftype{T, N2})
+        if !isapprox(samplerate(b1), samplerate(b2))
+            error("Resampling convolution not yet supported")
+        end
+        if nchannels(b1) != nchannels(b2)
+            error("Broadcasting convolution not yet supported")
+        end
+        out = $buftype(T, samplerate(b1), nframes(b1)+nframes(b2)-1, nchannels(b1))
+        for ch in 1:nchannels(b1)
+            out[:, ch] = conv(b1.data[:, ch], b2.data[:, ch])
+        end
+
+        out
+    end
+
+    @eval function Base.conv{T}(b1::$buftype{T, 1}, b2::StridedVector{T})
+        $buftype(conv(b1.data, b2), samplerate(b1))
+    end
+
+    @eval Base.conv{T}(b1::StridedVector{T}, b2::$buftype{T, 1}) = conv(b2, b1)
+
+    @eval function Base.conv{T}(b1::$buftype{T, 2}, b2::StridedMatrix{T})
+        if nchannels(b1) != nchannels(b2)
+            error("Broadcasting convolution not yet supported")
+        end
+        out = $buftype(T, samplerate(b1), nframes(b1)+nframes(b2)-1, nchannels(b1))
+        for ch in 1:nchannels(b1)
+            out[:, ch] = conv(b1.data[:, ch], b2[:, ch])
+        end
+
+        out
+    end
+
+    @eval Base.conv{T}(b1::StridedMatrix{T}, b2::$buftype{T, 2}) = conv(b2, b1)
+end
