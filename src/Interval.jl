@@ -45,9 +45,9 @@ end
 Interval{T}(a::T,b::T) = Interval{T}(a,b)
 # Allow promotion during construction, but only if it results in a leaf type
 function Interval{T,S}(a::T, b::S)
-    R = promote_type(T,S)
-    isleaftype(R) || throw(ArgumentError("cannot promote $a and $b to a common leaf type"))
-    Interval{R}(promote(a,b)...)
+    (a2, b2) = promote(a, b)
+    typeof(a2) == typeof(b2) || throw(ArgumentError("cannot promote $a and $b to a common type"))
+    Interval(a2, b2)
 end
 const .. = Interval
 

@@ -4,11 +4,10 @@
         @test interval.lo == 4.5
         @test interval.hi == 8.9
         @test 1.2..5.6 == Interval{Float64}(1.2, 5.6)
-        # this test fails
-        # @test Interval(4.5) == (4.5..4.5)
     end
     @testset "Works for SIUnits" begin
         @test 2s in 1s..3s
+        @test 1s..2.5s === 1.0s..2.5s
     end
     @testset "Display" begin
         i = 5..7
