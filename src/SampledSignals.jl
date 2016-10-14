@@ -41,4 +41,10 @@ include("SignalGen/SinSource.jl")
 include("WAVDisplay.jl")
 include("deprecated.jl")
 
+function __init__()
+    if isdefined(Main, :IJulia) && Main.IJulia.inited
+        embed_javascript()
+    end
+end
+
 end # module

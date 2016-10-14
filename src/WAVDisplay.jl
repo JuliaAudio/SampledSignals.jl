@@ -1,6 +1,22 @@
-# this code is largely cut/pasted and cut down from @dancasimiro's
+# the .wav code is largely cut/pasted and cut down from @dancasimiro's
 # WAV.jl package. Rather than full WAV support here we just want to support
 # enough for simple HTML display of SampleBufs
+
+# notebook init code heavily inspired by PlotlyJS - thanks @sglyon!
+function embed_javascript()
+    js_path = joinpath(dirname(dirname(@__FILE__)), "deps", "wavesurfer.min.js")
+    js_text = open(js_path) do io
+        readstring(io)
+    end
+    # the javascript file contains the code to add itself to the require module
+    # cache under the name 'wavesurfer'
+    display("text/html", """
+    <script charset="utf-8" type='text/javascript'>
+    $js_text
+    console.log("SampledSignals.jl: wavesurfer library loaded")
+    </script>
+    """)
+end
 
 # need to specify that T <: Number to avoid a method ambiguity with AbstractArray{Method} on 0.4
 @compat function show{T <: Number, N}(io::IO, ::MIME"text/html", buf::SampleBuf{T, N})
@@ -9,24 +25,40 @@
     data = base64encode(takebuf_array(tempio))
     # we want the divID to start with a letter
     divid = string("a", randstring(10))
-    println(io, "<div id=$divid></div>")
-    # only show playback controls for real-valued SampleBufs
+    # include an error message that will get cleared if javascript loads correctly
+    # they won't be able to re-run this cell without importing SampledSignals,
+    # which will run the initialization code above. I can't think of a way to
+    # get in the state where the javascript isn't initialized but the module is
+    # loaded, but if it comes up we'll want to add an instruction to run
+    # `SampledSignals.embed_javascript()`.
+    println(io, """
+        <div id=$divid>
+            <h4>SampleBuf display requires javascript</h4>
+            <p>To enable for the whole notebook select "Trust Notebook" from the
+            "File" menu. You can also trust this cell by re-running it.</p>
+        </div>""")
+    # only show playback controls for real-valued SampleBufs. We also initialize
+    # them hidden and they get displayed if javascript is enabled.
     if isa(buf, SampleBuf) && eltype(buf) <: Real
         println(io, """
-        <button id=$divid-skipback class="btn"><span class="fa fa-step-backward"></span></button>
-        <button id=$divid-playpause class="btn"><span class="fa fa-play"></span></button>
-        <button id=$divid-stop class="btn"><span class="fa fa-stop"></span></button>
-        <button id=$divid-skipahead class="btn"><span class="fa fa-step-forward"></span></button>""")
+        <button id=$divid-skipback class="btn" style="display:none">
+            <span class="fa fa-step-backward"></span>
+        </button>
+        <button id=$divid-playpause class="btn" style="display:none">
+            <span class="fa fa-play"></span>
+        </button>
+        <button id=$divid-stop class="btn" style="display:none">
+            <span class="fa fa-stop"></span>
+        </button>
+        <button id=$divid-skipahead class="btn" style="display:none">
+            <span class="fa fa-step-forward"></span>
+        </button>""")
     end
     println(io, """
     <script type="text/javascript">
-        require.config({
-            paths: {
-                wavesurfer: ["//cdnjs.cloudflare.com/ajax/libs/wavesurfer.js/1.0.52/wavesurfer.min"],
-            }
-        });
         require(["wavesurfer"], function(wavesurfer) {
-            var waveform = WaveSurfer.create({
+            \$("#$divid").empty();
+            var waveform = wavesurfer.create({
                 container: '#$divid',
                 splitChannels: true,
                 scrollParent: true,
@@ -40,6 +72,11 @@
                 bytes[i] = binary_string.charCodeAt(i);
             }
             waveform.loadArrayBuffer(bytes.buffer);
+            \$("#$divid-skipback").show();
+            \$("#$divid-skipahead").show();
+            \$("#$divid-playpause").show();
+            \$("#$divid-stop").show();
+
             \$("#$divid-skipback").click(function(event) {
                 waveform.skip(-3);
             });
