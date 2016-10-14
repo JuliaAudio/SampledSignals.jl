@@ -35,7 +35,10 @@ end
         <div id=$divid>
             <h4>SampleBuf display requires javascript</h4>
             <p>To enable for the whole notebook select "Trust Notebook" from the
-            "File" menu. You can also trust this cell by re-running it.</p>
+            "File" menu. You can also trust this cell by re-running it. You may
+            also need to re-run `using SampledSignals` if the module is not yet
+            loaded in the Julia kernel, or `SampledSignals.embed_javascript()`
+            if the Julia module is loaded but the javascript isn't initialized.</p>
         </div>""")
     # only show playback controls for real-valued SampleBufs. We also initialize
     # them hidden and they get displayed if javascript is enabled.
