@@ -136,11 +136,32 @@
         @test read(source, 8) == buf[1:8, :]
     end
 
+    @testset "SampleBufs can be written to sinks" begin
+        buf = SampleBuf(rand(16, 2), 48000)
+        sink = DummySampleSink(Float64, 48000, 2)
+        write(sink, buf)
+        @test sink.buf == buf
+    end
+
+    @testset "Arrays can be written to sinks" begin
+        arr = rand(16, 2)
+        sink = DummySampleSink(Float64, 48000, 2)
+        write(sink, arr)
+        @test sink.buf == arr
+    end
+
     @testset "SampleBufs can be written to sinks with downmixing" begin
         buf = SampleBuf(rand(16, 2), 48000)
         sink = DummySampleSink(Float64, 48000, 1)
         write(sink, buf)
         @test sink.buf[:] == buf[:, 1] + buf[:, 2]
+    end
+
+    @testset "Arrays can be written to sinks with downmixing" begin
+        arr = rand(16, 2)
+        sink = DummySampleSink(Float64, 48000, 1)
+        write(sink, arr)
+        @test sink.buf[:] == arr[:, 1] + arr[:, 2]
     end
 
     @testset "SampleBufs can be written to sinks with duration in frames" begin
@@ -178,12 +199,27 @@
         @test sink.buf[:] == map(Float64, buf)
     end
 
+    @testset "Arrays can be written to sinks with format conversion" begin
+        arr = map(PCM16Sample, rand(16, 1)-0.5)
+        sink = DummySampleSink(Float64, 48000, 1)
+        write(sink, arr)
+        @test sink.buf == map(Float64, arr)
+    end
+
     @testset "SampleBufSink can wrap SampleBuf" begin
         sourcebuf = SampleBuf(rand(Float32, 64, 2), 48000)
         sinkbuf = SampleBuf(Float32, 48000, 32, 2)
         sink = SampleBufSink(sinkbuf)
         @test write(sink, sourcebuf) == 32
         @test sinkbuf == sourcebuf[1:32, :]
+    end
+
+    @testset "Arrays can be read from sources" begin
+        arr = Array(Float64, 16, 2)
+        data = rand(Float64, 16, 2)
+        source = DummySampleSource(48000, data)
+        read!(source, arr)
+        @test arr == data
     end
 
     @testset "SampleBufs can be read from sources with conversion" begin

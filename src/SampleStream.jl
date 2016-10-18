@@ -161,6 +161,13 @@ function Base.write(sink::SampleSink, buf::SampleBuf, duration::SecondsQuantity)
     write(sink, buf, round(Int, float(duration)*samplerate(buf)))
 end
 
+# treat bare arrays as a buffer with the same samplerate as the sink
+function Base.write(sink::SampleSink, arr::Array, dur=nframes(arr))
+    buf = SampleBuf(arr, samplerate(sink))
+    write(sink, buf, dur)
+end
+
+# TODO: it seems like read! should support a duration
 function Base.read!(source::SampleSource, buf::SampleBuf)
     if nchannels(source) == nchannels(buf) &&
             eltype(source) == eltype(buf) &&
@@ -172,6 +179,13 @@ function Base.read!(source::SampleSource, buf::SampleBuf)
         write(SampleBufSink(buf), source)
     end
 end
+
+# treat bare arrays as a buffer with the same samplerate as the source
+function Base.read!(source::SampleSource, arr::Array)
+    buf = SampleBuf(arr, samplerate(source))
+    read!(source, buf)
+end
+
 
 """UpMixSink provides a single-channel sink that wraps a multi-channel sink.
 Writing to this sink copies the single channel to all the channels in the
