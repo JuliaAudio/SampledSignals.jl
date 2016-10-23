@@ -150,9 +150,53 @@ channelptr(buf::AbstractSampleBuf, channel, frameoffset=0) =
 using coefficients from the `mix` matrix. To mix an M-channel buffer to a
 N-channel buffer, `mix` should be MxN. `src` and `dest` should not share
 memory."""
-function mix!(dest::AbstractArray, src::AbstractArray, mix::AbstractArray)
+function mix!(dest::AbstractMatrix, src::AbstractMatrix, mix::AbstractArray)
+    inchans = nchannels(src)
+    outchans = nchannels(dest)
+    size(mix) == (inchans, outchans) || error("Mix Matrix should be $(inchans)x$(outchans)")
     A_mul_B!(dest, src, mix)
 end
+
+function mix!(dest::AbstractVector, src::AbstractVector, mix::AbstractArray)
+    mix!(reshape(dest, (length(dest), 1)), reshape(src, (length(src), 1)), mix)
+    dest
+end
+
+function mix!(dest::AbstractVector, src::AbstractMatrix, mix::AbstractArray)
+    mix!(reshape(dest, (length(dest), 1)), src, mix)
+    dest
+end
+
+function mix!(dest::AbstractMatrix, src::AbstractVector, mix::AbstractArray)
+    mix!(dest, reshape(src, (length(src), 1)), mix)
+end
+
+# necessary because A_mul_B! doesn't handle SampleBufs on 0.4
+# explicitly define 1D and 2D so they're more specific and don't trigger ambiguity
+# warnings on 0.4
+for N1 in (1, 2), N2 in (1, 2)
+    @eval function mix!{T}(dest::AbstractSampleBuf{T, $N1}, src::AbstractSampleBuf{T, $N2}, mix::AbstractArray)
+        mix!(dest.data, src.data, mix)
+        dest
+    end
+    @eval function mix!{T1, T2}(dest::AbstractSampleBuf{T1, $N1}, src::AbstractSampleBuf{T2, $N2}, mix::AbstractArray)
+        mix!(dest.data, src.data, mix)
+        dest
+    end
+end
+
+# necessary because A_mul_B! doesn't handle SampleBufs on 0.4
+for MT in (AbstractMatrix, AbstractVector), N in (1, 2)
+    @eval function mix!{T}(dest::$MT, src::AbstractSampleBuf{T, $N}, mix::AbstractArray)
+        mix!(dest, src.data, mix)
+    end
+
+    @eval function mix!{T}(dest::AbstractSampleBuf{T, $N}, src::$MT, mix::AbstractArray)
+        mix!(dest.data, src, mix)
+        dest
+    end
+end
+
 
 """Mix the channels of the source array into the channels of the dest array,
 using coefficients from the `mix` matrix. To mix an M-channel buffer to a
@@ -164,13 +208,8 @@ function mix(src::AbstractArray, mix::AbstractArray)
 end
 
 """Mix the channels of the `src` array into the mono `dest` array."""
-function mono!(dest::AbstractMatrix, src::AbstractArray)
+function mono!(dest::AbstractArray, src::AbstractArray)
     mix!(dest, src, ones(nchannels(src), 1) ./ nchannels(src))
-end
-
-function mono!(dest::AbstractVector, src::AbstractArray)
-    mono!(reshape(dest, (size(dest, 1), 1)), src)
-    dest
 end
 
 """Mix the channels of the `src` array into a mono array."""
