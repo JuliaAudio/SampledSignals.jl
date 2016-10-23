@@ -22,6 +22,7 @@ export SinSource
 export Interval, ..
 # general methods for types in SampledSignals
 export samplerate, samplerate!, nchannels, nframes, domain, channelptr, blocksize
+export mix!, mix, mono!, mono
 # re-export the useful units
 export ns, ms, µs, s, Hz, kHz, MHz, GHz, THz
 export PCM8Sample, PCM16Sample, PCM24Sample, PCM32Sample

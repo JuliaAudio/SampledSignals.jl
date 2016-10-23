@@ -321,6 +321,99 @@
         end
     end
 
+    @testset "Arrays support mix" begin
+        arr = rand(TEST_T, 8, 3)
+        mixmatrix = [1 0
+                     0 0.5
+                     0 0.5]
+        out = mix(arr, mixmatrix)
+        @test isapprox(out[:, 1], arr[:, 1])
+        @test isapprox(out[:, 2], 0.5(arr[:, 2]+arr[:, 3]))
+    end
+
+
+    @testset "SampleBufs and SpectrumBufs support mix" begin
+        arr = rand(TEST_T, 8, 3)
+        mixmatrix = [1 0
+                     0 0.5
+                     0 0.5]
+        for T in (SampleBuf, SpectrumBuf)
+            buf = T(arr, TEST_SR)
+            out = mix(buf, mixmatrix)
+            @test isa(out, T)
+            @test isapprox(out[:, 1], T(arr[:, 1], TEST_SR))
+            @test isapprox(out[:, 2], T(0.5(arr[:, 2]+arr[:, 3]), TEST_SR))
+        end
+    end
+
+    @testset "Arrays support mix!" begin
+        arr = rand(TEST_T, 8, 3)
+        out = zeros(8, 2)
+        mixmatrix = [1 0
+                     0 0.5
+                     0 0.5]
+        mix!(out, arr, mixmatrix)
+        @test isapprox(out[:, 1], arr[:, 1])
+        @test isapprox(out[:, 2], 0.5(arr[:, 2]+arr[:, 3]))
+    end
+
+
+    @testset "SampleBufs and SpectrumBufs support mix!" begin
+        arr = rand(TEST_T, 8, 3)
+        outarr = zeros(8, 2)
+        mixmatrix = [1 0
+                     0 0.5
+                     0 0.5]
+        for T in (SampleBuf, SpectrumBuf)
+            buf = T(arr, TEST_SR)
+            out = mix(buf, mixmatrix)
+            @test isa(out, T)
+            @test out == T(arr * mixmatrix, TEST_SR)
+        end
+    end
+
+    @testset "Arrays support mono" begin
+        arr = rand(TEST_T, 8, 2)
+        @test isapprox(mono(arr), 0.5(arr[:, 1] + arr[:, 2]))
+    end
+
+    @testset "SampleBufs and SpectrumBufs support mono" begin
+        arr = rand(TEST_T, 8, 2)
+        for T in (SampleBuf, SpectrumBuf)
+            buf = T(arr, TEST_SR)
+            out = mono(buf)
+            @test isa(out, T)
+            @test isapprox(out, 0.5(buf[:, 1] + buf[:, 2]))
+        end
+    end
+
+    @testset "Arrays support mono!" begin
+        arr = rand(TEST_T, 8, 2)
+        out = zeros(TEST_T, 8)
+        mono!(out, arr)
+        @test isapprox(out, 0.5(arr[:, 1] + arr[:, 2]))
+    end
+
+    @testset "SampleBufs and SpectrumBufs support mono!" begin
+        arr = rand(TEST_T, 8, 2)
+        for T in (SampleBuf, SpectrumBuf)
+            buf = T(arr, TEST_SR)
+            out = T(TEST_T, TEST_SR, 8)
+            mono!(out, buf)
+            @test isapprox(out, 0.5(buf[:, 1] + buf[:, 2]))
+        end
+    end
+
+    @testset "mono! works with 1D and 2D output vector" begin
+        arr = rand(TEST_T, 8, 2)
+        out1 = zeros(TEST_T, 8)
+        out2 = zeros(TEST_T, 8, 1)
+        mono!(out1, arr)
+        mono!(out2, arr)
+        @test isapprox(out1, 0.5(arr[:, 1] + arr[:, 2]))
+        @test isapprox(out2, 0.5(arr[:, 1] + arr[:, 2]))
+    end
+
     @testset "multichannel buf prints prettily" begin
         t = collect(linspace(0, 2pi, 300))
         buf = SampleBuf([cos(t) sin(t)]*0.2, 48000)

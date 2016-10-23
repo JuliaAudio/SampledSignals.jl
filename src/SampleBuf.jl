@@ -146,6 +146,40 @@ channelptr(buf::Array, channel, frameoffset=0) =
 channelptr(buf::AbstractSampleBuf, channel, frameoffset=0) =
     channelptr(buf.data, channel, frameoffset)
 
+"""Mix the channels of the source array into the channels of the dest array,
+using coefficients from the `mix` matrix. To mix an M-channel buffer to a
+N-channel buffer, `mix` should be MxN. `src` and `dest` should not share
+memory."""
+function mix!(dest::AbstractArray, src::AbstractArray, mix::AbstractArray)
+    A_mul_B!(dest, src, mix)
+end
+
+"""Mix the channels of the source array into the channels of the dest array,
+using coefficients from the `mix` matrix. To mix an M-channel buffer to a
+N-channel buffer, `mix` should be MxN. `src` and `dest` should not share
+memory."""
+function mix(src::AbstractArray, mix::AbstractArray)
+    dest = similar(src, (nframes(src), size(mix, 2)))
+    mix!(dest, src, mix)
+end
+
+"""Mix the channels of the `src` array into the mono `dest` array."""
+function mono!(dest::AbstractMatrix, src::AbstractArray)
+    mix!(dest, src, ones(nchannels(src), 1) ./ nchannels(src))
+end
+
+function mono!(dest::AbstractVector, src::AbstractArray)
+    mono!(reshape(dest, (size(dest, 1), 1)), src)
+    dest
+end
+
+"""Mix the channels of the `src` array into a mono array."""
+function mono(src::AbstractArray)
+    dest = similar(src, (nframes(src), 1))
+    mono!(dest, src)
+end
+
+
 # the index types that Base knows how to handle. Separate out those that index
 # multiple results
 typealias BuiltinMultiIdx Union{Colon,
