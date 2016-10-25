@@ -10,20 +10,17 @@ if VERSION >= v"0.5.0-dev+7720"
 else
     using BaseTestNext
 end
+
+using TestSetExtensions
 using FixedPointNumbers
 using Gumbo
 using WAV
 
-include("util.jl")
+include("support/util.jl")
 
 try
-    @testset "SampledSignals Tests" begin
-        include("DummySampleStream.jl")
-        include("SampleBuf.jl")
-        include("Interval.jl")
-        include("SampleStream.jl")
-        include("WAVDisplay.jl")
-        include("SignalGen/runtests.jl")
+    @testset DottedTestSet "SampledSignals Tests" begin
+        @includetests ARGS
     end
 catch err
     exit(-1)
