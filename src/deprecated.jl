@@ -18,7 +18,7 @@ function unsafe_read!{T <: SampleSource}(src::T, buf::Array, frameoffset, framec
         map(println, stacktrace())
     end
 
-    tmp = SampleBuf(Array(eltype(src), framecount, nchannels(src)), samplerate(src))
+    tmp = SampleBuf(Array{eltype(src)}(framecount, nchannels(src)), samplerate(src))
     n = unsafe_read!(src, tmp)
     buf[(1:framecount)+frameoffset, :] = view(tmp.data, :, :)
 

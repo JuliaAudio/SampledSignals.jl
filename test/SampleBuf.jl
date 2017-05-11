@@ -20,7 +20,7 @@
     end
 
     @testset "Can get type params from contained array" begin
-        timebuf = SampleBuf(Array(TEST_T, 32, 2), TEST_SR)
+        timebuf = SampleBuf(Array{TEST_T}(32, 2), TEST_SR)
         @test nframes(timebuf) == 32
         @test nchannels(timebuf) == 2
     end
@@ -158,7 +158,7 @@
     @testset "Can be created without units" begin
         buf = SampleBuf(Float32, 48000, 100, 2)
         @test samplerate(buf) == 48000
-        buf = SampleBuf(Array(Float32, 100, 2), 48000)
+        buf = SampleBuf(Array{Float32}(100, 2), 48000)
         @test samplerate(buf) == 48000
     end
 
@@ -211,11 +211,17 @@
         sum = buf1 + buf2
         @test sum == SampleBuf(arr1 + arr2, TEST_SR)
         @test typeof(sum) == typeof(buf1)
+        sum = buf1 .+ buf2
+        @test sum == SampleBuf(arr1 .+ arr2, TEST_SR)
+        @test typeof(sum) == typeof(buf1)
         prod = buf1 .* buf2
         @test prod == SampleBuf(arr1 .* arr2, TEST_SR)
         @test typeof(prod) == typeof(buf1)
         diff = buf1 - buf2
         @test diff == SampleBuf(arr1 - arr2, TEST_SR)
+        @test typeof(diff) == typeof(buf1)
+        diff = buf1 .- buf2
+        @test diff == SampleBuf(arr1 .- arr2, TEST_SR)
         @test typeof(diff) == typeof(buf1)
         quot = buf1 ./ buf2
         @test quot == SampleBuf(arr1 ./ arr2, TEST_SR)
@@ -229,14 +235,26 @@
         sum = buf1 + 2.0f0
         @test sum == SampleBuf(arr1 + 2.0f0, TEST_SR)
         @test typeof(sum) == typeof(buf1)
+        sum = buf1 .+ 2.0f0
+        @test sum == SampleBuf(arr1 .+ 2.0f0, TEST_SR)
+        @test typeof(sum) == typeof(buf1)
         prod = buf1 * 2.0f0
         @test prod == SampleBuf(arr1 * 2.0f0, TEST_SR)
+        @test typeof(prod) == typeof(buf1)
+        prod = buf1 .* 2.0f0
+        @test prod == SampleBuf(arr1 .* 2.0f0, TEST_SR)
         @test typeof(prod) == typeof(buf1)
         diff = buf1 - 2.0f0
         @test diff == SampleBuf(arr1 - 2.0f0, TEST_SR)
         @test typeof(diff) == typeof(buf1)
+        diff = buf1 .- 2.0f0
+        @test diff == SampleBuf(arr1 .- 2.0f0, TEST_SR)
+        @test typeof(diff) == typeof(buf1)
         quot = buf1 / 2.0f0
         @test quot == SampleBuf(arr1 / 2.0f0, TEST_SR)
+        @test typeof(quot) == typeof(buf1)
+        quot = buf1 ./ 2.0f0
+        @test quot == SampleBuf(arr1 ./ 2.0f0, TEST_SR)
         @test typeof(quot) == typeof(buf1)
     end
 
@@ -248,11 +266,17 @@
         sum = buf1 + arr2
         @test sum == SampleBuf(arr1 + arr2, TEST_SR)
         @test typeof(sum) == typeof(buf1)
+        sum = buf1 .+ arr2
+        @test sum == SampleBuf(arr1 .+ arr2, TEST_SR)
+        @test typeof(sum) == typeof(buf1)
         prod = buf1 .* arr2
         @test prod == SampleBuf(arr1 .* arr2, TEST_SR)
         @test typeof(prod) == typeof(buf1)
         diff = buf1 - arr2
         @test diff == SampleBuf(arr1 - arr2, TEST_SR)
+        @test typeof(diff) == typeof(buf1)
+        diff = buf1 .- arr2
+        @test diff == SampleBuf(arr1 .- arr2, TEST_SR)
         @test typeof(diff) == typeof(buf1)
         quot = buf1 ./ arr2
         @test quot == SampleBuf(arr1 ./ arr2, TEST_SR)
@@ -267,10 +291,16 @@
         sum = buf1 + arr2
         @test sum == SampleBuf(arr1 + arr2, TEST_SR)
         @test typeof(sum) == typeof(buf1)
+        sum = buf1 .+ arr2
+        @test sum == SampleBuf(arr1 + arr2, TEST_SR)
+        @test typeof(sum) == typeof(buf1)
         prod = buf1 .* arr2
         @test prod == SampleBuf(arr1 .* arr2, TEST_SR)
         @test typeof(prod) == typeof(buf1)
         diff = buf1 - arr2
+        @test diff == SampleBuf(arr1 - arr2, TEST_SR)
+        @test typeof(diff) == typeof(buf1)
+        diff = buf1 .- arr2
         @test diff == SampleBuf(arr1 - arr2, TEST_SR)
         @test typeof(diff) == typeof(buf1)
         quot = buf1 ./ arr2
@@ -416,24 +446,24 @@
 
     @testset "multichannel buf prints prettily" begin
         t = collect(linspace(0, 2pi, 300))
-        buf = SampleBuf([cos(t) sin(t)]*0.2, 48000)
+        buf = SampleBuf([cos.(t) sin.(t)]*0.2, 48000)
         expected = """300-frame, 2-channel SampleBuf{Float64, 2}
                    0.00625s sampled at 48000.0Hz
                    ▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▃▃▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▃▃▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆
                    ▃▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▂▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▃"""
         iobuf = IOBuffer()
         display(TextDisplay(iobuf), buf)
-        @test takebuf_string(iobuf) == expected
+        @test String(take!(iobuf)) == expected
     end
     @testset "1D buf prints prettily" begin
         t = collect(linspace(0, 2pi, 300))
-        buf = SampleBuf(cos(t)*0.2, 48000)
+        buf = SampleBuf(cos.(t)*0.2, 48000)
         expected = """300-frame, 1-channel SampleBuf{Float64, 1}
                    0.00625s sampled at 48000.0Hz
                    ▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▃▃▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▃▃▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆"""
         iobuf = IOBuffer()
         display(TextDisplay(iobuf), buf)
-        @test takebuf_string(iobuf) == expected
+        @test String(take!(iobuf)) == expected
     end
     @testset "zero-length buf prints prettily" begin
         buf = SampleBuf(Float64, 48000, 0, 2)
@@ -441,6 +471,6 @@
                    0.0s sampled at 48000.0Hz"""
         iobuf = IOBuffer()
         display(TextDisplay(iobuf), buf)
-        @test takebuf_string(iobuf) == expected
+        @test String(take!(iobuf)) == expected
     end
 end

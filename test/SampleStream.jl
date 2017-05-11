@@ -215,7 +215,7 @@
     end
 
     @testset "Arrays can be read from sources" begin
-        arr = Array(Float64, 16, 2)
+        arr = Array{Float64}(16, 2)
         data = rand(Float64, 16, 2)
         source = DummySampleSource(48000, data)
         read!(source, arr)

@@ -1,17 +1,8 @@
 using SampledSignals
-using Compat
+using Base.Test
+using TestSetExtensions
 import SIUnits
 using DSP
-
-import Compat.view
-
-if VERSION >= v"0.5.0-dev+7720"
-    using Base.Test
-else
-    using BaseTestNext
-end
-
-using TestSetExtensions
 using FixedPointNumbers
 using Gumbo
 using WAV

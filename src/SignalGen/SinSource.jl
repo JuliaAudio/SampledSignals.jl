@@ -26,7 +26,7 @@ function unsafe_read!(source::SinSource, buf::Array, frameoffset, framecount)
         f = source.freqs[ch]
         ph = source.phases[ch]
         for i in 1:framecount
-            buf[i+frameoffset, ch] = sin(ph)
+            buf[i+frameoffset, ch] = sin.(ph)
             ph += f
         end
         source.phases[ch] = ph

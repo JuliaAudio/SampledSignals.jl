@@ -6,7 +6,7 @@ Subtypes should implement the `samplerate`, `nchannels`, `eltype`, and
 `unsafe_read!` methods. `unsafe_read!` can assume that the samplerate, channel
 count, and element type are all matching.
 """
-abstract SampleSource
+abstract type SampleSource end
 
 """
 unsafe_read!(source::SampleSource, buf::Array, frameoffset, framecount)
@@ -30,7 +30,7 @@ Subtypes should implement the `samplerate`, `nchannels`, `eltype`, and
 `unsafe_write` methods. `unsafe_write` can assume that the samplerate, channel
 count, and element type are all matching.
 """
-abstract SampleSink
+abstract type SampleSink end
 
 """
 unsafe_write(sink::SampleSink, buf::Array, frameoffset, framecount)
@@ -129,7 +129,7 @@ end
 # sample rate and channel count
 function unsafe_write(sink::SampleSink, source::SampleSource, frames=-1, blocksize=-1)
     written::Int = 0
-    buf = Array(eltype(source), blocksize, nchannels(source))
+    buf = Array{eltype(source)}(blocksize, nchannels(source))
     while frames < 0 || written < frames
         n = frames < 0 ? blocksize : min(blocksize, frames - written)
         nr = unsafe_read!(source, buf, 0, n)
@@ -198,7 +198,7 @@ end
 function UpMixSink(wrapped::SampleSink, blocksize=DEFAULT_BLOCKSIZE)
     N = nchannels(wrapped)
     T = eltype(wrapped)
-    buf = Array(T, blocksize, N)
+    buf = Array{T}(blocksize, N)
 
     UpMixSink(wrapped, buf)
 end
@@ -238,7 +238,7 @@ end
 
 function DownMixSink(wrapped::SampleSink, channels, blocksize=DEFAULT_BLOCKSIZE)
     T = eltype(wrapped)
-    buf = Array(T, blocksize, 1)
+    buf = Array{T}(blocksize, 1)
 
     DownMixSink(wrapped, buf, channels)
 end
@@ -282,7 +282,7 @@ end
 function ReformatSink(wrapped::SampleSink, T, blocksize=DEFAULT_BLOCKSIZE)
     WT = eltype(wrapped)
     N = nchannels(wrapped)
-    buf = Array(WT, blocksize, N)
+    buf = Array{WT}(blocksize, N)
 
     ReformatSink(wrapped, buf, T)
 end
@@ -323,7 +323,7 @@ function ResampleSink(wrapped::SampleSink, sr, blocksize=DEFAULT_BLOCKSIZE)
     wsr = compat_samplerate(wrapped)
     T = eltype(wrapped)
     N = nchannels(wrapped)
-    buf = Array(T, blocksize, N)
+    buf = Array{T}(blocksize, N)
 
     ratio = rationalize(wsr/sr)
     coefs = resample_filter(ratio)
@@ -408,28 +408,4 @@ function unsafe_write(sink::SampleBufSink, buf::Array, frameoffset, framecount)
     sink.written += n
 
     n
-end
-
-
-# we only need to define this until DSP.jl#133
-# (https://github.com/JuliaDSP/DSP.jl/pull/133) is merged
-function DSP.shiftin!{T}(a::AbstractVector{T}, b::AbstractVector{T})
-    aLen = length(a)
-    bLen = length(b)
-
-    if bLen >= aLen
-        copy!(a, 1, b, bLen - aLen + 1, aLen)
-    else
-
-        for i in 1:aLen-bLen
-            @inbounds a[i] = a[i+bLen]
-        end
-        bIdx = 1
-        for i in aLen-bLen+1:aLen
-            @inbounds a[i] = b[bIdx]
-            bIdx += 1
-        end
-    end
-
-    return a
 end

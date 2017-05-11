@@ -13,7 +13,7 @@
         i = 5..7
         io = IOBuffer()
         print(io, i)
-        @test takebuf_string(io) == "5..7"
+        @test String(take!(io)) == "5..7"
     end
 
     @testset "Promotion Rules" begin

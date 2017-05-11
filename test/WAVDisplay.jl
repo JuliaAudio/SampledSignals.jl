@@ -1,7 +1,7 @@
 function parsehtmldisplay(buf)
     outputbuf = IOBuffer()
-    @compat show(outputbuf, MIME"text/html"(), buf)
-    fragment = takebuf_string(outputbuf)
+    display(TextDisplay(outputbuf), "text/html", buf)
+    fragment = String(take!(outputbuf))
 
     fullhtml = """
     <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN"
@@ -69,7 +69,7 @@ end
         buf = SampleBuf(rand(Int16, 16, 2), 48000)
         io = IOBuffer()
         SampledSignals.wavwrite(io, buf)
-        samples, fs, nbits, opt = wavread(IOBuffer(takebuf_array(io)), format="native")
+        samples, fs, nbits, opt = wavread(IOBuffer(take!(io)), format="native")
         @test samples == buf
         @test fs == 48000
         @test nbits == 16
@@ -79,7 +79,7 @@ end
         buf = SampleBuf(rand(16, 2), 48000)
         io = IOBuffer()
         SampledSignals.wavwrite(io, buf)
-        samples, fs, nbits, opt = wavread(IOBuffer(takebuf_array(io)), format="native")
+        samples, fs, nbits, opt = wavread(IOBuffer(take!(io)), format="native")
         @test samples == map(reinterpret, convert(Array{PCM16Sample}, buf))
         @test fs == 48000
         @test nbits == 16
@@ -94,8 +94,8 @@ end
     #     floatio = IOBuffer()
     #     SampledSignals.wavwrite(complexio, complexbuf)
     #     SampledSignals.wavwrite(floatio, floatbuf)
-    #     complexsamples, fs, nbits, opt = wavread(IOBuffer(takebuf_array(complexio)), format="native")
-    #     floatsamples, _, _, _ = wavread(IOBuffer(takebuf_array(floatio)), format="native")
+    #     complexsamples, fs, nbits, opt = wavread(IOBuffer(take!(complexio)), format="native")
+    #     floatsamples, _, _, _ = wavread(IOBuffer(take!(floatio)), format="native")
     #     @test isapprox(complexsamples, floatsamples)
     #     @test fs == 48000
     #     @test nbits == 16
