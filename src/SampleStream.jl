@@ -51,7 +51,7 @@ function unsafe_write end
 blocksize(src::SampleSource) = 0
 blocksize(src::SampleSink) = 0
 
-toindex(stream::SampleSource, t::SecondsQuantity) = round(Int, float(t)*compat_samplerate(stream)) + 1
+toindex(stream::SampleSource, t::SecondsQuantity) = round(Int, float(t)*samplerate(stream)) + 1
 
 # subtypes should only have to implement the `unsafe_read!` and `unsafe_write` methods, so
 # here we implement all the converting wrapper methods
@@ -60,7 +60,7 @@ toindex(stream::SampleSource, t::SecondsQuantity) = round(Int, float(t)*compat_s
 Base.read(stream::SampleSource, t::SecondsQuantity) = read(stream, toindex(stream, t)-1)
 
 function Base.read(src::SampleSource, nframes::Integer)
-    buf = SampleBuf(eltype(src), compat_samplerate(src), nframes, nchannels(src))
+    buf = SampleBuf(eltype(src), samplerate(src), nframes, nchannels(src))
     n = read!(src, buf)
 
     buf[1:n, :]
@@ -71,7 +71,7 @@ const DEFAULT_BLOCKSIZE=4096
 # handle sink-to-source writing with a duration in seconds
 function Base.write(sink::SampleSink, source::SampleSource,
         duration::SecondsQuantity; blocksize=-1)
-    sr = compat_samplerate(sink)
+    sr = samplerate(sink)
     frames = trunc(Int, float(duration) * sr)
     n = write(sink, source, frames; blocksize=blocksize)
 
@@ -86,18 +86,18 @@ end
 # TODO: we should be able to add reformatting support to the ResampleSink and
 # xMixSink types, to avoid an extra buffer copy
 function wrap_sink(sink::SampleSink, source::SampleSource, blocksize)
-    if eltype(sink) != eltype(source) && !isapprox(compat_samplerate(sink), compat_samplerate(source))
+    if eltype(sink) != eltype(source) && !isapprox(samplerate(sink), samplerate(source))
         # we're going to resample AND reformat. We prefer to resample
         # in the floating-point space because it seems to be about 40% faster
         if eltype(sink) <: AbstractFloat
-            wrap_sink(ResampleSink(sink, compat_samplerate(source), blocksize), source, blocksize)
+            wrap_sink(ResampleSink(sink, samplerate(source), blocksize), source, blocksize)
         else
             wrap_sink(ReformatSink(sink, eltype(source), blocksize), source, blocksize)
         end
     elseif eltype(sink) != eltype(source)
         wrap_sink(ReformatSink(sink, eltype(source), blocksize), source, blocksize)
-    elseif !isapprox(compat_samplerate(sink), compat_samplerate(source))
-        wrap_sink(ResampleSink(sink, compat_samplerate(source), blocksize), source, blocksize)
+    elseif !isapprox(samplerate(sink), samplerate(source))
+        wrap_sink(ResampleSink(sink, samplerate(source), blocksize), source, blocksize)
     elseif nchannels(sink) != nchannels(source)
         if nchannels(sink) == 1
             DownMixSink(sink, nchannels(source), blocksize)
@@ -147,7 +147,7 @@ end
 function Base.write(sink::SampleSink, buf::SampleBuf, nframes=nframes(buf))
     if nchannels(sink) == nchannels(buf) &&
             eltype(sink) == eltype(buf) &&
-            isapprox(compat_samplerate(sink), compat_samplerate(buf))
+            isapprox(samplerate(sink), samplerate(buf))
         # everything matches, call the sink's low-level write method
         unsafe_write(sink, buf.data, 0, nframes)
     else
@@ -158,7 +158,13 @@ function Base.write(sink::SampleSink, buf::SampleBuf, nframes=nframes(buf))
 end
 
 function Base.write(sink::SampleSink, buf::SampleBuf, duration::SecondsQuantity)
-    write(sink, buf, round(Int, float(duration)*samplerate(buf)))
+    n = round(Int, float(duration)*samplerate(buf))
+    written = write(sink, buf, n)
+    if written == n
+        return duration
+    else
+        return written / samplerate(buf) * s
+    end
 end
 
 # treat bare arrays as a buffer with the same samplerate as the sink
@@ -167,25 +173,67 @@ function Base.write(sink::SampleSink, arr::Array, dur=nframes(arr))
     write(sink, buf, dur)
 end
 
-# TODO: it seems like read! should support a duration
-function Base.read!(source::SampleSource, buf::SampleBuf)
+function Base.read!(source::SampleSource, buf::SampleBuf, n::Integer)
     if nchannels(source) == nchannels(buf) &&
             eltype(source) == eltype(buf) &&
-            isapprox(compat_samplerate(source), compat_samplerate(buf))
-        unsafe_read!(source, buf.data, 0, nframes(buf))
+            isapprox(samplerate(source), samplerate(buf))
+        unsafe_read!(source, buf.data, 0, n)
     else
         # some conversion is necessary. Wrap in a sink so we can use the
         # stream conversion machinery
-        write(SampleBufSink(buf), source)
+        write(SampleBufSink(buf), source, n)
+    end
+end
+
+# when reading into a SampleBuf, calculate frames based on the given buffer,
+# which might differ from the source samplerate if there's a samplerate
+# conversion involved.
+function Base.read!(source::SampleSource, buf::SampleBuf, t::SecondsQuantity)
+    n = round(Int, float(t)*samplerate(buf))
+    written = read!(source, buf, n)
+    if written == n
+        return t
+    else
+        return written / samplerate(buf) * s
+    end
+end
+
+function Base.read!(source::SampleSource, buf::Array, t::SecondsQuantity)
+    n = round(Int, float(t)*samplerate(source))
+    written = read!(source, buf, n)
+    if written == n
+        return t
+    else
+        return written / samplerate(buf) * s
     end
 end
 
 # treat bare arrays as a buffer with the same samplerate as the source
-function Base.read!(source::SampleSource, arr::Array)
+function Base.read!(source::SampleSource, arr::Array, n::Integer)
     buf = SampleBuf(arr, samplerate(source))
-    read!(source, buf)
+    read!(source, buf, n)
 end
 
+# if no frame count is given default to the number of frames in the destination
+Base.read!(source::SampleSource, arr::AbstractArray) = read!(source, arr, nframes(arr))
+
+function Base.read(source::SampleSource)
+    buf = SampleBuf(eltype(source),
+                    samplerate(source),
+                    DEFAULT_BLOCKSIZE,
+                    nchannels(source))
+    # during accumulation we keep the channels separate so we can grow the
+    # arrays without needing to copy data around as much
+    cumbufs = [Vector{eltype(source)}() for _ in 1:nchannels(source)]
+    while true
+        n = read!(source, buf)
+        for ch in 1:length(cumbufs)
+            append!(cumbufs[ch], @view buf.data[1:n, ch])
+        end
+        n == nframes(buf) || break
+    end
+    SampleBuf(hcat(cumbufs...), samplerate(source))
+end
 
 """UpMixSink provides a single-channel sink that wraps a multi-channel sink.
 Writing to this sink copies the single channel to all the channels in the
@@ -203,7 +251,7 @@ function UpMixSink(wrapped::SampleSink, blocksize=DEFAULT_BLOCKSIZE)
     UpMixSink(wrapped, buf)
 end
 
-samplerate(sink::UpMixSink) = compat_samplerate(sink.wrapped)
+samplerate(sink::UpMixSink) = samplerate(sink.wrapped)
 nchannels(sink::UpMixSink) = 1
 Base.eltype(sink::UpMixSink) = eltype(sink.wrapped)
 blocksize(sink::UpMixSink) = size(sink.buf, 1)
@@ -243,7 +291,7 @@ function DownMixSink(wrapped::SampleSink, channels, blocksize=DEFAULT_BLOCKSIZE)
     DownMixSink(wrapped, buf, channels)
 end
 
-samplerate(sink::DownMixSink) = compat_samplerate(sink.wrapped)
+samplerate(sink::DownMixSink) = samplerate(sink.wrapped)
 nchannels(sink::DownMixSink) = sink.channels
 Base.eltype(sink::DownMixSink) = eltype(sink.wrapped)
 blocksize(sink::DownMixSink) = size(sink.buf, 1)
@@ -287,7 +335,7 @@ function ReformatSink(wrapped::SampleSink, T, blocksize=DEFAULT_BLOCKSIZE)
     ReformatSink(wrapped, buf, T)
 end
 
-samplerate(sink::ReformatSink) = compat_samplerate(sink.wrapped)
+samplerate(sink::ReformatSink) = samplerate(sink.wrapped)
 nchannels(sink::ReformatSink) = nchannels(sink.wrapped)
 Base.eltype(sink::ReformatSink) = sink.typ
 blocksize(sink::ReformatSink) = nframes(sink.buf)
@@ -320,7 +368,7 @@ type ResampleSink{W <: SampleSink, B <: Array, F <: FIRFilter} <: SampleSink
 end
 
 function ResampleSink(wrapped::SampleSink, sr, blocksize=DEFAULT_BLOCKSIZE)
-    wsr = compat_samplerate(wrapped)
+    wsr = samplerate(wrapped)
     T = eltype(wrapped)
     N = nchannels(wrapped)
     buf = Array{T}(blocksize, N)
