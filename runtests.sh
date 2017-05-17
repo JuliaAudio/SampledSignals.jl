@@ -3,7 +3,7 @@
 # Runs the SampledSignals tests including generating an lcov.info file
 
 # abort on failure
-set -e
+# set -e
 
 julia -e 'using Coverage; clean_folder(".");'
 julia --color=yes --inline=no --code-coverage=user test/runtests.jl

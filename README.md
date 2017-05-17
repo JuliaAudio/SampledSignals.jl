@@ -136,7 +136,7 @@ write(wrapper, source)
 
 The `ResampleSink` wrapper type wraps around a sink. Writing to this wrapper sink will resample the given data and pass it to the original sink. It maintains state between writes so that the interpolation is correct across the boundaries of multiple writes.
 
-Currently `ResampleSink` handles resampling with simple linear interpolation and no lowpass filtering when downsampling. In the future we will likely implement other resampling methods.
+`ResampleSink` handles resampling with polyphase FIR resampling filter.
 
 ### Channel Conversion
 

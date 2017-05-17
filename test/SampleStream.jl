@@ -2,6 +2,10 @@
 # use Dummy sinks and sources, but all these features should be implemented
 # on the abstract Source/Sinks
 @testset "SampleStream Tests" begin
+    DummySource(buf) = DummySampleSource(48000, buf)
+    DummyMonoSink() = DummySampleSink(Float64, 48000, 1)
+    DummyStereoSink() = DummySampleSink(Float64, 48000, 2)
+
     @testset "writing sink to source" begin
         data = rand(Float32, 64, 2)
         source = DummySampleSource(48000, data)
@@ -150,6 +154,139 @@
         @test sink.buf == arr
     end
 
+    @testset "Partial SampleBufs can be written to sinks specifying frames" begin
+        sink = DummyStereoSink()
+        buf = SampleBuf(rand(10, 2), samplerate(sink))
+        write(sink, buf, 5)
+        @test sink.buf == buf.data[1:5, :]
+    end
+
+    @testset "Partial Arrays can be written to sinks specifying frames" begin
+        sink = DummyStereoSink()
+        buf = rand(10, 2)
+        write(sink, buf, 5)
+        @test sink.buf == buf[1:5, :]
+    end
+
+    @testset "Partial SampleBufs can be written to sinks specifying duration" begin
+        sink = DummyStereoSink()
+        buf = SampleBuf(rand(10, 2), samplerate(sink))
+        t = 5/samplerate(sink) * s
+        write(sink, buf, t)
+        @test sink.buf == buf.data[1:5, :]
+    end
+
+    @testset "Partial Arrays can be written to sinks specifying duration" begin
+        sink = DummyStereoSink()
+        buf = rand(10, 2)
+        t = 5/samplerate(sink) * s
+        write(sink, buf, t)
+        @test sink.buf == buf[1:5, :]
+    end
+
+    @testset "can read without specifying frames" begin
+        data = rand(8, 2)
+        source = DummySource(data)
+        buf = read(source)
+        @test buf isa SampleBuf
+        @test buf.data == data
+    end
+
+    @testset "can read long source without specifying frames" begin
+        data = rand(10000, 2)
+        source = DummySource(data)
+        buf = read(source)
+        @test buf isa SampleBuf
+        @test buf.data == data
+    end
+
+    @testset "read can read in frames" begin
+        data = rand(8, 2)
+        source = DummySource(data)
+        buf = read(source, 5)
+        @test buf.data == data[1:5, :]
+    end
+
+    @testset "read can read in seconds" begin
+        data = rand(20, 2)
+        source = DummySource(data)
+        t = 5/samplerate(source) * s
+        buf = read(source, t)
+        @test buf.data == data[1:5, :]
+    end
+
+    @testset "can read! into array specifying frames" begin
+        data = rand(8, 2)
+        buf = zeros(8, 2)
+        source = DummySource(data)
+        @test read!(source, buf, 5) == 5
+        @test buf[1:5, :] == data[1:5, :]
+        @test buf[6:8, :] == zeros(3, 2)
+    end
+
+    @testset "can read! into SampleBuf specifying frames" begin
+        data = rand(8, 2)
+        source = DummySource(data)
+        buf = SampleBuf(zeros(8, 2), samplerate(source))
+        @test read!(source, buf, 5) == 5
+        @test buf.data[1:5, :] == data[1:5, :]
+        @test buf.data[6:8, :] == zeros(3, 2)
+    end
+
+    @testset "can read! into array specifying time" begin
+        data = rand(8, 2)
+        source = DummySource(data)
+        buf = zeros(8, 2)
+        t = 5/samplerate(source) * s
+        @test read!(source, buf, t) == t
+        @test buf[1:5, :] == data[1:5, :]
+        @test buf[6:8, :] == zeros(3, 2)
+    end
+
+    @testset "can read! into SampleBuf specifying time" begin
+        data = rand(8, 2)
+        source = DummySource(data)
+        buf = SampleBuf(zeros(8, 2), samplerate(source))
+        t = 5/samplerate(source) * s
+        @test read!(source, buf, t) == t
+        @test buf.data[1:5, :] == data[1:5, :]
+        @test buf.data[6:8, :] == zeros(3, 2)
+    end
+
+    @testset "can read! into array without specifying frames" begin
+        data = rand(8, 2)
+        buf = rand(5, 2)
+        source = DummySource(data)
+        @test read!(source, buf) == 5
+        @test buf == data[1:5, :]
+    end
+
+    @testset "can read! into SampleBuf without specifying frames" begin
+        data = rand(8, 2)
+        source = DummySource(data)
+        buf = SampleBuf(rand(5, 2), samplerate(source))
+        @test read!(source, buf) == 5
+        @test buf.data == data[1:5, :]
+    end
+
+    @testset "can read! into too-long array without specifying frames" begin
+        data = rand(8, 2)
+        buf = zeros(10, 2)
+        source = DummySource(data)
+        @test read!(source, buf) == 8
+        @test buf[1:8, :] == data
+        @test buf[9:10, :] == zeros(2, 2)
+    end
+
+    @testset "can read! into too-long SampleBuf without specifying frames" begin
+        data = rand(8, 2)
+        source = DummySource(data)
+        buf = SampleBuf(zeros(10, 2), samplerate(source))
+        @test read!(source, buf) == 8
+        @test buf[1:8, :] == data
+        @test buf[9:10, :] == zeros(2, 2)
+    end
+
     @testset "SampleBufs can be written to sinks with downmixing" begin
         buf = SampleBuf(rand(16, 2), 48000)
         sink = DummySampleSink(Float64, 48000, 1)
@@ -215,7 +352,7 @@
     end
 
     @testset "Arrays can be read from sources" begin
-        arr = Array(Float64, 16, 2)
+        arr = Array{Float64}(16, 2)
         data = rand(Float64, 16, 2)
         source = DummySampleSource(48000, data)
         read!(source, arr)
