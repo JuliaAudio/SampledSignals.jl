@@ -19,10 +19,10 @@ function embed_javascript()
 end
 
 # need to specify that T <: Number to avoid a method ambiguity with AbstractArray{Method} on 0.4
-@compat function show{T <: Number, N}(io::IO, ::MIME"text/html", buf::SampleBuf{T, N})
+function show(io::IO, ::MIME"text/html", buf::SampleBuf{T, N}) where {T <: Number, N}
     tempio = IOBuffer()
     wavwrite(tempio, buf)
-    data = base64encode(takebuf_array(tempio))
+    data = base64encode(take!(tempio))
     # we want the divID to start with a letter
     divid = string("a", randstring(10))
     # include an error message that will get cleared if javascript loads correctly

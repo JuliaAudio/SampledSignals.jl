@@ -29,7 +29,7 @@ type DummySampleSink{T} <: SampleSink
 end
 
 DummySampleSink(eltype, samplerate, channels) =
-    DummySampleSink{eltype}(samplerate, Array(eltype, 0, channels))
+    DummySampleSink{eltype}(samplerate, Array{eltype}(0, channels))
 
 samplerate(sink::DummySampleSink) = sink.samplerate
 nchannels(sink::DummySampleSink) = size(sink.buf, 2)

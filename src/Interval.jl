@@ -10,7 +10,7 @@ is defined for Intervals of `Number` and `Dates.AbstractTime`.
 ### Type parameters
 
 ```julia
-immutable Interval{T}
+struct Interval{T}
 ```
 * `T` : the type of the interval's endpoints. Must be a concrete leaf type.
 
@@ -35,16 +35,16 @@ A[0.0 .. 0.5]
 ```
 
 """ ->
-immutable Interval{T}
+struct Interval{T}
     lo::T
     hi::T
-    function Interval(lo, hi)
+    function Interval{T}(lo, hi) where {T}
         lo <= hi ? new(lo, hi) : throw(ArgumentError("lo must be less than or equal to hi"))
     end
 end
-Interval{T}(a::T,b::T) = Interval{T}(a,b)
+Interval(a::T,b::T) where {T} = Interval{T}(a,b)
 # Allow promotion during construction, but only if it results in a leaf type
-function Interval{T,S}(a::T, b::S)
+function Interval(a::T, b::S) where {T, S}
     (a2, b2) = promote(a, b)
     typeof(a2) == typeof(b2) || throw(ArgumentError("cannot promote $a and $b to a common type"))
     Interval(a2, b2)
@@ -53,9 +53,9 @@ const .. = Interval
 
 Base.print(io::IO, i::Interval) = print(io, "$(i.lo)..$(i.hi)")
 
-Base.convert{T}(::Type{Interval{T}}, x::T) = Interval{T}(x,x)
-Base.convert{T,S}(::Type{Interval{T}}, x::S) = (y=convert(T, x); Interval{T}(y,y))
-Base.convert{T}(::Type{Interval{T}}, w::Interval) = Interval{T}(convert(T, w.lo), convert(T, w.hi))
+Base.convert(::Type{Interval{T}}, x::T) where {T} = Interval{T}(x,x)
+Base.convert(::Type{Interval{T}}, x::S) where {T, S} = (y=convert(T, x); Interval{T}(y,y))
+Base.convert(::Type{Interval{T}}, w::Interval) where {T} = Interval{T}(convert(T, w.lo), convert(T, w.hi))
 
 # Promotion rules for "promiscuous" types like Intervals and SIUnits, which both
 # simply wrap any Number, are often ambiguous. That is, which type should "win"
@@ -76,10 +76,10 @@ Base.convert{T}(::Type{Interval{T}}, w::Interval) = Interval{T}(convert(T, w.lo)
 # downside is that Intervals are not as useful as they could be; they really
 # could be considered as <: Number themselves. We do this in general for any
 # supported Scalar:
-typealias Scalar Union{Number, Dates.AbstractTime}
-Base.promote_rule{T<:Scalar}(::Type{Interval{T}}, ::Type{T}) = Interval{T}
-Base.promote_rule{T,S<:Scalar}(::Type{Interval{T}}, ::Type{S}) = Interval{promote_type(T,S)}
-Base.promote_rule{T,S}(::Type{Interval{T}}, ::Type{Interval{S}}) = Interval{promote_type(T,S)}
+const Scalar = Union{Number, Dates.AbstractTime}
+Base.promote_rule(::Type{Interval{T}}, ::Type{T}) where {T<:Scalar} = Interval{T}
+Base.promote_rule(::Type{Interval{T}}, ::Type{S}) where {T,S<:Scalar} = Interval{promote_type(T,S)}
+Base.promote_rule(::Type{Interval{T}}, ::Type{Interval{S}}) where {T,S} = Interval{promote_type(T,S)}
 
 import Base: ==, +, -, *, /, ^
 ==(a::Interval, b::Interval) = a.lo == b.lo && a.hi == b.hi
