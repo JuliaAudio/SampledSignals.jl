@@ -1,8 +1,8 @@
 # SampledSignals
 
-[![Build Status](https://travis-ci.org/JuliaAudio/SampledSignals.jl.svg?branch=master)] (https://travis-ci.org/JuliaAudio/SampledSignals.jl)
+[![Build Status](https://travis-ci.org/JuliaAudio/SampledSignals.jl.svg?branch=master)](https://travis-ci.org/JuliaAudio/SampledSignals.jl)
 [![Build status](https://ci.appveyor.com/api/projects/status/qioy8vjpwg51s77p/branch/master?svg=true)](https://ci.appveyor.com/project/ssfrr/sampledsignals-jl/branch/master)
-[![codecov.io] (http://codecov.io/github/JuliaAudio/SampledSignals.jl/coverage.svg?branch=master)] (http://codecov.io/github/JuliaAudio/SampledSignals.jl?branch=master)
+[![codecov.io](http://codecov.io/github/JuliaAudio/SampledSignals.jl/coverage.svg?branch=master)](http://codecov.io/github/JuliaAudio/SampledSignals.jl?branch=master)
 
 SampledSignals is a collection of types intended to be used on multichannel sampled signals like audio or radio data, EEG signals, etc., to provide better interoperability between packages that read data from files or streams, DSP packages, and output and display packages.
 
