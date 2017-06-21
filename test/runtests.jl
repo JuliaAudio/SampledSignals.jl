@@ -10,7 +10,7 @@ using WAV
 include("support/util.jl")
 
 try
-    @testset DottedTestSet "SampledSignals Tests" begin
+    @testset ExtendedTestSet "SampledSignals Tests" begin
         @includetests ARGS
     end
 catch err
