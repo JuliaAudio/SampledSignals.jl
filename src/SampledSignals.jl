@@ -14,7 +14,7 @@ export samplerate, samplerate!, nchannels, nframes, domain, channelptr, blocksiz
 export mix!, mix, mono!, mono
 # re-export the useful units
 export ns, ms, µs, s, Hz, kHz, MHz, GHz, THz
-export PCM8Sample, PCM16Sample, PCM24Sample, PCM32Sample, PCM64Sample
+export PCM8Sample, PCM16Sample, PCM20Sample, PCM24Sample, PCM32Sample, PCM64Sample
 
 using SIUnits
 using SIUnits.ShortUnits: ns, ms, µs, s, Hz, kHz, MHz, GHz, THz
@@ -29,7 +29,8 @@ const SecondsQuantity{T} = SIUnits.SIQuantity{T,0,0,1,0,0,0,0,0,0}
 
 const PCM8Sample = Fixed{Int8, 7}
 const PCM16Sample = Fixed{Int16, 15}
-const PCM24Sample = Fixed{Int32, 23} # assume right-aligned data
+const PCM20Sample = Fixed{Int32, 19}
+const PCM24Sample = Fixed{Int32, 23}
 const PCM32Sample = Fixed{Int32, 31}
 const PCM64Sample = Fixed{Int64, 63}
 
