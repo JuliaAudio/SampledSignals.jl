@@ -10,7 +10,8 @@ export SampleBufSource, SampleBufSink
 export SinSource
 export Interval, ..
 # general methods for types in SampledSignals
-export samplerate, samplerate!, nchannels, nframes, domain, channelptr, blocksize
+export samplerate, samplerate!, nchannels, nframes
+export domain, channelptr, blocksize, metadata
 export mix!, mix, mono!, mono
 # re-export the useful units
 export ns, ms, µs, s, Hz, kHz, MHz, GHz, THz
@@ -46,5 +47,17 @@ function __init__()
         embed_javascript()
     end
 end
+
+"""
+    metadata(x, key::Symbol)
+    metadata(x, key::Symbol, idx)
+
+Provide implementation-specific metadata for the given buffer or stream. For
+instance, data from a WAV file might have metadata that comes from extra chunks
+read from the file. If no `idx` is given then the first piece of metadata
+matching the key is returned. If there are multiple matches, the user can
+provide an index, or `:` to return a list of all matching metadata.
+"""
+function metadata end
 
 end # module
