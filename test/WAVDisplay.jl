@@ -65,8 +65,8 @@ end
     #     @test !hasiconbtn(output, "fa-stop")
     # end
 
-    @testset "wavwrite Generates valid WAV file" begin
-        buf = SampleBuf(rand(Int16, 16, 2), 48000)
+    @testset "wavwrite Generates valid WAV file with raw Int16" begin
+        buf = SampleBuf(rand(Int16, 4, 2), 48000)
         io = IOBuffer()
         SampledSignals.wavwrite(io, buf)
         samples, fs, nbits, opt = wavread(IOBuffer(take!(io)), format="native")
@@ -75,12 +75,34 @@ end
         @test nbits == 16
     end
 
+    @testset "wavwrite Generates valid WAV file with raw 16-bit Fixed-point" begin
+        buf = SampleBuf(reinterpret.(Fixed{Int16, 15}, rand(Int16, 4, 2)), 48000)
+        io = IOBuffer()
+        SampledSignals.wavwrite(io, buf)
+        samples, fs, nbits, opt = wavread(IOBuffer(take!(io)), format="native")
+        @test samples == reinterpret.(convert(Array, buf))
+        @test fs == 48000
+        @test nbits == 16
+    end
+
     @testset "wavwrite converts float values to 16-bit int wav" begin
-        buf = SampleBuf(rand(16, 2), 48000)
+        buf = SampleBuf(rand(4, 2), 48000)
         io = IOBuffer()
         SampledSignals.wavwrite(io, buf)
         samples, fs, nbits, opt = wavread(IOBuffer(take!(io)), format="native")
         @test samples == map(reinterpret, convert(Array{PCM16Sample}, buf))
+        @test fs == 48000
+        @test nbits == 16
+    end
+
+    @testset "wavwrite converts Int32 values to 16-bit int wav" begin
+        data = rand(4, 2)*0.9
+        buf = SampleBuf(Fixed{Int32, 31}.(data), 48000)
+        io = IOBuffer()
+        SampledSignals.wavwrite(io, buf)
+        samples, fs, nbits, opt = wavread(IOBuffer(take!(io)), format="native")
+        # convert 32-bit int buf to float, then to 16-bit, for testing
+        @test samples == reinterpret.(convert(Array{PCM16Sample}, Float32.(buf)))
         @test fs == 48000
         @test nbits == 16
     end

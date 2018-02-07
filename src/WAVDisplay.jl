@@ -129,8 +129,15 @@ end
 const WAVE_FORMAT_PCM = 0x0001
 const SAMPLE_TYPE = PCM16Sample
 
-# we always write 16-bit PCM wav data, because that's what Firefox understands
+# floating-point and 16-bit fixed point buffer display works, but Int32 is
+# broken, so for now we convert to Float32 first. This hack should go away once
+# we switch over to just using WAV.jl
 function wavwrite(io::IO, buf::SampleBuf)
+    wavwrite(io, Float32.(buf))
+end
+
+# we always write 16-bit PCM wav data, because that's what Firefox understands
+function wavwrite(io::IO, buf::SampleBuf{<:Union{Int16, SAMPLE_TYPE, AbstractFloat}, N}) where N
     nbits = 16
     nchans = nchannels(buf)
     blockalign = 2 * nchans
