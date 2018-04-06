@@ -1,7 +1,6 @@
 using SampledSignals
 using Base.Test
 using TestSetExtensions
-import SIUnits
 using DSP
 using FixedPointNumbers
 using Gumbo

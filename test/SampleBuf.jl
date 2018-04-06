@@ -176,7 +176,7 @@
     @testset "Invalid units throw an error" begin
         arr = rand(TEST_T, (round(Int, 0.01*TEST_SR), 2))
         buf = SampleBuf(arr, TEST_SR)
-        @test_throws MethodError buf[1*SIUnits.Ampere]
+        @test_throws Unitful.DimensionError buf[1Hz]
     end
 
     @testset "SampleBufs can be indexed in seconds" begin
@@ -190,6 +190,19 @@
         @test buf[0.004s..0.005s] == SampleBuf(arr[193:241], TEST_SR)
         @test buf[0.004s..0.005s, 2] == SampleBuf(arr[193:241, 2], TEST_SR)
         @test buf[0.004s..0.005s, 1:2] == SampleBuf(arr[193:241, 1:2], TEST_SR)
+    end
+
+    @testset "SampleBufs can be indexed in unitful frames" begin
+        # array with 10ms of audio
+        arr = rand(TEST_T, (round(Int, 0.01*TEST_SR), 2))
+        buf = SampleBuf(arr, TEST_SR)
+        @test buf[1frames] == arr[1]
+        @test buf[241frames] == arr[241]
+        @test buf[241frames, 1] == arr[241, 1]
+        @test buf[241frames, 2] == arr[241, 2]
+        @test buf[193frames..241frames] == SampleBuf(arr[193:241], TEST_SR)
+        @test buf[193frames..241frames, 2] == SampleBuf(arr[193:241, 2], TEST_SR)
+        @test buf[193frames..241frames, 1:2] == SampleBuf(arr[193:241, 1:2], TEST_SR)
     end
 
     @testset "SpectrumBufs can be indexed in Hz" begin

@@ -34,10 +34,13 @@ SpectrumBuf(arr::Array{T, N}, sr::Real) where {T, N} = SpectrumBuf{T, N}(arr, sr
 
 SampleBuf(T::Type, sr, dims...) = SampleBuf(Array{T}(dims...), sr)
 SpectrumBuf(T::Type, sr, dims...) = SpectrumBuf(Array{T}(dims...), sr)
-SampleBuf(T::Type, sr, len::SecondsQuantity) = SampleBuf(T, sr, round(Int, float(len)*sr))
-SampleBuf(T::Type, sr, len::SecondsQuantity, ch) = SampleBuf(T, sr, round(Int, float(len)*sr), ch)
-SpectrumBuf(T::Type, sr, len::HertzQuantity) = SpectrumBuf(T, sr, round(Int, float(len)*sr))
-SpectrumBuf(T::Type, sr, len::HertzQuantity, ch) = SpectrumBuf(T, sr, round(Int, float(len)*sr), ch)
+SampleBuf(T::Type, sr, len::Quantity) = SampleBuf(T, sr, inframes(len,sr))
+SampleBuf(T::Type, sr, len::Quantity, ch) =
+    SampleBuf(T, sr, inframes(len,sr), ch)
+SpectrumBuf(T::Type, sr, len::Quantity) =
+    SpectrumBuf(T, sr, round(Int,inHz(len)*sr))
+SpectrumBuf(T::Type, sr, len::Quantity, ch) =
+    SpectrumBuf(T, sr, round(Int,inHz(len)*sr))
 
 # terminology:
 # sample - a single value representing the amplitude of 1 channel at some point in time (or frequency)
@@ -256,8 +259,8 @@ const BuiltinMultiIdx = Union{Colon,
 const BuiltinIdx = Union{Int, BuiltinMultiIdx}
 # the index types that will need conversion to built-in index types. Each of
 # these needs a `toindex` method defined for it
-const ConvertIdx{T1 <: SIQuantity, T2 <: Int} = Union{T1,
-                                                # Vector{T1}, # not supporting vectors of SIQuantities (yet?)
+const ConvertIdx{T1 <: Quantity, T2 <: Int} = Union{T1,
+                                                # Vector{T1}, # not supporting vectors of Quantities (yet?)
                                                 # Range{T1}, # not supporting ranges (yet?)
                                                 ClosedInterval{T2},
                                                 ClosedInterval{T1}}
@@ -270,13 +273,16 @@ indexing
 """
 function toindex end
 
-toindex(buf::SampleBuf{T, N}, t::SecondsQuantity) where {T <: Number, N} = round(Int, float(t)*samplerate(buf)) + 1
-toindex(buf::SpectrumBuf{T, N}, t::HertzQuantity) where {T <: Number, N} = round(Int, float(t)*samplerate(buf)) + 1
+toindex(buf::SampleBuf{T, N}, t::Number) where {T <: Number, N} =
+    inframes(t,samplerate(buf)) + 1
+toindex(buf::SampleBuf{T, N}, t::FrameQuant) where {T <: Number, N} = ustrip(t)
+toindex(buf::SpectrumBuf{T, N}, f::Number) where {T <: Number, N} =
+    round(Int, inHz(f)*samplerate(buf)) + 1
+toindex(buf::SpectrumBuf{T, N}, f::FrameQuant) where {T <: Number, N} = ustrip(f)
 
-# indexing by vectors of SIQuantities not yet supported
-# toindex{T <: SIUnits.SIQuantity}(buf::SampleBuf, I::Vector{T}) = Int[toindex(buf, i) for i in I]
+# indexing by vectors of Quantities not yet supported
 toindex(buf::AbstractSampleBuf, I::ClosedInterval{Int}) = minimum(I):maximum(I)
-toindex(buf::AbstractSampleBuf, I::ClosedInterval{T}) where {T <: SIQuantity} =
+toindex(buf::AbstractSampleBuf, I::ClosedInterval{T}) where {T <: Quantity} =
     toindex(buf, minimum(I)):toindex(buf, maximum(I))
 
 # AbstractArray interface methods

@@ -308,6 +308,13 @@
         @test sink.buf[:] == buf[1:10]
     end
 
+    @testset "SampleBufs can be written to sinks with duration in unitful frames" begin
+        buf = SampleBuf(rand(16), 48000)
+        sink = DummySampleSink(Float64, 48000, 1)
+        write(sink, buf, 10frames)
+        @test sink.buf[:] == buf[1:10]
+    end
+
     @testset "SampleBufs can be written to sinks with duration in seconds" begin
         buf = SampleBuf(rand(100), 48000)
         sink = DummySampleSink(Float64, 48000, 1)

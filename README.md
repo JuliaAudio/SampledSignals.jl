@@ -8,7 +8,7 @@ SampledSignals is a collection of types intended to be used on multichannel samp
 
 SampledSignals provides several types to stream and store sampled data: `SampleBuf`, `SpectrumBuf`, `SampleSource`, `SampleSink` which make use of [IntervalSets](https://github.com/JuliaMath/IntervalSets.jl) that can be used to represent contiguous ranges using a convenient `a..b` syntax, this feature is copied mostly from the [AxisArrays](https://github.com/mbauman/AxisArrays.jl) package, which also inspired much of the implementation of this package.
 
-We also use the [SIUnits](https://github.com/keno/SIUnits.jl) package to enable indexing using real-world units like seconds or hertz. `SampledSignals` re-exports the relevant `SIUnits` units (`ns`, `ms`, `µs`, `s`, `Hz`, `kHz`, `MHz`, `GHz`, `THz`) so you don't need to import `SIUnits` explicitly.
+We also use the [Unitful](https://github.com/ajkeller34/Unitful.jl) package to enable indexing using real-world units like seconds or hertz. `SampledSignals` re-exports the relevant `Unitful` units (`ns`, `ms`, `µs`, `s`, `Hz`, `kHz`, `MHz`, `GHz`, `THz`, and `dB`) so you don't need to import `Unitful` explicitly.
 
 Because these buffer and stream types are sample-rate and channel-count aware, this package can automatically handle situations like writing a mono source into a stereo buffer, or resampling to match sample rates. This greatly simplifies the process of writing new streaming sample back-ends, because you only need to implement a small number of fundamental read/write operations, and SampledSignals will handle the plumbing.
 
