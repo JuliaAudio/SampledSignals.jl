@@ -2,13 +2,15 @@ __precompile__()
 
 module SampledSignals
 
+using IntervalSets
+
 export AbstractSampleBuf, SampleBuf, SpectrumBuf
 export SampleSource, SampleSink
 export SampleRate
 export ResampleSink, ReformatSink, DownMixSink, UpMixSink
 export SampleBufSource, SampleBufSink
 export SinSource
-export Interval, ..
+export ClosedInterval, ..
 # general methods for types in SampledSignals
 export samplerate, samplerate!, nchannels, nframes
 export domain, channelptr, blocksize, metadata
@@ -35,7 +37,6 @@ const PCM24Sample = Fixed{Int32, 23}
 const PCM32Sample = Fixed{Int32, 31}
 const PCM64Sample = Fixed{Int64, 63}
 
-include("Interval.jl")
 include("SampleBuf.jl")
 include("SampleStream.jl")
 include("SignalGen/SinSource.jl")

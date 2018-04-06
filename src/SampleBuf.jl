@@ -259,8 +259,8 @@ const BuiltinIdx = Union{Int, BuiltinMultiIdx}
 const ConvertIdx{T1 <: SIQuantity, T2 <: Int} = Union{T1,
                                                 # Vector{T1}, # not supporting vectors of SIQuantities (yet?)
                                                 # Range{T1}, # not supporting ranges (yet?)
-                                                Interval{T2},
-                                                Interval{T1}}
+                                                ClosedInterval{T2},
+                                                ClosedInterval{T1}}
 
 """
     toindex(buf::SampleBuf, I)
@@ -275,8 +275,9 @@ toindex(buf::SpectrumBuf{T, N}, t::HertzQuantity) where {T <: Number, N} = round
 
 # indexing by vectors of SIQuantities not yet supported
 # toindex{T <: SIUnits.SIQuantity}(buf::SampleBuf, I::Vector{T}) = Int[toindex(buf, i) for i in I]
-toindex(buf::AbstractSampleBuf, I::Interval{Int}) = I.lo:I.hi
-toindex(buf::AbstractSampleBuf, I::Interval{T}) where {T <: SIQuantity} = toindex(buf, I.lo):toindex(buf, I.hi)
+toindex(buf::AbstractSampleBuf, I::ClosedInterval{Int}) = minimum(I):maximum(I)
+toindex(buf::AbstractSampleBuf, I::ClosedInterval{T}) where {T <: SIQuantity} =
+    toindex(buf, minimum(I)):toindex(buf, maximum(I))
 
 # AbstractArray interface methods
 Base.size(buf::AbstractSampleBuf) = size(buf.data)
