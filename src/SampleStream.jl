@@ -112,8 +112,10 @@ function wrap_sink(sink::SampleSink, source::SampleSource, blocksize)
     end
 end
 
-Base.write(sink::SampleSink, source::SampleSink, frames::FrameQuant) =
-    write(sink,source,inframes(frames))
+function Base.write(sink::SampleSink, source::SampleSource, frames::FrameQuant;
+                    blocksize=-1)
+    write(sink,source,inframes(frames,samplerate(source));blocksize=blocksize)
+end
 function Base.write(sink::SampleSink, source::SampleSource, frames=-1;
         blocksize=-1)
     if blocksize < 0

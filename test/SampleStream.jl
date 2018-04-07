@@ -111,6 +111,17 @@
         @test sink.buf == data[1:10, :]
     end
 
+    @testset "stream reading supports duration in frames" begin
+        data = rand(Float32, 64, 2)
+        source = DummySampleSource(48000, data)
+        sink = DummySampleSink(Float32, 48000, 2)
+        # we should get back the exact duration given even if it's not exactly
+        # on a sample boundary
+        t = write(sink, source, 20frames, blocksize=8)
+        @test t == 20
+        @test sink.buf == data[1:20, :]
+    end
+
     @testset "stream reading supports duration in seconds" begin
         data = rand(Float32, 64, 2)
         source = DummySampleSource(48000, data)
