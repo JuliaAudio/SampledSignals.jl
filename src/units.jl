@@ -1,13 +1,11 @@
-@dimension 𝐅r "Fr" Frame
-@refunit frames "frames" Frames 𝐅r false
-const FrameDim = Unitful.Dimensions{(Unitful.Dimension{:Frame}(1//1),)}
-const FrameQuant{N} = Quantity{N,FrameDim}
+const frames = Hz*s
+const FrameQuant = DimensionlessQuantity
 
 """
     inframes(quantity,rate)
 
-Translate the given quantity (usually a time) to a number of frames, given
-a particular samplerate.
+Translate the given quantity (usually a time) to a (unitless) number of frames,
+given a particular samplerate.
 
 # Example
 
@@ -17,6 +15,9 @@ a particular samplerate.
 """
 inframes(time,rate) = floor(Int,inseconds(time)*inHz(rate))
 inframes(frame::FrameQuant,rate) = ustrip(frame)
+inframes(frame::FrameQuant) = ustrip(frame)
+inframes(frame::Quantity) = error("Unknown sample rate")
+inframes(frame::Number) = frame
 
 """
     inHz(quantity)

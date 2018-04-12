@@ -215,6 +215,16 @@
         @test buf[843.75Hz, 2] == arr[10, 2]
     end
 
+   @testset "SpectrumBufs can be indexed in unitful frames" begin
+        N = 512
+        arr = rand(TEST_T, N, 2)
+        buf = SpectrumBuf(arr, N / TEST_SR)
+        @test buf[1frames] == arr[1]
+        @test buf[10frames] == arr[10]
+        @test buf[10frames, 1] == arr[10, 1]
+        @test buf[10frames, 2] == arr[10, 2]
+    end
+
     @testset "Supports arithmetic" begin
         arr1 = rand(TEST_T, 4, 2)
         arr2 = rand(TEST_T, 4, 2)

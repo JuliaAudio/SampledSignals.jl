@@ -12,6 +12,9 @@
     @testset "converting to frames" begin
         @test inframes(0.5s,44100Hz) == 22050
         @test inframes(10frames,44100Hz) == 10
+        @test inframes(10frames) == 10
+        @test inframes(10) == 10
+        @test_throws ErrorException inframes(1s)
     end
 
     @testset "converting to Hz" begin

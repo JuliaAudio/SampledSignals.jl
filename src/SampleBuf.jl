@@ -273,11 +273,13 @@ indexing
 """
 function toindex end
 
-toindex(buf::SampleBuf{T, N}, t::Number) where {T <: Number, N} =
-    inframes(t,samplerate(buf)) + 1
+toindex(buf::SampleBuf{T, N}, t::Number) where {T <: Number, N} = t
+toindex(buf::SampleBuf{T, N}, t::Quantity) where {T <: Number, N} =
+  inframes(t,samplerate(buf)) + 1
 toindex(buf::SampleBuf{T, N}, t::FrameQuant) where {T <: Number, N} = ustrip(t)
-toindex(buf::SpectrumBuf{T, N}, f::Number) where {T <: Number, N} =
+toindex(buf::SpectrumBuf{T, N}, f::Quantity) where {T <: Number, N} =
     round(Int, inHz(f)*samplerate(buf)) + 1
+toindex(buf::SpectrumBuf{T, N}, f::Number) where {T <: Number, N} = f
 toindex(buf::SpectrumBuf{T, N}, f::FrameQuant) where {T <: Number, N} = ustrip(f)
 
 # indexing by vectors of Quantities not yet supported
