@@ -24,7 +24,3 @@ The SampledSignals.jl package is licensed under the MIT "Expat" License:
 Additionally, The wav file generation code in WAVDisplay.jl is adapted from the
 WAV.jl package, Copyright (c) 2013: Daniel C. Casimiro, released under the MIT
 "Expat" License.
-
-Much of the code in Interval.jl is based on AxisArrays.jl, Copyright (c)
-2014-2016: Matt Bauman, Tim Holy, and other contributors, released under the MIT
-"Expat" License.
