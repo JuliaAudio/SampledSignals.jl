@@ -51,7 +51,7 @@ function unsafe_write end
 blocksize(src::SampleSource) = 0
 blocksize(src::SampleSink) = 0
 
-toindex(stream::SampleSource, t) = inframes(t,samplerate(stream)) + 1
+toindex(stream::SampleSource, t) = round(Int, inframes(t, samplerate(stream))) + 1
 
 # subtypes should only have to implement the `unsafe_read!` and `unsafe_write` methods, so
 # here we implement all the converting wrapper methods
@@ -69,7 +69,7 @@ end
 const DEFAULT_BLOCKSIZE=4096
 
 # handle sink-to-source writing with a duration in seconds
-function Base.write(sink::SampleSink, source::SampleSource,duration::Quantity;
+function Base.write(sink::SampleSink, source::SampleSource, duration::Quantity;
                     blocksize=-1)
     sr = samplerate(sink)
     frames = trunc(Int, inseconds(duration) * sr)
@@ -114,7 +114,8 @@ end
 
 function Base.write(sink::SampleSink, source::SampleSource, frames::FrameQuant;
                     blocksize=-1)
-    write(sink,source,inframes(frames,samplerate(source));blocksize=blocksize)
+    write(sink, source, round(Int, inframes(frames,samplerate(source)));
+          blocksize=blocksize)
 end
 function Base.write(sink::SampleSink, source::SampleSource, frames=-1;
         blocksize=-1)
@@ -162,7 +163,7 @@ function Base.write(sink::SampleSink, buf::SampleBuf, nframes=nframes(buf))
 end
 
 function Base.write(sink::SampleSink, buf::SampleBuf, duration::Quantity)
-    n = inframes(duration,samplerate(buf))
+    n = round(Int, inframes(duration,samplerate(buf)))
     written = write(sink, buf, n)
     if written == n
         return duration
@@ -193,7 +194,7 @@ end
 # which might differ from the source samplerate if there's a samplerate
 # conversion involved.
 function Base.read!(source::SampleSource, buf::SampleBuf, t)
-    n = inframes(t,samplerate(source))
+    n = round(Int, inframes(t,samplerate(source)))
     written = read!(source, buf, n)
     if written == n
         return t
@@ -203,7 +204,7 @@ function Base.read!(source::SampleSource, buf::SampleBuf, t)
 end
 
 function Base.read!(source::SampleSource, buf::Array, t)
-    n = inframes(t,samplerate(source))
+    n = round(Int, inframes(t,samplerate(source)))
     written = read!(source, buf, n)
     if written == n
         return t

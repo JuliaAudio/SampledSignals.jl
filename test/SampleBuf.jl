@@ -196,13 +196,13 @@
         # array with 10ms of audio
         arr = rand(TEST_T, (round(Int, 0.01*TEST_SR), 2))
         buf = SampleBuf(arr, TEST_SR)
-        @test buf[1frames] == arr[1]
-        @test buf[241frames] == arr[241]
-        @test buf[241frames, 1] == arr[241, 1]
-        @test buf[241frames, 2] == arr[241, 2]
-        @test buf[193frames..241frames] == SampleBuf(arr[193:241], TEST_SR)
-        @test buf[193frames..241frames, 2] == SampleBuf(arr[193:241, 2], TEST_SR)
-        @test buf[193frames..241frames, 1:2] == SampleBuf(arr[193:241, 1:2], TEST_SR)
+        @test buf[0frames] == arr[1]
+        @test buf[240frames] == arr[241]
+        @test buf[240frames, 1] == arr[241, 1]
+        @test buf[240frames, 2] == arr[241, 2]
+        @test buf[192frames..240frames] == SampleBuf(arr[193:241], TEST_SR)
+        @test buf[192frames..240frames, 2] == SampleBuf(arr[193:241, 2], TEST_SR)
+        @test buf[192frames..240frames, 1:2] == SampleBuf(arr[193:241, 1:2], TEST_SR)
     end
 
     @testset "SpectrumBufs can be indexed in Hz" begin
@@ -219,10 +219,11 @@
         N = 512
         arr = rand(TEST_T, N, 2)
         buf = SpectrumBuf(arr, N / TEST_SR)
-        @test buf[1frames] == arr[1]
-        @test buf[10frames] == arr[10]
-        @test buf[10frames, 1] == arr[10, 1]
-        @test buf[10frames, 2] == arr[10, 2]
+        @test buf[0frames] == arr[1]
+        @test buf[9frames] == arr[10]
+        @test buf[9frames, 1] == arr[10, 1]
+        @test buf[9frames, 2] == arr[10, 2]
+        @test buf[8frames..10frames, 2] == arr[9:11, 2]
     end
 
     @testset "Supports arithmetic" begin

@@ -34,13 +34,13 @@ SpectrumBuf(arr::Array{T, N}, sr::Real) where {T, N} = SpectrumBuf{T, N}(arr, sr
 
 SampleBuf(T::Type, sr, dims...) = SampleBuf(Array{T}(dims...), sr)
 SpectrumBuf(T::Type, sr, dims...) = SpectrumBuf(Array{T}(dims...), sr)
-SampleBuf(T::Type, sr, len::Quantity) = SampleBuf(T, sr, inframes(len,sr))
+SampleBuf(T::Type, sr, len::Quantity) = SampleBuf(T, sr, round(Int, inframes(len,sr)))
 SampleBuf(T::Type, sr, len::Quantity, ch) =
-    SampleBuf(T, sr, inframes(len,sr), ch)
+    SampleBuf(T, sr, round(Int, inframes(len,sr)), ch)
 SpectrumBuf(T::Type, sr, len::Quantity) =
-    SpectrumBuf(T, sr, round(Int,inHz(len)*sr))
+    SpectrumBuf(T, sr, round(Int, inframes(len, sr)))
 SpectrumBuf(T::Type, sr, len::Quantity, ch) =
-    SpectrumBuf(T, sr, round(Int,inHz(len)*sr))
+    SpectrumBuf(T, sr, round(Int, inframes(len, sr)))
 
 # terminology:
 # sample - a single value representing the amplitude of 1 channel at some point in time (or frequency)
@@ -157,7 +157,7 @@ function showchannels(io::IO, buf::AbstractSampleBuf, widthchars=80)
     for blk in 1:nblocks
         i = (blk-1)*blockwidth + 1
         n = min(blockwidth, nframes(buf)-i+1)
-        peaks = maximum(abs.(float(buf[(1:n)+i-1, :])), 1)
+        peaks = maximum(abs.(float.(buf[(1:n)+i-1, :])), 1)
         # clamp to -60dB, 0dB
         peaks = clamp.(20log10.(peaks), -60.0, 0.0)
         idxs = trunc.(Int, (peaks+60)/60 * (length(ticks)-1)) + 1
@@ -273,14 +273,14 @@ indexing
 """
 function toindex end
 
-toindex(buf::SampleBuf{T, N}, t::Number) where {T <: Number, N} = t
-toindex(buf::SampleBuf{T, N}, t::Quantity) where {T <: Number, N} =
-  inframes(t,samplerate(buf)) + 1
-toindex(buf::SampleBuf{T, N}, t::FrameQuant) where {T <: Number, N} = ustrip(t)
-toindex(buf::SpectrumBuf{T, N}, f::Quantity) where {T <: Number, N} =
-    round(Int, inHz(f)*samplerate(buf)) + 1
-toindex(buf::SpectrumBuf{T, N}, f::Number) where {T <: Number, N} = f
-toindex(buf::SpectrumBuf{T, N}, f::FrameQuant) where {T <: Number, N} = ustrip(f)
+toindex(buf::SampleBuf, t::Number) = t
+toindex(buf::SampleBuf, t::FrameQuant) = round(Int, inframes(t)) + 1
+toindex(buf::SampleBuf, t::Unitful.Time) = round(Int, inframes(t, samplerate(buf))) + 1
+toindex(buf::SampleBuf, t::Quantity) = throw(Unitful.DimensionError(t, s))
+toindex(buf::SpectrumBuf, f::Number) = f
+toindex(buf::SpectrumBuf, f::FrameQuant) = round(Int, inframes(f)) + 1
+toindex(buf::SpectrumBuf, f::Unitful.Frequency) = round(Int, inframes(f, samplerate(buf))) + 1
+toindex(buf::SpectrumBuf, f::Quantity) = throw(Unitful.DimensionError(f, Hz))
 
 # indexing by vectors of Quantities not yet supported
 toindex(buf::AbstractSampleBuf, I::ClosedInterval{Int}) = minimum(I):maximum(I)
