@@ -5,7 +5,7 @@ SinSource is a multi-channel sine-tone signal generator. `freqs` can be an
 array of frequencies for a multi-channel source, or a single frequency for a
 mono source.
 """
-type SinSource{T} <: SampleSource
+mutable struct SinSource{T} <: SampleSource
     samplerate::Float64
     freqs::Vector{Float64} # in radians/sample
     phases::Vector{Float64}
@@ -20,7 +20,7 @@ end
 # also allow a single frequency
 SinSource(eltype, samplerate, freq::Real) = SinSource(eltype, samplerate, [freq])
 
-Base.eltype{T}(::SinSource{T}) = T
+Base.eltype(::SinSource{T}) where T = T
 nchannels(source::SinSource) = length(source.freqs)
 samplerate(source::SinSource) = source.samplerate
 

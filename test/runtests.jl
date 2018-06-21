@@ -1,5 +1,5 @@
 using SampledSignals
-using Base.Test
+using Compat.Test
 using TestSetExtensions
 using DSP
 using FixedPointNumbers
@@ -8,10 +8,7 @@ using WAV
 
 include("support/util.jl")
 
-try
-    @testset ExtendedTestSet "SampledSignals Tests" begin
-        @includetests ARGS
-    end
-catch err
-    exit(-1)
+@testset ExtendedTestSet "SampledSignals Tests" begin
+    include.(["DummySampleStream.jl", "Interval.jl", "SampleBuf.jl", "SampleStream.jl", "SinSource.jl", "WAVDisplay.jl"])
+    # @includetests ARGS
 end

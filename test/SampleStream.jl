@@ -1,3 +1,9 @@
+using Compat.Test
+import Compat: undef
+using SampledSignals
+using DSP
+include("support/util.jl")
+
 # these tests use generalized SampleSink and SampleSource functionality. They
 # use Dummy sinks and sources, but all these features should be implemented
 # on the abstract Source/Sinks
@@ -33,7 +39,7 @@
     end
 
     @testset "format conversion" begin
-        data = rand(Float32, 16, 2) - 0.5
+        data = rand(Float32, 16, 2) .- 0.5
         source = DummySampleSource(48000, data)
         sink = DummySampleSink(PCM16Sample, 48000, 2)
         # the write function tests that the format matches
@@ -77,7 +83,7 @@
 
     @testset "combined conversion" begin
         sr1 = 48000
-        data1 = rand(Float32, 64, 1) - 0.5
+        data1 = rand(Float32, 64, 1) .- 0.5
         sr2 = 44100
         ratio = sr2//sr1
         data2 = map(PCM16Sample, hcat(
@@ -334,31 +340,31 @@
     end
 
     @testset "SampleBufs can be written to sinks with duration in frames and format conversion" begin
-        buf = SampleBuf(map(PCM16Sample, rand(16)-0.5), 48000)
+        buf = SampleBuf(map(PCM16Sample, rand(16) .- 0.5), 48000)
         sink = DummySampleSink(Float64, 48000, 1)
         write(sink, buf, 10)
-        @test sink.buf[:] == map(Float64, buf[1:10])
+        @test sink.buf[:] == convert.(Float64, buf[1:10])
     end
 
     @testset "SampleBufs can be written to sinks with duration in seconds and format conversion" begin
-        buf = SampleBuf(map(PCM16Sample, rand(100)-0.5), 48000)
+        buf = SampleBuf(map(PCM16Sample, rand(100) .- 0.5), 48000)
         sink = DummySampleSink(Float64, 48000, 1)
         write(sink, buf, 0.001s)
-        @test sink.buf[:] == map(Float64, buf[1:48])
+        @test sink.buf[:] == convert.(Float64, buf[1:48])
     end
 
     @testset "SampleBufs can be written to sinks with format conversion" begin
-        buf = SampleBuf(map(PCM16Sample, rand(16)-0.5), 48000)
+        buf = SampleBuf(map(PCM16Sample, rand(16) .- 0.5), 48000)
         sink = DummySampleSink(Float64, 48000, 1)
         write(sink, buf)
-        @test sink.buf[:] == map(Float64, buf)
+        @test sink.buf[:] == convert.(Float64, buf)
     end
 
     @testset "Arrays can be written to sinks with format conversion" begin
-        arr = map(PCM16Sample, rand(16, 1)-0.5)
+        arr = map(PCM16Sample, rand(16, 1) .- 0.5)
         sink = DummySampleSink(Float64, 48000, 1)
         write(sink, arr)
-        @test sink.buf == map(Float64, arr)
+        @test sink.buf == convert.(Float64, arr)
     end
 
     @testset "SampleBufSink can wrap SampleBuf" begin
@@ -370,7 +376,7 @@
     end
 
     @testset "Arrays can be read from sources" begin
-        arr = Array{Float64}(16, 2)
+        arr = Array{Float64}(undef, 16, 2)
         data = rand(Float64, 16, 2)
         source = DummySampleSource(48000, data)
         read!(source, arr)
