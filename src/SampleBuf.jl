@@ -65,8 +65,8 @@ nchannels(arr::AbstractArray) = size(arr, 2)
 
 # it's important to define Base.similar so that range-indexing returns the
 # right type, instead of just a bare array
-Base.similar(buf::SampleBuf{T,N}, ::Type{ElType}, dims::Dims) where {T,N,ElType} = SampleBuf(Array{ElType}(undef, dims), samplerate(buf))
-Base.similar(buf::SpectrumBuf{T,N}, ::Type{ElType}, dims::Dims) where {T,N,ElType} = SpectrumBuf(Array{ElType}(undef, dims), samplerate(buf))
+Base.similar(buf::SampleBuf, ::Type{T}, dims::Dims) where {T} = SampleBuf(Array{T}(undef, dims), samplerate(buf))
+Base.similar(buf::SpectrumBuf, ::Type{T}, dims::Dims) where {T} = SpectrumBuf(Array{T}(undef, dims), samplerate(buf))
 domain(buf::AbstractSampleBuf) = range(0.0, stop=(nframes(buf)-1)/samplerate(buf), length=nframes(buf))
 
 # There's got to be a better way to define these functions, but the dispatch
@@ -79,9 +79,11 @@ import Base.broadcast
 const ArrayIsh = Union{Array, SubArray, Compat.LinRange, StepRangeLen}
 
 
+# Broadcasting in Julia 0.7
+# `find_buf` has borrowed from https://docs.julialang.org/en/latest/manual/interfaces/#Selecting-an-appropriate-output-array-1
 if VERSION >= v"0.7.0-DEV-4936" # Julia PR 26891
-    find_aac(args::Tuple) = find_aac(find_aac(args[1]), Base.tail(args))
-    find_aac(x) = x
+    find_buf(args::Tuple) = find_buf(find_buf(args[1]), Base.tail(args))
+    find_buf(x) = x
 end # if VERSION
 
 
@@ -89,15 +91,14 @@ for btype in (:SampleBuf, :SpectrumBuf)
 
     if VERSION >= v"0.7.0-DEV-4936" # Julia PR 26891
 
-        @eval find_aac(args::Tuple{$btype{T,N}}) where {T,N} = args[1]
-        @eval find_aac(::$btype{T,N},  args::Tuple{$btype{T,N}}) where {T,N} = args[1]
-        @eval find_aac(::Any,          args::Tuple{$btype{T,N}}) where {T,N} = args[1]
-        @eval find_aac(A::$btype{T,N}, ::Any) where {T,N} = A
-        @eval find_aac(bc::Base.Broadcast.Broadcasted{Broadcast.ArrayStyle{$btype{T,N}}}) where {T,N} = find_aac(bc.args)
+        @eval find_buf(bc::Base.Broadcast.Broadcasted{Broadcast.ArrayStyle{$btype{T,N}}}) where {T,N} = find_buf(bc.args)
+        @eval find_buf(::$btype, args::Tuple{$btype}) = args[1]
+        @eval find_buf(::Any, args::Tuple{$btype}) = args[1]
+        @eval find_buf(a::$btype, rest) = a
 
         @eval Base.BroadcastStyle(::Type{$btype{T,N}}) where {T,N} = Broadcast.ArrayStyle{$btype{T,N}}()
         @eval function Base.similar(bc::Broadcast.Broadcasted{Broadcast.ArrayStyle{$btype{T,N}}}, ::Type{ElType}) where {T,N,ElType}
-            A = find_aac(bc)
+            A = find_buf(bc)
             $btype(Array{ElType}(undef, length.(axes(bc))), samplerate(A))
         end
 
@@ -122,10 +123,10 @@ for btype in (:SampleBuf, :SpectrumBuf)
         # define non-broadcast scalar arithmetic
         for op in (:+, :-, :*, :/)
             @eval function $op(A1::$btype, a2::Number)
-                $btype(broadcast($op, A1.data, a2), samplerate(A1))
+                $btype($op(A1.data, a2), samplerate(A1))
             end
             @eval function $op(a1::Number, A2::$btype)
-                $btype(broadcast($op, a1, A2.data), samplerate(A2))
+                $btype($op(a1, A2.data), samplerate(A2))
             end
         end
 

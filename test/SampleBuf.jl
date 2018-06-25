@@ -1,5 +1,5 @@
 using Compat.Test
-import Compat: undef, range
+using Compat: undef, range
 using SampledSignals
 using SIUnits
 using DSP

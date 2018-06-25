@@ -105,12 +105,12 @@ end
         data = rand(4, 2)*0.9
         buf = SampleBuf(Fixed{Int32, 31}.(data), 48000)
         io = IOBuffer()
-        #SampledSignals.wavwrite(io, buf)
-        #samples, fs, nbits, opt = wavread(IOBuffer(take!(io)), format="native")
-        ## convert 32-bit int buf to float, then to 16-bit, for testing
-        #@test samples == reinterpret.(Array{PCM16Sample}(Float32.(buf)))
-        #@test fs == 48000
-        #@test nbits == 16
+        SampledSignals.wavwrite(io, buf)
+        samples, fs, nbits, opt = wavread(IOBuffer(take!(io)), format="native")
+        # convert 32-bit int buf to float, then to 16-bit, for testing
+        @test samples == reinterpret.(Array{PCM16Sample}(Float32.(buf)))
+        @test fs == 48000
+        @test nbits == 16
     end
 
     # this is used to display spectrum magnitudes using the same infrastructure
