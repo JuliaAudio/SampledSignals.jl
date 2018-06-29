@@ -2,11 +2,11 @@ const frames = Hz*s
 const FrameQuant = DimensionlessQuantity
 
 """
-    inframes(quantity[, rate])
+    inframes([Type,]quantity[, rate])
 
 Translate the given quantity to a (unitless) number of time or frequency frames,
 given a particular samplerate. Note that this isn't quantized to integer numbers
-of frames.
+of frames. If given a `Type`, the result will first be coerced to the given type.
 
 If the given quantity is Unitful, we use the given units. If it is not we assume
 it is already a value in frames.
@@ -20,10 +20,18 @@ julia> inframes(1000Hz, 2048/44100Hz)
 46.439909297052154
 
 """
+inframes(::Type{T},frame::FrameQuant, rate=nothing) where T =
+    T(ustrip(uconvert(frames, frame)))
 inframes(frame::FrameQuant, rate=nothing) = ustrip(uconvert(frames, frame))
+inframes(::Type{T},time::Unitful.Time, rate) where T =
+    T(inseconds(time)*inHz(rate))
 inframes(time::Unitful.Time, rate) = inseconds(time)*inHz(rate)
+inframes(::Type{T},freq::Unitful.Frequency, rate) where T =
+    T(inHz(freq)*inseconds(rate))
 inframes(freq::Unitful.Frequency, rate) = inHz(freq)*inseconds(rate)
+inframes(::Type,frame::Quantity) = error("Unknown sample rate")
 inframes(frame::Quantity) = error("Unknown sample rate")
+inframes(::Type{T},frame::Real) where T = T(frame)
 inframes(frame::Real) = frame
 
 """

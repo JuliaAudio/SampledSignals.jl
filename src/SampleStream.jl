@@ -51,7 +51,7 @@ function unsafe_write end
 blocksize(src::SampleSource) = 0
 blocksize(src::SampleSink) = 0
 
-toindex(stream::SampleSource, t) = round(Int, inframes(t, samplerate(stream))) + 1
+toindex(stream::SampleSource, t) = inframes(Int,t, samplerate(stream)) + 1
 
 # subtypes should only have to implement the `unsafe_read!` and `unsafe_write` methods, so
 # here we implement all the converting wrapper methods
@@ -114,7 +114,7 @@ end
 
 function Base.write(sink::SampleSink, source::SampleSource, frames::FrameQuant;
                     blocksize=-1)
-    write(sink, source, round(Int, inframes(frames,samplerate(source)));
+    write(sink, source, inframes(Int,frames,samplerate(source));
           blocksize=blocksize)
 end
 function Base.write(sink::SampleSink, source::SampleSource, frames=-1;
@@ -163,7 +163,7 @@ function Base.write(sink::SampleSink, buf::SampleBuf, nframes=nframes(buf))
 end
 
 function Base.write(sink::SampleSink, buf::SampleBuf, duration::Quantity)
-    n = round(Int, inframes(duration,samplerate(buf)))
+    n = inframes(Int,duration,samplerate(buf))
     written = write(sink, buf, n)
     if written == n
         return duration
@@ -194,7 +194,7 @@ end
 # which might differ from the source samplerate if there's a samplerate
 # conversion involved.
 function Base.read!(source::SampleSource, buf::SampleBuf, t)
-    n = round(Int, inframes(t,samplerate(source)))
+    n = inframes(Int,t,samplerate(source))
     written = read!(source, buf, n)
     if written == n
         return t
@@ -204,7 +204,7 @@ function Base.read!(source::SampleSource, buf::SampleBuf, t)
 end
 
 function Base.read!(source::SampleSource, buf::Array, t)
-    n = round(Int, inframes(t,samplerate(source)))
+    n = inframes(Int,t,samplerate(source))
     written = read!(source, buf, n)
     if written == n
         return t

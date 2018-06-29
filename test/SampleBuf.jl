@@ -101,17 +101,17 @@
         arr = TEST_T[1:8 9:16]
         buf = SampleBuf(arr, TEST_SR)
         # linear indexing gives you a mono buffer
-        slice = buf[6..12]
+        slice = buf[5..11]
         @test samplerate(slice) == TEST_SR
         @test slice == SampleBuf(arr[6:12], TEST_SR)
-        slice = buf[2..6, 1]
+        slice = buf[1..5, 1]
         @test samplerate(slice) == TEST_SR
         @test slice == SampleBuf(arr[2:6, 1], TEST_SR)
-        slice = buf[2, 1..2]
+        slice = buf[2, 0..1]
         @test samplerate(slice) == TEST_SR
         # 0.5 array indexing drops scalar indices, so we use 2:2 instead of 2
         @test slice == SampleBuf(arr[2:2, 1:2], TEST_SR)
-        slice = buf[2..6, 1..2]
+        slice = buf[1..5, 0..1]
         @test samplerate(slice) == TEST_SR
         @test slice == SampleBuf(arr[2:6, 1:2], TEST_SR)
     end

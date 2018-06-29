@@ -34,13 +34,13 @@ SpectrumBuf(arr::Array{T, N}, sr::Real) where {T, N} = SpectrumBuf{T, N}(arr, sr
 
 SampleBuf(T::Type, sr, dims...) = SampleBuf(Array{T}(dims...), sr)
 SpectrumBuf(T::Type, sr, dims...) = SpectrumBuf(Array{T}(dims...), sr)
-SampleBuf(T::Type, sr, len::Quantity) = SampleBuf(T, sr, round(Int, inframes(len,sr)))
+SampleBuf(T::Type, sr, len::Quantity) = SampleBuf(T, sr, inframes(Int,len,sr))
 SampleBuf(T::Type, sr, len::Quantity, ch) =
-    SampleBuf(T, sr, round(Int, inframes(len,sr)), ch)
+    SampleBuf(T, sr, inframes(Int,len,sr), ch)
 SpectrumBuf(T::Type, sr, len::Quantity) =
-    SpectrumBuf(T, sr, round(Int, inframes(len, sr)))
+    SpectrumBuf(T, sr, inframes(Int,len, sr))
 SpectrumBuf(T::Type, sr, len::Quantity, ch) =
-    SpectrumBuf(T, sr, round(Int, inframes(len, sr)))
+    SpectrumBuf(T, sr, inframes(Int,len, sr))
 
 # terminology:
 # sample - a single value representing the amplitude of 1 channel at some point in time (or frequency)
@@ -274,16 +274,17 @@ indexing
 function toindex end
 
 toindex(buf::SampleBuf, t::Number) = t
-toindex(buf::SampleBuf, t::FrameQuant) = round(Int, inframes(t)) + 1
-toindex(buf::SampleBuf, t::Unitful.Time) = round(Int, inframes(t, samplerate(buf))) + 1
+toindex(buf::SampleBuf, t::FrameQuant) = inframes(Int,t) + 1
+toindex(buf::SampleBuf, t::Unitful.Time) = inframes(Int,t, samplerate(buf)) + 1
 toindex(buf::SampleBuf, t::Quantity) = throw(Unitful.DimensionError(t, s))
 toindex(buf::SpectrumBuf, f::Number) = f
-toindex(buf::SpectrumBuf, f::FrameQuant) = round(Int, inframes(f)) + 1
-toindex(buf::SpectrumBuf, f::Unitful.Frequency) = round(Int, inframes(f, samplerate(buf))) + 1
+toindex(buf::SpectrumBuf, f::FrameQuant) = inframes(Int,f) + 1
+toindex(buf::SpectrumBuf, f::Unitful.Frequency) = inframes(Int,f, samplerate(buf)) + 1
 toindex(buf::SpectrumBuf, f::Quantity) = throw(Unitful.DimensionError(f, Hz))
 
 # indexing by vectors of Quantities not yet supported
-toindex(buf::AbstractSampleBuf, I::ClosedInterval{Int}) = minimum(I):maximum(I)
+toindex(buf::AbstractSampleBuf, I::ClosedInterval{Int}) =
+    toindex(buf, minimum(I)*frames):toindex(buf, maximum(I)*frames)
 toindex(buf::AbstractSampleBuf, I::ClosedInterval{T}) where {T <: Quantity} =
     toindex(buf, minimum(I)):toindex(buf, maximum(I))
 
@@ -296,9 +297,8 @@ Base.getindex(buf::AbstractSampleBuf, i::Int) = buf.data[i];
 # now we implement the methods that need to convert indices. luckily we only
 # need to support up to 2D
 Base.getindex(buf::AbstractSampleBuf, I::ConvertIdx) = buf[toindex(buf, I)]
-Base.getindex(buf::AbstractSampleBuf, I1::ConvertIdx, I2::BuiltinIdx) = buf[toindex(buf, I1), I2]
-Base.getindex(buf::AbstractSampleBuf, I1::BuiltinIdx, I2::ConvertIdx) = buf[I1, toindex(buf, I2)]
-Base.getindex(buf::AbstractSampleBuf, I1::ConvertIdx, I2::ConvertIdx) = buf[toindex(buf, I1), toindex(buf, I2)]
+Base.getindex(buf::AbstractSampleBuf, I1::ConvertIdx, I2::BuiltinIdx) =
+    buf[toindex(buf, I1), I2]
 # In Julia 0.5 scalar indices are now dropped, so by default indexing
 # buf[5, 1:2] gives you a 2-frame single-channel buffer instead of a 1-frame
 # two-channel buffer. The following getindex method defeats the index dropping
