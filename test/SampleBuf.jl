@@ -114,6 +114,8 @@
         slice = buf[1..5, 0..1]
         @test samplerate(slice) == TEST_SR
         @test slice == SampleBuf(arr[2:6, 1:2], TEST_SR)
+        # indexing the channels by seconds doesn't make sense
+        @test_throws ArgumentError buf[2..6,0..1]
     end
 
     @testset "Can be indexed with bool arrays" begin
@@ -190,6 +192,8 @@
         @test buf[0.004s..0.005s] == SampleBuf(arr[193:241], TEST_SR)
         @test buf[0.004s..0.005s, 2] == SampleBuf(arr[193:241, 2], TEST_SR)
         @test buf[0.004s..0.005s, 1:2] == SampleBuf(arr[193:241, 1:2], TEST_SR)
+        # indexing the channels by seconds doesn't make sense
+        @test_throws ArgumentError buf[1:2,0s]
     end
 
     @testset "SampleBufs can be indexed in unitful frames" begin

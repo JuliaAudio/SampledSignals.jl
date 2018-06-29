@@ -294,8 +294,6 @@ Base.IndexStyle(::Type{T}) where {T <: AbstractSampleBuf} = Base.IndexLinear()
 # this is the fundamental indexing operation needed for the AbstractArray interface
 Base.getindex(buf::AbstractSampleBuf, i::Int) = buf.data[i];
 
-# now we implement the methods that need to convert indices. luckily we only
-# need to support up to 2D
 Base.getindex(buf::AbstractSampleBuf, I::ConvertIdx) = buf[toindex(buf, I)]
 Base.getindex(buf::AbstractSampleBuf, I1::ConvertIdx, I2::BuiltinIdx) =
     buf[toindex(buf, I1), I2]
