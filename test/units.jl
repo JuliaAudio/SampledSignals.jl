@@ -16,7 +16,7 @@
         @test inframes(Int,10frames,44100Hz) == 10
         @test inframes(10.5frames,44100Hz) == 10.5
         @test inframes(10frames) == 10
-        @test inframes(10) == 9
+        @test inframes(10) == 10
         @test_throws ErrorException inframes(1s)
     end
 
