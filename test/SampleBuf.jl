@@ -107,11 +107,11 @@
         slice = buf[1..5, 1]
         @test samplerate(slice) == TEST_SR
         @test slice == SampleBuf(arr[2:6, 1], TEST_SR)
-        slice = buf[2, 0..1]
+        slice = buf[2, 1:2]
         @test samplerate(slice) == TEST_SR
         # 0.5 array indexing drops scalar indices, so we use 2:2 instead of 2
         @test slice == SampleBuf(arr[2:2, 1:2], TEST_SR)
-        slice = buf[1..5, 0..1]
+        slice = buf[1..5, 1:2]
         @test samplerate(slice) == TEST_SR
         @test slice == SampleBuf(arr[2:6, 1:2], TEST_SR)
         # indexing the channels by seconds doesn't make sense
