@@ -51,13 +51,13 @@ function unsafe_write end
 blocksize(src::SampleSource) = 0
 blocksize(src::SampleSink) = 0
 
-toindex(stream::SampleSource, t::SecondsQuantity) = round(Int, float(t)*samplerate(stream)) + 1
+toindex(stream::SampleSource, t) = inframes(Int,t, samplerate(stream)) + 1
 
 # subtypes should only have to implement the `unsafe_read!` and `unsafe_write` methods, so
 # here we implement all the converting wrapper methods
 
 # when used as an amount of time to read, subtract one from the result of `toindex`
-Base.read(stream::SampleSource, t::SecondsQuantity) = read(stream, toindex(stream, t)-1)
+Base.read(stream::SampleSource, t) = read(stream, toindex(stream, t)-1)
 
 function Base.read(src::SampleSource, nframes::Integer)
     buf = SampleBuf(eltype(src), samplerate(src), nframes, nchannels(src))
@@ -69,10 +69,10 @@ end
 const DEFAULT_BLOCKSIZE=4096
 
 # handle sink-to-source writing with a duration in seconds
-function Base.write(sink::SampleSink, source::SampleSource,
-        duration::SecondsQuantity; blocksize=-1)
+function Base.write(sink::SampleSink, source::SampleSource, duration::Quantity;
+                    blocksize=-1)
     sr = samplerate(sink)
-    frames = trunc(Int, float(duration) * sr)
+    frames = trunc(Int, inseconds(duration) * sr)
     n = write(sink, source, frames; blocksize=blocksize)
 
     # if we completed the operation return back the original duration so the
@@ -112,6 +112,11 @@ function wrap_sink(sink::SampleSink, source::SampleSource, blocksize)
     end
 end
 
+function Base.write(sink::SampleSink, source::SampleSource, frames::FrameQuant;
+                    blocksize=-1)
+    write(sink, source, inframes(Int,frames,samplerate(source));
+          blocksize=blocksize)
+end
 function Base.write(sink::SampleSink, source::SampleSource, frames=-1;
         blocksize=-1)
     if blocksize < 0
@@ -157,8 +162,8 @@ function Base.write(sink::SampleSink, buf::SampleBuf, nframes=nframes(buf))
     end
 end
 
-function Base.write(sink::SampleSink, buf::SampleBuf, duration::SecondsQuantity)
-    n = round(Int, float(duration)*samplerate(buf))
+function Base.write(sink::SampleSink, buf::SampleBuf, duration::Quantity)
+    n = inframes(Int, duration, samplerate(buf))
     written = write(sink, buf, n)
     if written == n
         return duration
@@ -188,8 +193,8 @@ end
 # when reading into a SampleBuf, calculate frames based on the given buffer,
 # which might differ from the source samplerate if there's a samplerate
 # conversion involved.
-function Base.read!(source::SampleSource, buf::SampleBuf, t::SecondsQuantity)
-    n = round(Int, float(t)*samplerate(buf))
+function Base.read!(source::SampleSource, buf::SampleBuf, t)
+    n = inframes(Int, t, samplerate(source))
     written = read!(source, buf, n)
     if written == n
         return t
@@ -198,8 +203,8 @@ function Base.read!(source::SampleSource, buf::SampleBuf, t::SecondsQuantity)
     end
 end
 
-function Base.read!(source::SampleSource, buf::Array, t::SecondsQuantity)
-    n = round(Int, float(t)*samplerate(source))
+function Base.read!(source::SampleSource, buf::Array, t)
+    n = inframes(Int, t, samplerate(source))
     written = read!(source, buf, n)
     if written == n
         return t

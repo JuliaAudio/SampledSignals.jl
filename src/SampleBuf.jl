@@ -34,10 +34,13 @@ SpectrumBuf(arr::Array{T, N}, sr::Real) where {T, N} = SpectrumBuf{T, N}(arr, sr
 
 SampleBuf(T::Type, sr, dims...) = SampleBuf(Array{T}(dims...), sr)
 SpectrumBuf(T::Type, sr, dims...) = SpectrumBuf(Array{T}(dims...), sr)
-SampleBuf(T::Type, sr, len::SecondsQuantity) = SampleBuf(T, sr, round(Int, float(len)*sr))
-SampleBuf(T::Type, sr, len::SecondsQuantity, ch) = SampleBuf(T, sr, round(Int, float(len)*sr), ch)
-SpectrumBuf(T::Type, sr, len::HertzQuantity) = SpectrumBuf(T, sr, round(Int, float(len)*sr))
-SpectrumBuf(T::Type, sr, len::HertzQuantity, ch) = SpectrumBuf(T, sr, round(Int, float(len)*sr), ch)
+SampleBuf(T::Type, sr, len::Quantity) = SampleBuf(T, sr, inframes(Int,len,sr))
+SampleBuf(T::Type, sr, len::Quantity, ch) =
+    SampleBuf(T, sr, inframes(Int,len,sr), ch)
+SpectrumBuf(T::Type, sr, len::Quantity) =
+    SpectrumBuf(T, sr, inframes(Int,len, sr))
+SpectrumBuf(T::Type, sr, len::Quantity, ch) =
+    SpectrumBuf(T, sr, inframes(Int,len, sr))
 
 # terminology:
 # sample - a single value representing the amplitude of 1 channel at some point in time (or frequency)
@@ -154,7 +157,7 @@ function showchannels(io::IO, buf::AbstractSampleBuf, widthchars=80)
     for blk in 1:nblocks
         i = (blk-1)*blockwidth + 1
         n = min(blockwidth, nframes(buf)-i+1)
-        peaks = maximum(abs.(float(buf[(1:n)+i-1, :])), 1)
+        peaks = maximum(abs.(float.(buf[(1:n)+i-1, :])), 1)
         # clamp to -60dB, 0dB
         peaks = clamp.(20log10.(peaks), -60.0, 0.0)
         idxs = trunc.(Int, (peaks+60)/60 * (length(ticks)-1)) + 1
@@ -256,11 +259,11 @@ const BuiltinMultiIdx = Union{Colon,
 const BuiltinIdx = Union{Int, BuiltinMultiIdx}
 # the index types that will need conversion to built-in index types. Each of
 # these needs a `toindex` method defined for it
-const ConvertIdx{T1 <: SIQuantity, T2 <: Int} = Union{T1,
-                                                # Vector{T1}, # not supporting vectors of SIQuantities (yet?)
+const ConvertIdx{T1 <: Quantity, T2 <: Int} = Union{T1,
+                                                # Vector{T1}, # not supporting vectors of Quantities (yet?)
                                                 # Range{T1}, # not supporting ranges (yet?)
-                                                Interval{T2},
-                                                Interval{T1}}
+                                                ClosedInterval{T2},
+                                                ClosedInterval{T1}}
 
 """
     toindex(buf::SampleBuf, I)
@@ -270,13 +273,20 @@ indexing
 """
 function toindex end
 
-toindex(buf::SampleBuf{T, N}, t::SecondsQuantity) where {T <: Number, N} = round(Int, float(t)*samplerate(buf)) + 1
-toindex(buf::SpectrumBuf{T, N}, t::HertzQuantity) where {T <: Number, N} = round(Int, float(t)*samplerate(buf)) + 1
+toindex(buf::SampleBuf, t::Number) = t
+toindex(buf::SampleBuf, t::FrameQuant) = inframes(Int, t) + 1
+toindex(buf::SampleBuf, t::Unitful.Time) = inframes(Int, t, samplerate(buf)) + 1
+toindex(buf::SampleBuf, t::Quantity) = throw(Unitful.DimensionError(t, s))
+toindex(buf::SpectrumBuf, f::Number) = f
+toindex(buf::SpectrumBuf, f::FrameQuant) = inframes(Int, f) + 1
+toindex(buf::SpectrumBuf, f::Unitful.Frequency) = inframes(Int, f, samplerate(buf)) + 1
+toindex(buf::SpectrumBuf, f::Quantity) = throw(Unitful.DimensionError(f, Hz))
 
-# indexing by vectors of SIQuantities not yet supported
-# toindex{T <: SIUnits.SIQuantity}(buf::SampleBuf, I::Vector{T}) = Int[toindex(buf, i) for i in I]
-toindex(buf::AbstractSampleBuf, I::Interval{Int}) = I.lo:I.hi
-toindex(buf::AbstractSampleBuf, I::Interval{T}) where {T <: SIQuantity} = toindex(buf, I.lo):toindex(buf, I.hi)
+# indexing by vectors of Quantities not yet supported
+toindex(buf::AbstractSampleBuf, I::ClosedInterval{Int}) =
+    toindex(buf, minimum(I)*frames):toindex(buf, maximum(I)*frames)
+toindex(buf::AbstractSampleBuf, I::ClosedInterval{T}) where {T <: Quantity} =
+    toindex(buf, minimum(I)):toindex(buf, maximum(I))
 
 # AbstractArray interface methods
 Base.size(buf::AbstractSampleBuf) = size(buf.data)
@@ -284,12 +294,9 @@ Base.IndexStyle(::Type{T}) where {T <: AbstractSampleBuf} = Base.IndexLinear()
 # this is the fundamental indexing operation needed for the AbstractArray interface
 Base.getindex(buf::AbstractSampleBuf, i::Int) = buf.data[i];
 
-# now we implement the methods that need to convert indices. luckily we only
-# need to support up to 2D
 Base.getindex(buf::AbstractSampleBuf, I::ConvertIdx) = buf[toindex(buf, I)]
-Base.getindex(buf::AbstractSampleBuf, I1::ConvertIdx, I2::BuiltinIdx) = buf[toindex(buf, I1), I2]
-Base.getindex(buf::AbstractSampleBuf, I1::BuiltinIdx, I2::ConvertIdx) = buf[I1, toindex(buf, I2)]
-Base.getindex(buf::AbstractSampleBuf, I1::ConvertIdx, I2::ConvertIdx) = buf[toindex(buf, I1), toindex(buf, I2)]
+Base.getindex(buf::AbstractSampleBuf, I1::ConvertIdx, I2::BuiltinIdx) =
+    buf[toindex(buf, I1), I2]
 # In Julia 0.5 scalar indices are now dropped, so by default indexing
 # buf[5, 1:2] gives you a 2-frame single-channel buffer instead of a 1-frame
 # two-channel buffer. The following getindex method defeats the index dropping

@@ -101,19 +101,21 @@
         arr = TEST_T[1:8 9:16]
         buf = SampleBuf(arr, TEST_SR)
         # linear indexing gives you a mono buffer
-        slice = buf[6..12]
+        slice = buf[5..11]
         @test samplerate(slice) == TEST_SR
         @test slice == SampleBuf(arr[6:12], TEST_SR)
-        slice = buf[2..6, 1]
+        slice = buf[1..5, 1]
         @test samplerate(slice) == TEST_SR
         @test slice == SampleBuf(arr[2:6, 1], TEST_SR)
-        slice = buf[2, 1..2]
+        slice = buf[2, 1:2]
         @test samplerate(slice) == TEST_SR
         # 0.5 array indexing drops scalar indices, so we use 2:2 instead of 2
         @test slice == SampleBuf(arr[2:2, 1:2], TEST_SR)
-        slice = buf[2..6, 1..2]
+        slice = buf[1..5, 1:2]
         @test samplerate(slice) == TEST_SR
         @test slice == SampleBuf(arr[2:6, 1:2], TEST_SR)
+        # indexing the channels by seconds doesn't make sense
+        @test_throws ArgumentError buf[2..6,0..1]
     end
 
     @testset "Can be indexed with bool arrays" begin
@@ -176,7 +178,7 @@
     @testset "Invalid units throw an error" begin
         arr = rand(TEST_T, (round(Int, 0.01*TEST_SR), 2))
         buf = SampleBuf(arr, TEST_SR)
-        @test_throws MethodError buf[1*SIUnits.Ampere]
+        @test_throws Unitful.DimensionError buf[1Hz]
     end
 
     @testset "SampleBufs can be indexed in seconds" begin
@@ -185,11 +187,27 @@
         buf = SampleBuf(arr, TEST_SR)
         @test buf[0.0s] == arr[1]
         @test buf[0.005s] == arr[241]
+        @test buf[0.00501s] == arr[241] # should round
         @test buf[0.005s, 1] == arr[241, 1]
         @test buf[0.005s, 2] == arr[241, 2]
         @test buf[0.004s..0.005s] == SampleBuf(arr[193:241], TEST_SR)
         @test buf[0.004s..0.005s, 2] == SampleBuf(arr[193:241, 2], TEST_SR)
         @test buf[0.004s..0.005s, 1:2] == SampleBuf(arr[193:241, 1:2], TEST_SR)
+        # indexing the channels by seconds doesn't make sense
+        @test_throws ArgumentError buf[1:2,0s]
+    end
+
+    @testset "SampleBufs can be indexed in unitful frames" begin
+        # array with 10ms of audio
+        arr = rand(TEST_T, (round(Int, 0.01*TEST_SR), 2))
+        buf = SampleBuf(arr, TEST_SR)
+        @test buf[0frames] == arr[1]
+        @test buf[240frames] == arr[241]
+        @test buf[240frames, 1] == arr[241, 1]
+        @test buf[240frames, 2] == arr[241, 2]
+        @test buf[192frames..240frames] == SampleBuf(arr[193:241], TEST_SR)
+        @test buf[192frames..240frames, 2] == SampleBuf(arr[193:241, 2], TEST_SR)
+        @test buf[192frames..240frames, 1:2] == SampleBuf(arr[193:241, 1:2], TEST_SR)
     end
 
     @testset "SpectrumBufs can be indexed in Hz" begin
@@ -198,8 +216,20 @@
         buf = SpectrumBuf(arr, N / TEST_SR)
         @test buf[0.0Hz] == arr[1]
         @test buf[843.75Hz] == arr[10]
+        @test buf[843.80Hz] == arr[10] # should round
         @test buf[843.75Hz, 1] == arr[10, 1]
         @test buf[843.75Hz, 2] == arr[10, 2]
+    end
+
+   @testset "SpectrumBufs can be indexed in unitful frames" begin
+        N = 512
+        arr = rand(TEST_T, N, 2)
+        buf = SpectrumBuf(arr, N / TEST_SR)
+        @test buf[0frames] == arr[1]
+        @test buf[9frames] == arr[10]
+        @test buf[9frames, 1] == arr[10, 1]
+        @test buf[9frames, 2] == arr[10, 2]
+        @test buf[8frames..10frames, 2] == arr[9:11, 2]
     end
 
     @testset "Supports arithmetic" begin
