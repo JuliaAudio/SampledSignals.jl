@@ -163,7 +163,7 @@ function Base.write(sink::SampleSink, buf::SampleBuf, nframes=nframes(buf))
 end
 
 function Base.write(sink::SampleSink, buf::SampleBuf, duration::Quantity)
-    n = inframes(Int,duration,samplerate(buf))
+    n = inframes(Int, duration, samplerate(buf))
     written = write(sink, buf, n)
     if written == n
         return duration
@@ -194,7 +194,7 @@ end
 # which might differ from the source samplerate if there's a samplerate
 # conversion involved.
 function Base.read!(source::SampleSource, buf::SampleBuf, t)
-    n = inframes(Int,t,samplerate(source))
+    n = inframes(Int, t, samplerate(source))
     written = read!(source, buf, n)
     if written == n
         return t
@@ -204,7 +204,7 @@ function Base.read!(source::SampleSource, buf::SampleBuf, t)
 end
 
 function Base.read!(source::SampleSource, buf::Array, t)
-    n = inframes(Int,t,samplerate(source))
+    n = inframes(Int, t, samplerate(source))
     written = read!(source, buf, n)
     if written == n
         return t

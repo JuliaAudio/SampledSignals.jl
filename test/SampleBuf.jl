@@ -187,6 +187,7 @@
         buf = SampleBuf(arr, TEST_SR)
         @test buf[0.0s] == arr[1]
         @test buf[0.005s] == arr[241]
+        @test buf[0.00501s] == arr[241] # should round
         @test buf[0.005s, 1] == arr[241, 1]
         @test buf[0.005s, 2] == arr[241, 2]
         @test buf[0.004s..0.005s] == SampleBuf(arr[193:241], TEST_SR)
@@ -215,6 +216,7 @@
         buf = SpectrumBuf(arr, N / TEST_SR)
         @test buf[0.0Hz] == arr[1]
         @test buf[843.75Hz] == arr[10]
+        @test buf[843.80Hz] == arr[10] # should round
         @test buf[843.75Hz, 1] == arr[10, 1]
         @test buf[843.75Hz, 2] == arr[10, 2]
     end
