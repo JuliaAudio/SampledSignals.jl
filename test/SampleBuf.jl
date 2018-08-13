@@ -1,7 +1,7 @@
 using Compat.Test
 using Compat: undef, range
 using SampledSignals
-using SIUnits
+using Unitful
 using DSP
 if VERSION >= v"0.7.0-DEV"
     import FFTW

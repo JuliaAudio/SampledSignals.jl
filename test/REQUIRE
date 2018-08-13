@@ -1,4 +1,5 @@
 FixedPointNumbers
+LibSndFile
+DSP
+FileIO
 Gumbo
-WAV
-TestSetExtensions 1.1.1

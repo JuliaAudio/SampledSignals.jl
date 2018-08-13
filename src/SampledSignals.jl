@@ -1,4 +1,5 @@
-__precompile__(true)
+# precompile is now the default
+VERSION < v"0.7.0-rc2" && __precompile__()
 
 module SampledSignals
 

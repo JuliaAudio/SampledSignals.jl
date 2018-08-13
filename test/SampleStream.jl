@@ -55,7 +55,7 @@ include("support/util.jl")
         ratio = sr2//sr1
         data2 = mapslices(c->filt(FIRFilter(resample_filter(ratio), ratio), c),
                           data1,
-                          1)
+                          dims=1)
 
         source = DummySampleSource(sr1, data1)
         sink = DummySampleSink(Float32, sr2, 2)
@@ -72,7 +72,7 @@ include("support/util.jl")
         ratio = sr2//sr1
         data2 = mapslices(c->filt(FIRFilter(resample_filter(ratio), ratio), c),
                           data1,
-                          1)
+                          dims=1)
 
         source = DummySampleSource(sr1, data1)
         sink = DummySampleSink(Float32, sr2, 2)

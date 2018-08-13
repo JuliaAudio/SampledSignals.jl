@@ -1,14 +1,17 @@
 using SampledSignals
 using Compat.Test
-using TestSetExtensions
 using DSP
 using FixedPointNumbers
 using Gumbo
-using WAV
+using FileIO: File, Stream, @format_str
+import LibSndFile
 
 include("support/util.jl")
 
-@testset ExtendedTestSet "SampledSignals Tests" begin
-    include.(["DummySampleStream.jl", "Interval.jl", "SampleBuf.jl", "SampleStream.jl", "SinSource.jl", "WAVDisplay.jl"])
-    # @includetests ARGS
+@testset "SampledSignals Tests" begin
+    include.(["DummySampleStream.jl",
+              "SampleBuf.jl",
+              "SampleStream.jl",
+              "SinSource.jl",
+              "WAVDisplay.jl"])
 end
