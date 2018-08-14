@@ -28,6 +28,11 @@ notifications:
 script:
  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
  - julia -e "$UPDATECMD"
- - julia -e 'Pkg.clone(pwd()); Pkg.build("SampledSignals"); Pkg.test("SampledSignals"; coverage=true)'
+ # - julia -e 'Pkg.clone(pwd()); Pkg.build("SampledSignals"); Pkg.test("SampledSignals"; coverage=true)'
+ - julia -e 'Pkg.clone(pwd()); Pkg.build("SampledSignals")'
+ # manually install test dependencies so we can run the test script directly, which avoids
+ # clobberling our environment
+ - julia -e 'Pkg.add("FixedPointNumbers"); Pkg.add("DSP"); Pkg.add("FileIO"); Pkg.add("Gumbo"); '
+ - julia test/runtests.jl
 after_success:
   - julia -e 'cd(Pkg.dir("SampledSignals")); Pkg.add("Coverage"); using Coverage; Codecov.submit(process_folder())'
