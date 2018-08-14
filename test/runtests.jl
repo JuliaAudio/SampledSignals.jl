@@ -4,6 +4,7 @@ if VERSION >= v"0.7.0-"
     Pkg.add(PackageSpec(name="LibSndFile", rev="fixes07"))
 else
     Pkg.checkout("LibSndFile", "fixes07")
+    Pkg.add("Gumbo")
 end
 
 using SampledSignals
