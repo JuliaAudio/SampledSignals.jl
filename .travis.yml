@@ -20,6 +20,9 @@ matrix:
     - julia: 0.7
       os: osx
       env: UPDATECMD='using Pkg; Pkg.add(PackageSpec(name="LibSndFile", rev="master"))'
+branches:
+  only:
+    master
 notifications:
   email: false
 script:
