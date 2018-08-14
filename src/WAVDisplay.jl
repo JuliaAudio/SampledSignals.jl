@@ -116,7 +116,7 @@ function show(io::IO, ::MIME"text/html", buf::SampleBuf{T, N}) where {T <: Numbe
 end
 
 # Required WAV Chunk; The format chunk describes how the waveform data is stored
-immutable WAVFormat
+struct WAVFormat
     audioformat::UInt16
     nchannels::UInt16
     sample_rate::UInt32

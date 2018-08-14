@@ -1,6 +1,9 @@
+using Compat.Test
+import Compat: undef
+
 @testset "DummySampleStream Tests" begin
-    const DEFAULT_SR = 48000
-    const DEFAULT_T = Float32
+    DEFAULT_SR = 48000
+    DEFAULT_T = Float32
 
     DummySource(buf) = DummySampleSource(DEFAULT_SR, buf)
     DummyMonoSink() = DummySampleSink(DEFAULT_T, DEFAULT_SR, 1)
@@ -20,7 +23,7 @@
     @testset "can be created with non-unit sampling rate" begin
         sink = DummySampleSink(Float32, 48000, 2)
         @test samplerate(sink) == 48000
-        source = DummySampleSource(48000, Array{Float32}(16, 2))
+        source = DummySampleSource(48000, Array{Float32}(undef, 16, 2))
         @test samplerate(source) == 48000
     end
 end

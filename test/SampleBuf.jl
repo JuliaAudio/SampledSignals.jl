@@ -1,3 +1,14 @@
+using Compat.Test
+using Compat: undef, range
+using SampledSignals
+using Unitful
+using DSP
+if VERSION >= v"0.7.0-DEV"
+    import FFTW
+else
+    import Compat.FFTW
+end
+
 @testset "SampleBuf Tests" begin
     TEST_SR = 48000
     TEST_T = Float32
@@ -20,14 +31,14 @@
     end
 
     @testset "Can get type params from contained array" begin
-        timebuf = SampleBuf(Array{TEST_T}(32, 2), TEST_SR)
+        timebuf = SampleBuf(Array{TEST_T}(undef, 32, 2), TEST_SR)
         @test nframes(timebuf) == 32
         @test nchannels(timebuf) == 2
     end
 
     @testset "supports equality" begin
         arr1 = rand(TEST_T, (64, 2))
-        arr2 = arr1 + 1
+        arr2 = arr1 .+ 1
         arr3 = arr1[:, 1]
         buf1 = SampleBuf(arr1, TEST_SR)
         buf2 = SampleBuf(arr1, TEST_SR)
@@ -122,7 +133,7 @@
         arr = TEST_T[1:8;]
         buf = SampleBuf(arr, TEST_SR)
         idxs = falses(length(buf))
-        idxs[[1, 3, 5]] = true
+        idxs[[1, 3, 5]] .= true
         arr[idxs]
         @test buf[idxs] == SampleBuf(arr[idxs], TEST_SR)
     end
@@ -160,7 +171,7 @@
     @testset "Can be created without units" begin
         buf = SampleBuf(Float32, 48000, 100, 2)
         @test samplerate(buf) == 48000
-        buf = SampleBuf(Array{Float32}(100, 2), 48000)
+        buf = SampleBuf(Array{Float32}(undef, 100, 2), 48000)
         @test samplerate(buf) == 48000
     end
 
@@ -262,9 +273,11 @@
         arr1 = rand(TEST_T, 4, 2)
         buf1 = SampleBuf(arr1, TEST_SR)
 
-        sum = buf1 + 2.0f0
-        @test sum == SampleBuf(arr1 + 2.0f0, TEST_SR)
-        @test typeof(sum) == typeof(buf1)
+        # `a::AbstractArray + b::Number` is deprecated, use `a .+ b` instead.
+        # sum = buf1 + 2.0f0
+        # @test sum == SampleBuf(arr1 + 2.0f0, TEST_SR)
+        # @test typeof(sum) == typeof(buf1)
+
         sum = buf1 .+ 2.0f0
         @test sum == SampleBuf(arr1 .+ 2.0f0, TEST_SR)
         @test typeof(sum) == typeof(buf1)
@@ -274,9 +287,12 @@
         prod = buf1 .* 2.0f0
         @test prod == SampleBuf(arr1 .* 2.0f0, TEST_SR)
         @test typeof(prod) == typeof(buf1)
-        diff = buf1 - 2.0f0
-        @test diff == SampleBuf(arr1 - 2.0f0, TEST_SR)
-        @test typeof(diff) == typeof(buf1)
+
+        # `a::AbstractArray - b::Number` is deprecated, use `a .- b` instead.
+        # diff = buf1 - 2.0f0
+        # @test diff == SampleBuf(arr1 - 2.0f0, TEST_SR)
+        # @test typeof(diff) == typeof(buf1)
+
         diff = buf1 .- 2.0f0
         @test diff == SampleBuf(arr1 .- 2.0f0, TEST_SR)
         @test typeof(diff) == typeof(buf1)
@@ -313,9 +329,9 @@
         @test typeof(quot) == typeof(buf1)
     end
 
-    @testset "Arithmetic with linspace gives SampleBufs" begin
+    @testset "Arithmetic with range gives SampleBufs" begin
         arr1 = rand(TEST_T, 4)
-        arr2 = linspace(0.0f0, 1.0f0, 4)
+        arr2 = range(0.0f0, stop=1.0f0, length=4)
         buf1 = SampleBuf(arr1, TEST_SR)
 
         sum = buf1 + arr2
@@ -341,13 +357,13 @@
     @testset "FFT of SampleBuf gives SpectrumBuf" begin
         arr = rand(TEST_T, 512)
         buf = SampleBuf(arr, TEST_SR)
-        spec = fft(buf)
+        spec = FFTW.fft(buf)
         @test isa(spec, SpectrumBuf)
         @test eltype(spec) == Complex{TEST_T}
         @test samplerate(spec) == 512/TEST_SR
         @test nchannels(spec) == 1
-        @test spec == SpectrumBuf(fft(arr), 512/TEST_SR)
-        buf2 = ifft(spec)
+        @test spec == SpectrumBuf(FFTW.fft(arr), 512/TEST_SR)
+        buf2 = FFTW.ifft(spec)
         # TODO: real time signals should become symmetric spectra, and then
         # back to real time signals with ifft
         @test isa(buf2, SampleBuf)
@@ -475,7 +491,7 @@
     end
 
     @testset "multichannel buf prints prettily" begin
-        t = collect(linspace(0, 2pi, 300))
+        t = collect(range(0, stop=2pi, length=300))
         buf = SampleBuf([cos.(t) sin.(t)]*0.2, 48000)
         expected = """300-frame, 2-channel SampleBuf{Float64, 2}
                    0.00625s sampled at 48000.0Hz
@@ -486,7 +502,7 @@
         @test String(take!(iobuf)) == expected
     end
     @testset "1D buf prints prettily" begin
-        t = collect(linspace(0, 2pi, 300))
+        t = collect(range(0, stop=2pi, length=300))
         buf = SampleBuf(cos.(t)*0.2, 48000)
         expected = """300-frame, 1-channel SampleBuf{Float64, 1}
                    0.00625s sampled at 48000.0Hz

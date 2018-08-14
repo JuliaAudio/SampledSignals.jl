@@ -43,7 +43,6 @@ sampledsignals will call this method with a 1D or 2D (nframes x nchannels)
 `Array`, with each channel in its own column. `framecount` frames of data should
 be copied from the array starting at `frameoffset+1`.
 """
-
 function unsafe_write end
 
 # fallback functions for sources and sinks that don't have a preferred buffer
@@ -134,7 +133,7 @@ end
 # sample rate and channel count
 function unsafe_write(sink::SampleSink, source::SampleSource, frames=-1, blocksize=-1)
     written::Int = 0
-    buf = Array{eltype(source)}(blocksize, nchannels(source))
+    buf = Array{eltype(source)}(undef, blocksize, nchannels(source))
     while frames < 0 || written < frames
         n = frames < 0 ? blocksize : min(blocksize, frames - written)
         nr = unsafe_read!(source, buf, 0, n)
@@ -243,7 +242,7 @@ end
 """UpMixSink provides a single-channel sink that wraps a multi-channel sink.
 Writing to this sink copies the single channel to all the channels in the
 wrapped sink"""
-immutable UpMixSink{W <: SampleSink, B <: Array} <: SampleSink
+struct UpMixSink{W <: SampleSink, B <: Array} <: SampleSink
     wrapped::W
     buf::B
 end
@@ -251,7 +250,7 @@ end
 function UpMixSink(wrapped::SampleSink, blocksize=DEFAULT_BLOCKSIZE)
     N = nchannels(wrapped)
     T = eltype(wrapped)
-    buf = Array{T}(blocksize, N)
+    buf = Array{T}(undef, blocksize, N)
 
     UpMixSink(wrapped, buf)
 end
@@ -268,7 +267,7 @@ function unsafe_write(sink::UpMixSink, buf::Array, frameoffset, framecount)
     while written < framecount
         n = min(blksize, framecount - written)
         for ch in 1:nchannels(sink.wrapped)
-            sink.buf[1:n, ch] = view(buf, (1:n) + written+frameoffset)
+            sink.buf[1:n, ch] = view(buf, (1:n) .+ written .+ frameoffset)
         end
         actual = unsafe_write(sink.wrapped, sink.buf, 0, n)
         written += actual
@@ -283,7 +282,7 @@ end
 
 """DownMixSink provides a multi-channel sink that wraps a single-channel sink.
 Writing to this sink mixes all the channels down to the single channel"""
-immutable DownMixSink{W <: SampleSink, B <: Array} <: SampleSink
+struct DownMixSink{W <: SampleSink, B <: Array} <: SampleSink
     wrapped::W
     buf::B
     channels::Int
@@ -291,7 +290,7 @@ end
 
 function DownMixSink(wrapped::SampleSink, channels, blocksize=DEFAULT_BLOCKSIZE)
     T = eltype(wrapped)
-    buf = Array{T}(blocksize, 1)
+    buf = Array{T}(undef, blocksize, 1)
 
     DownMixSink(wrapped, buf, channels)
 end
@@ -311,9 +310,9 @@ function unsafe_write(sink::DownMixSink, buf::Array, frameoffset, framecount)
     while written < framecount
         n = min(blocksize, framecount - written)
         # initialize with the first channel
-        sink.buf[1:n] = buf[(1:n) + written+frameoffset, 1]
+        sink.buf[1:n] = buf[(1:n) .+ written .+ frameoffset, 1]
         for ch in 2:nchannels(buf)
-            sink.buf[1:n] += buf[(1:n) + written+frameoffset, ch]
+            sink.buf[1:n] += buf[(1:n) .+ written .+ frameoffset, ch]
         end
         actual = unsafe_write(sink.wrapped, sink.buf, 0, n)
         written += actual
@@ -326,7 +325,7 @@ function unsafe_write(sink::DownMixSink, buf::Array, frameoffset, framecount)
     written
 end
 
-type ReformatSink{W <: SampleSink, B <: Array, T} <: SampleSink
+mutable struct ReformatSink{W <: SampleSink, B <: Array, T} <: SampleSink
     wrapped::W
     buf::B
     typ::T
@@ -335,7 +334,7 @@ end
 function ReformatSink(wrapped::SampleSink, T, blocksize=DEFAULT_BLOCKSIZE)
     WT = eltype(wrapped)
     N = nchannels(wrapped)
-    buf = Array{WT}(blocksize, N)
+    buf = Array{WT}(undef, blocksize, N)
 
     ReformatSink(wrapped, buf, T)
 end
@@ -352,7 +351,7 @@ function unsafe_write(sink::ReformatSink, buf::Array, frameoffset, framecount)
     while written < framecount
         n = min(blocksize, framecount - written)
         # copy to the buffer, which will convert to the wrapped type
-        sink.buf[1:n, :] = view(buf, (1:n) + written + frameoffset, :)
+        sink.buf[1:n, :] = view(buf, (1:n) .+ written .+ frameoffset, :)
         actual = unsafe_write(sink.wrapped, sink.buf, 0, n)
         written += actual
         if actual != n
@@ -364,7 +363,7 @@ function unsafe_write(sink::ReformatSink, buf::Array, frameoffset, framecount)
     written
 end
 
-type ResampleSink{W <: SampleSink, B <: Array, F <: FIRFilter} <: SampleSink
+mutable struct ResampleSink{W <: SampleSink, B <: Array, F <: FIRFilter} <: SampleSink
     wrapped::W
     samplerate::Float32
     buf::B
@@ -376,7 +375,7 @@ function ResampleSink(wrapped::SampleSink, sr, blocksize=DEFAULT_BLOCKSIZE)
     wsr = samplerate(wrapped)
     T = eltype(wrapped)
     N = nchannels(wrapped)
-    buf = Array{T}(blocksize, N)
+    buf = Array{T}(undef, blocksize, N)
 
     ratio = rationalize(wsr/sr)
     coefs = resample_filter(ratio)
@@ -402,11 +401,11 @@ function unsafe_write(sink::ResampleSink, buf::Array, frameoffset, framecount)
         # good thing we checked for a zero-channel sink up there
         actual = filt!(view(sink.buf, :, 1),
                        sink.filters[1],
-                       view(buf, (1:towrite)+written+frameoffset, 1))
+                       view(buf, (1:towrite) .+ written .+ frameoffset, 1))
         for ch in 2:nchannels(sink)
             if actual != filt!(view(sink.buf, :, ch),
                                sink.filters[ch],
-                               view(buf, (1:towrite)+written+frameoffset, ch))
+                               view(buf, (1:towrite) .+ written .+ frameoffset, ch))
                 error("Something went wrong - resampling channels out-of-sync")
             end
         end
@@ -421,7 +420,7 @@ end
 hook into the stream conversion infrastructure, because you can wrap a buffer in
 a SampleBufSource and then write it into a sink with a different channel count,
 sample rate, or channel count."""
-type SampleBufSource{B<:SampleBuf} <: SampleSource
+mutable struct SampleBufSource{B<:SampleBuf} <: SampleSource
     buf::B
     read::Int
 end
@@ -434,7 +433,7 @@ Base.eltype(source::SampleBufSource) = eltype(source.buf)
 
 function unsafe_read!(source::SampleBufSource, buf::Array, frameoffset, framecount)
     n = min(framecount, nframes(source.buf)-source.read)
-    buf[(1:n)+frameoffset, :] = view(source.buf, (1:n)+source.read, :)
+    buf[(1:n) .+ frameoffset, :] = view(source.buf, (1:n) .+ source.read, :)
     source.read += n
 
     n
@@ -444,7 +443,7 @@ end
 hook into the stream conversion infrastructure, because you can wrap a buffer in
 a SampleBufSink and then read a source into it with a different channel count,
 sample rate, or channel count."""
-type SampleBufSink{B<:SampleBuf} <: SampleSink
+mutable struct SampleBufSink{B<:SampleBuf} <: SampleSink
     buf::B
     written::Int
 end
@@ -457,7 +456,7 @@ Base.eltype(sink::SampleBufSink) = eltype(sink.buf)
 
 function unsafe_write(sink::SampleBufSink, buf::Array, frameoffset, framecount)
     n = min(framecount, nframes(sink.buf)-sink.written)
-    sink.buf[(1:n)+sink.written, :] = view(buf, (1:n)+frameoffset, :)
+    sink.buf[(1:n) .+ sink.written, :] = view(buf, (1:n) .+ frameoffset, :)
     sink.written += n
 
     n

@@ -1,4 +1,5 @@
-__precompile__()
+# precompile is now the default
+VERSION < v"0.7.0-rc2" && __precompile__()
 
 module SampledSignals
 
@@ -24,6 +25,17 @@ using Unitful
 using Unitful: ns, ms, µs, s, Hz, kHz, MHz, GHz, THz
 using FixedPointNumbers
 using DSP
+using Compat
+using Compat: AbstractRange, undef, range
+using Compat.Random: randstring
+using Compat.Base64: base64encode
+if VERSION >= v"0.7.0-DEV"
+    using LinearAlgebra: mul!
+    import FFTW
+else
+    const mul! = A_mul_B!
+    import Compat.FFTW
+end
 
 import Base: show
 

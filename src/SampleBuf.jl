@@ -32,8 +32,8 @@ end
 # define constructor so conversion is applied to `sr`
 SpectrumBuf(arr::Array{T, N}, sr::Real) where {T, N} = SpectrumBuf{T, N}(arr, sr)
 
-SampleBuf(T::Type, sr, dims...) = SampleBuf(Array{T}(dims...), sr)
-SpectrumBuf(T::Type, sr, dims...) = SpectrumBuf(Array{T}(dims...), sr)
+SampleBuf(T::Type, sr, dims...) = SampleBuf(Array{T}(undef, dims...), sr)
+SpectrumBuf(T::Type, sr, dims...) = SpectrumBuf(Array{T}(undef, dims...), sr)
 SampleBuf(T::Type, sr, len::Quantity) = SampleBuf(T, sr, inframes(Int,len,sr))
 SampleBuf(T::Type, sr, len::Quantity, ch) =
     SampleBuf(T, sr, inframes(Int,len,sr), ch)
@@ -65,9 +65,9 @@ nchannels(arr::AbstractArray) = size(arr, 2)
 
 # it's important to define Base.similar so that range-indexing returns the
 # right type, instead of just a bare array
-Base.similar(buf::SampleBuf, ::Type{T}, dims::Dims) where {T} = SampleBuf(Array{T}(dims), samplerate(buf))
-Base.similar(buf::SpectrumBuf, ::Type{T}, dims::Dims) where {T} = SpectrumBuf(Array{T}(dims), samplerate(buf))
-domain(buf::AbstractSampleBuf) = linspace(0.0, (nframes(buf)-1)/samplerate(buf), nframes(buf))
+Base.similar(buf::SampleBuf, ::Type{T}, dims::Dims) where {T} = SampleBuf(Array{T}(undef, dims), samplerate(buf))
+Base.similar(buf::SpectrumBuf, ::Type{T}, dims::Dims) where {T} = SpectrumBuf(Array{T}(undef, dims), samplerate(buf))
+domain(buf::AbstractSampleBuf) = range(0.0, stop=(nframes(buf)-1)/samplerate(buf), length=nframes(buf))
 
 # There's got to be a better way to define these functions, but the dispatch
 # and broadcast behavior for AbstractArrays is complex and has subtle differences
@@ -76,58 +76,86 @@ domain(buf::AbstractSampleBuf) = linspace(0.0, (nframes(buf)-1)/samplerate(buf),
 import Base: +, -, *, /
 import Base.broadcast
 
-const ArrayIsh = Union{Array, SubArray, LinSpace, StepRangeLen}
+const ArrayIsh = Union{Array, SubArray, Compat.LinRange, StepRangeLen}
+
+
+# Broadcasting in Julia 0.7
+# `find_buf` has borrowed from https://docs.julialang.org/en/latest/manual/interfaces/#Selecting-an-appropriate-output-array-1
+if VERSION >= v"0.7.0-DEV-4936" # Julia PR 26891
+    find_buf(args::Tuple) = find_buf(find_buf(args[1]), Base.tail(args))
+    find_buf(x) = x
+end # if VERSION
+
+
 for btype in (:SampleBuf, :SpectrumBuf)
-    # define non-broadcasting arithmetic
-    for op in (:+, :-)
-        @eval function $op(A1::$btype, A2::$btype)
+
+    if VERSION >= v"0.7.0-DEV-4936" # Julia PR 26891
+
+        @eval find_buf(bc::Base.Broadcast.Broadcasted{Broadcast.ArrayStyle{$btype{T,N}}}) where {T,N} = find_buf(bc.args)
+        @eval find_buf(::$btype, args::Tuple{$btype}) = args[1]
+        @eval find_buf(::Any, args::Tuple{$btype}) = args[1]
+        @eval find_buf(a::$btype, rest) = a
+
+        @eval Base.BroadcastStyle(::Type{$btype{T,N}}) where {T,N} = Broadcast.ArrayStyle{$btype{T,N}}()
+        @eval function Base.similar(bc::Broadcast.Broadcasted{Broadcast.ArrayStyle{$btype{T,N}}}, ::Type{ElType}) where {T,N,ElType}
+            A = find_buf(bc)
+            $btype(Array{ElType}(undef, length.(axes(bc))), samplerate(A))
+        end
+
+    else
+
+        # define non-broadcasting arithmetic
+        for op in (:+, :-)
+            @eval function $op(A1::$btype, A2::$btype)
+                if !isapprox(samplerate(A1), samplerate(A2))
+                    error("samplerate-converting arithmetic not supported yet")
+                end
+                $btype($op(A1.data, A2.data), samplerate(A1))
+            end
+            @eval function $op(A1::$btype, A2::ArrayIsh)
+                $btype($op(A1.data, A2), samplerate(A1))
+            end
+            @eval function $op(A1::ArrayIsh, A2::$btype)
+                $btype($op(A1, A2.data), samplerate(A2))
+            end
+        end
+
+        # define non-broadcast scalar arithmetic
+        for op in (:+, :-, :*, :/)
+            @eval function $op(A1::$btype, a2::Number)
+                $btype($op(A1.data, a2), samplerate(A1))
+            end
+            @eval function $op(a1::Number, A2::$btype)
+                $btype($op(a1, A2.data), samplerate(A2))
+            end
+        end
+
+        # define broadcasting application
+        @eval function broadcast(op, A1::$btype, A2::$btype)
             if !isapprox(samplerate(A1), samplerate(A2))
                 error("samplerate-converting arithmetic not supported yet")
             end
-            $btype($op(A1.data, A2.data), samplerate(A1))
+            $btype(broadcast(op, A1.data, A2.data), samplerate(A1))
         end
-        @eval function $op(A1::$btype, A2::ArrayIsh)
-            $btype($op(A1.data, A2), samplerate(A1))
+        @eval function broadcast(op, A1::$btype, A2::ArrayIsh)
+            $btype(broadcast(op, A1.data, A2), samplerate(A1))
         end
-        @eval function $op(A1::ArrayIsh, A2::$btype)
-            $btype($op(A1, A2.data), samplerate(A2))
+        @eval function broadcast(op, A1::ArrayIsh, A2::$btype)
+            $btype(broadcast(op, A1, A2.data), samplerate(A2))
         end
-    end
+        @eval function broadcast(op, a1::Number, A2::$btype)
+            $btype(broadcast(op, a1, A2.data), samplerate(A2))
+        end
+        @eval function broadcast(op, A1::$btype, a2::Number)
+            $btype(broadcast(op, A1.data, a2), samplerate(A1))
+        end
+        @eval function broadcast(op, A1::$btype)
+            $btype(broadcast(op, A1.data), samplerate(A1))
+        end
 
-    # define broadcasting application
-    @eval function broadcast(op, A1::$btype, A2::$btype)
-        if !isapprox(samplerate(A1), samplerate(A2))
-            error("samplerate-converting arithmetic not supported yet")
-        end
-        $btype(broadcast(op, A1.data, A2.data), samplerate(A1))
-    end
-    @eval function broadcast(op, A1::$btype, A2::ArrayIsh)
-        $btype(broadcast(op, A1.data, A2), samplerate(A1))
-    end
-    @eval function broadcast(op, A1::ArrayIsh, A2::$btype)
-        $btype(broadcast(op, A1, A2.data), samplerate(A2))
-    end
-    @eval function broadcast(op, a1::Number, A2::$btype)
-        $btype(broadcast(op, a1, A2.data), samplerate(A2))
-    end
-    @eval function broadcast(op, A1::$btype, a2::Number)
-        $btype(broadcast(op, A1.data, a2), samplerate(A1))
-    end
-    @eval function broadcast(op, A1::$btype)
-        $btype(broadcast(op, A1.data), samplerate(A1))
-    end
+    end # if VERSION
 
-
-    # define non-broadcast scalar arithmetic
-    for op in (:+, :-, :*, :/)
-        @eval function $op(A1::$btype, a2::Number)
-            $btype($op(A1.data, a2), samplerate(A1))
-        end
-        @eval function $op(a1::Number, A2::$btype)
-            $btype($op(a1, A2.data), samplerate(A2))
-        end
-    end
-end
+end # for btype
 
 typename(::SampleBuf{T, N}) where {T, N} = "SampleBuf{$T, $N}"
 unitname(::SampleBuf) = "s"
@@ -153,19 +181,19 @@ function showchannels(io::IO, buf::AbstractSampleBuf, widthchars=80)
     # number of samples per block
     blockwidth = round(Int, nframes(buf)/widthchars, RoundUp)
     nblocks = round(Int, nframes(buf)/blockwidth, RoundUp)
-    blocks = Array{Char}(nblocks, nchannels(buf))
+    blocks = Array{Char}(undef, nblocks, nchannels(buf))
     for blk in 1:nblocks
         i = (blk-1)*blockwidth + 1
         n = min(blockwidth, nframes(buf)-i+1)
-        peaks = maximum(abs.(float.(buf[(1:n)+i-1, :])), 1)
+        peaks = Compat.maximum(abs.(float.(buf[(1:n) .+ i .- 1, :])), dims=1)
         # clamp to -60dB, 0dB
         peaks = clamp.(20log10.(peaks), -60.0, 0.0)
-        idxs = trunc.(Int, (peaks+60)/60 * (length(ticks)-1)) + 1
+        idxs = trunc.(Int, (peaks.+60)/60 * (length(ticks)-1)) .+ 1
         blocks[blk, :] = ticks[idxs]
     end
     for ch in 1:nchannels(buf)
         println(io)
-        print(io, convert(String, blocks[:, ch]))
+        print(io, String(blocks[:, ch]))
     end
 end
 
@@ -185,7 +213,7 @@ function mix!(dest::AbstractMatrix, src::AbstractMatrix, mix::AbstractArray)
     inchans = nchannels(src)
     outchans = nchannels(dest)
     size(mix) == (inchans, outchans) || error("Mix Matrix should be $(inchans)x$(outchans)")
-    A_mul_B!(dest, src, mix)
+    mul!(dest, src, mix)
 end
 
 function mix!(dest::AbstractVector, src::AbstractVector, mix::AbstractArray)
@@ -200,32 +228,6 @@ end
 
 function mix!(dest::AbstractMatrix, src::AbstractVector, mix::AbstractArray)
     mix!(dest, reshape(src, (length(src), 1)), mix)
-end
-
-# necessary because A_mul_B! doesn't handle SampleBufs on 0.4
-# explicitly define 1D and 2D so they're more specific and don't trigger ambiguity
-# warnings on 0.4
-for N1 in (1, 2), N2 in (1, 2)
-    @eval function mix!{T}(dest::AbstractSampleBuf{T, $N1}, src::AbstractSampleBuf{T, $N2}, mix::AbstractArray)
-        mix!(dest.data, src.data, mix)
-        dest
-    end
-    @eval function mix!{T1, T2}(dest::AbstractSampleBuf{T1, $N1}, src::AbstractSampleBuf{T2, $N2}, mix::AbstractArray)
-        mix!(dest.data, src.data, mix)
-        dest
-    end
-end
-
-# necessary because A_mul_B! doesn't handle SampleBufs on 0.4
-for MT in (AbstractMatrix, AbstractVector), N in (1, 2)
-    @eval function mix!{T}(dest::$MT, src::AbstractSampleBuf{T, $N}, mix::AbstractArray)
-        mix!(dest, src.data, mix)
-    end
-
-    @eval function mix!{T}(dest::AbstractSampleBuf{T, $N}, src::$MT, mix::AbstractArray)
-        mix!(dest.data, src, mix)
-        dest
-    end
 end
 
 
@@ -255,7 +257,7 @@ end
 const BuiltinMultiIdx = Union{Colon,
                         Vector{Int},
                         Vector{Bool},
-                        Range{Int}}
+                        AbstractRange{Int}}
 const BuiltinIdx = Union{Int, BuiltinMultiIdx}
 # the index types that will need conversion to built-in index types. Each of
 # these needs a `toindex` method defined for it
@@ -312,19 +314,19 @@ import Base.==
     samplerate(buf1) == samplerate(buf2) &&
     buf1.data == buf2.data
 
-Base.fft(buf::SampleBuf) = SpectrumBuf(fft(buf.data), nframes(buf)/samplerate(buf))
-Base.ifft(buf::SpectrumBuf) = SampleBuf(ifft(buf.data), nframes(buf)/samplerate(buf))
+FFTW.fft(buf::SampleBuf) = SpectrumBuf(FFTW.fft(buf.data), nframes(buf)/samplerate(buf))
+FFTW.ifft(buf::SpectrumBuf) = SampleBuf(FFTW.ifft(buf.data), nframes(buf)/samplerate(buf))
 
 # does a per-channel convolution on SampleBufs
 for buftype in (:SampleBuf, :SpectrumBuf)
-    @eval function Base.conv(b1::$buftype{T, 1}, b2::$buftype{T, 1}) where {T}
+    @eval function DSP.conv(b1::$buftype{T, 1}, b2::$buftype{T, 1}) where {T}
         if !isapprox(samplerate(b1), samplerate(b2))
             error("Resampling convolution not yet supported")
         end
         $buftype(conv(b1.data, b2.data), samplerate(b1))
     end
 
-    @eval function Base.conv(b1::$buftype{T, N1}, b2::$buftype{T, N2}) where {T, N1, N2}
+    @eval function DSP.conv(b1::$buftype{T, N1}, b2::$buftype{T, N2}) where {T, N1, N2}
         if !isapprox(samplerate(b1), samplerate(b2))
             error("Resampling convolution not yet supported")
         end
@@ -339,13 +341,13 @@ for buftype in (:SampleBuf, :SpectrumBuf)
         out
     end
 
-    @eval function Base.conv(b1::$buftype{T, 1}, b2::StridedVector{T}) where {T}
+    @eval function DSP.conv(b1::$buftype{T, 1}, b2::StridedVector{T}) where {T}
         $buftype(conv(b1.data, b2), samplerate(b1))
     end
 
-    @eval Base.conv(b1::StridedVector{T}, b2::$buftype{T, 1}) where {T} = conv(b2, b1)
+    @eval DSP.conv(b1::StridedVector{T}, b2::$buftype{T, 1}) where {T} = conv(b2, b1)
 
-    @eval function Base.conv(b1::$buftype{T, 2}, b2::StridedMatrix{T}) where {T}
+    @eval function DSP.conv(b1::$buftype{T, 2}, b2::StridedMatrix{T}) where {T}
         if nchannels(b1) != nchannels(b2)
             error("Broadcasting convolution not yet supported")
         end
@@ -357,5 +359,5 @@ for buftype in (:SampleBuf, :SpectrumBuf)
         out
     end
 
-    @eval Base.conv(b1::StridedMatrix{T}, b2::$buftype{T, 2}) where {T} = conv(b2, b1)
+    @eval DSP.conv(b1::StridedMatrix{T}, b2::$buftype{T, 2}) where {T} = conv(b2, b1)
 end
