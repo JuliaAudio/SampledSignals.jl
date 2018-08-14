@@ -27,6 +27,7 @@ notifications:
   email: false
 script:
  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
+ - julia -e "$UPDATECMD"
  - julia -e 'Pkg.clone(pwd()); Pkg.build("SampledSignals"); Pkg.test("SampledSignals"; coverage=true)'
 after_success:
   - julia -e 'cd(Pkg.dir("SampledSignals")); Pkg.add("Coverage"); using Coverage; Codecov.submit(process_folder())'
