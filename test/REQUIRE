@@ -1,5 +1,7 @@
 FixedPointNumbers
-LibSndFile
+# for now remove from here because we're manually installing during CI
+# setup so we can use master
+# LibSndFile
 DSP
 FileIO
 Gumbo

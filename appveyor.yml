@@ -3,8 +3,10 @@ environment:
 # disable win32 testing until LibSndFile is fixed on 32-bit
 #  - JULIA_URL: "https://julialang-s3.julialang.org/bin/winnt/x86/0.6/julia-0.6-latest-win32.exe"
   - JULIA_URL: "https://julialang-s3.julialang.org/bin/winnt/x64/0.6/julia-0.6-latest-win64.exe"
+    UPDATE_CMD: 'Pkg.add(\"LibSndFile\"); Pkg.checkout(\"LibSndFile\")'
 #  - JULIA_URL: "https://julialang-s3.julialang.org/bin/winnt/x86/0.7/julia-0.7-latest-win32.exe"
   - JULIA_URL: "https://julialang-s3.julialang.org/bin/winnt/x64/0.7/julia-0.7-latest-win64.exe"
+    UPDATE_CMD: 'using Pkg; Pkg.add(PackageSpec(name=\"LibSndFile\", rev=\"master\"))'
 
 notifications:
   - provider: Email
@@ -24,6 +26,7 @@ install:
 build_script:
 # Need to convert from shallow to complete for Pkg.clone to work
   - IF EXIST .git\shallow (git fetch --unshallow)
+  - C:\projects\julia\bin\julia -e "%UPDATE_CMD%"
   - C:\projects\julia\bin\julia -e "versioninfo();
       Pkg.clone(pwd(), \"SampledSignals\"); Pkg.build(\"SampledSignals\")"
 
