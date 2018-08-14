@@ -36,7 +36,7 @@ build_script:
   - C:\projects\julia\bin\julia -e "%UPDATE_CMD%"
   # manually install test dependencies so we can run the test script directly, which avoids
   # clobberling our environment
-  - C:\projects\julia\bin\julia -e 'Pkg.add("Compat"); Pkg.add("FixedPointNumbers"); Pkg.add("DSP"); Pkg.add("FileIO"); Pkg.add("Gumbo")'
+  - C:\projects\julia\bin\julia -e "Pkg.add(\"Compat\"); Pkg.add(\"FixedPointNumbers\"); Pkg.add(\"DSP\"); Pkg.add(\"FileIO\"); Pkg.add(\"Gumbo\")"
 
 test_script:
   # - C:\projects\julia\bin\julia --check-bounds=yes -e "Pkg.test(\"SampledSignals\")"
