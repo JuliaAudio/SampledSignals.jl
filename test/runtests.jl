@@ -1,14 +1,3 @@
-# for now we need to checkout a branch of LibSndFile to run these tests
-if VERSION >= v"0.7.0-"
-    using Pkg
-    Pkg.add(PackageSpec(name="LibSndFile", rev="fixes07"))
-else
-    Pkg.checkout("LibSndFile", "fixes07")
-    # checking out within the tests seems to re-run resolution, and
-    # uninstalls Gumbo, so we manually reinstall it here
-    Pkg.add("Gumbo")
-end
-
 using SampledSignals
 using Compat.Test
 using DSP

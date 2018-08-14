@@ -1,15 +1,38 @@
 # Documentation: http://docs.travis-ci.com/user/languages/julia/
 language: julia
-os:
-  - linux
-  - osx
-julia:
-  - 0.6
-  - 0.7
+# os:
+#   - linux
+#   - osx
+# julia:
+#   - 0.6
+#   - 0.7
+matrix:
+  include:
+    - julia: 0.6
+      os: linux
+      env: UPDATECMD='Pkg.add("LibSndFile"); Pkg.checkout("LibSndFile")'
+    - julia: 0.7
+      os: linux
+      env: UPDATECMD='using Pkg; Pkg.add(PackageSpec(name="LibSndFile", rev="master"))'
+    - julia: 0.6
+      os: osx
+      env: UPDATECMD='Pkg.add("LibSndFile"); Pkg.checkout("LibSndFile")'
+    - julia: 0.7
+      os: osx
+      env: UPDATECMD='using Pkg; Pkg.add(PackageSpec(name="LibSndFile", rev="master"))'
+branches:
+  only:
+    master
 notifications:
   email: false
 script:
  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
- - julia -e 'Pkg.clone(pwd()); Pkg.build("SampledSignals"); Pkg.test("SampledSignals"; coverage=true)'
+ # - julia -e 'Pkg.clone(pwd()); Pkg.build("SampledSignals"); Pkg.test("SampledSignals"; coverage=true)'
+ - julia -e 'Pkg.clone(pwd()); Pkg.build("SampledSignals")'
+ - julia -e "$UPDATECMD"
+ # manually install test dependencies so we can run the test script directly, which avoids
+ # clobberling our environment
+ - julia -e 'Pkg.add("Compat"); Pkg.add("Unitful"); Pkg.add("FixedPointNumbers"); Pkg.add("FFTW"); Pkg.add("DSP"); Pkg.add("FileIO"); Pkg.add("Gumbo")'
+ - julia --code-coverage test/runtests.jl
 after_success:
   - julia -e 'cd(Pkg.dir("SampledSignals")); Pkg.add("Coverage"); using Coverage; Codecov.submit(process_folder())'

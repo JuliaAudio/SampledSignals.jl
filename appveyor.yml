@@ -3,14 +3,21 @@ environment:
 # disable win32 testing until LibSndFile is fixed on 32-bit
 #  - JULIA_URL: "https://julialang-s3.julialang.org/bin/winnt/x86/0.6/julia-0.6-latest-win32.exe"
   - JULIA_URL: "https://julialang-s3.julialang.org/bin/winnt/x64/0.6/julia-0.6-latest-win64.exe"
+    UPDATE_CMD: 'Pkg.add(\"LibSndFile\"); Pkg.checkout(\"LibSndFile\")'
 #  - JULIA_URL: "https://julialang-s3.julialang.org/bin/winnt/x86/0.7/julia-0.7-latest-win32.exe"
   - JULIA_URL: "https://julialang-s3.julialang.org/bin/winnt/x64/0.7/julia-0.7-latest-win64.exe"
+    UPDATE_CMD: 'using Pkg; Pkg.add(PackageSpec(name=\"LibSndFile\", rev=\"master\"))'
 
 notifications:
   - provider: Email
     on_build_success: false
     on_build_failure: false
     on_build_status_changed: false
+
+# only build master and PRs
+branches:
+  only:
+    - master
 
 install:
   - ps: "[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12"
@@ -26,6 +33,13 @@ build_script:
   - IF EXIST .git\shallow (git fetch --unshallow)
   - C:\projects\julia\bin\julia -e "versioninfo();
       Pkg.clone(pwd(), \"SampledSignals\"); Pkg.build(\"SampledSignals\")"
+  - C:\projects\julia\bin\julia -e "%UPDATE_CMD%"
+  # manually install test dependencies so we can run the test script directly, which avoids
+  # clobberling our environment
+  - C:\projects\julia\bin\julia -e "Pkg.add(\"Compat\"); Pkg.add(\"Unitful\");
+      Pkg.add(\"FixedPointNumbers\"); Pkg.add(\"DSP\"); Pkg.add(\"FileIO\");
+      Pkg.add(\"Gumbo\"); Pkg.add(\"FFTW\")"
 
 test_script:
-  - C:\projects\julia\bin\julia --check-bounds=yes -e "Pkg.test(\"SampledSignals\")"
+  # - C:\projects\julia\bin\julia --check-bounds=yes -e "Pkg.test(\"SampledSignals\")"
+  - C:\projects\julia\bin\julia --code-coverage --check-bounds=yes test/runtests.jl

@@ -4,6 +4,8 @@
 [![Build status](https://ci.appveyor.com/api/projects/status/qioy8vjpwg51s77p/branch/master?svg=true)](https://ci.appveyor.com/project/ssfrr/sampledsignals-jl/branch/master)
 [![codecov.io](http://codecov.io/github/JuliaAudio/SampledSignals.jl/coverage.svg?branch=master)](http://codecov.io/github/JuliaAudio/SampledSignals.jl?branch=master)
 
+**Dev Note: Currently the master branch of SampledSignals requires the master branch of LibSndFile for its tests.**
+
 SampledSignals is a collection of types intended to be used on multichannel sampled signals like audio or radio data, EEG signals, etc., to provide better interoperability between packages that read data from files or streams, DSP packages, and output and display packages.
 
 SampledSignals provides several types to stream and store sampled data: `SampleBuf`, `SpectrumBuf`, `SampleSource`, `SampleSink` which make use of [IntervalSets](https://github.com/JuliaMath/IntervalSets.jl) that can be used to represent contiguous ranges using a convenient `a..b` syntax, this feature is copied mostly from the [AxisArrays](https://github.com/mbauman/AxisArrays.jl) package, which also inspired much of the implementation of this package.
