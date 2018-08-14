@@ -4,6 +4,8 @@ if VERSION >= v"0.7.0-"
     Pkg.add(PackageSpec(name="LibSndFile", rev="fixes07"))
 else
     Pkg.checkout("LibSndFile", "fixes07")
+    # checking out within the tests seems to re-run resolution, and
+    # uninstalls Gumbo, so we manually reinstall it here
     Pkg.add("Gumbo")
 end
 

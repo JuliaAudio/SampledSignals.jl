@@ -26,7 +26,7 @@ using Unitful: ns, ms, µs, s, Hz, kHz, MHz, GHz, THz
 using FixedPointNumbers
 using DSP
 using Compat
-using Compat: AbstractRange, undef, range, maximum
+using Compat: AbstractRange, undef, range
 using Compat.Random: randstring
 using Compat.Base64: base64encode
 if VERSION >= v"0.7.0-DEV"
