@@ -27,9 +27,9 @@ notifications:
   email: false
 script:
  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
- - julia -e "$UPDATECMD"
  # - julia -e 'Pkg.clone(pwd()); Pkg.build("SampledSignals"); Pkg.test("SampledSignals"; coverage=true)'
  - julia -e 'Pkg.clone(pwd()); Pkg.build("SampledSignals")'
+ - julia -e "$UPDATECMD"
  # manually install test dependencies so we can run the test script directly, which avoids
  # clobberling our environment
  - julia -e 'Pkg.add("FixedPointNumbers"); Pkg.add("DSP"); Pkg.add("FileIO"); Pkg.add("Gumbo"); '

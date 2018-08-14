@@ -31,9 +31,9 @@ install:
 build_script:
 # Need to convert from shallow to complete for Pkg.clone to work
   - IF EXIST .git\shallow (git fetch --unshallow)
-  - C:\projects\julia\bin\julia -e "%UPDATE_CMD%"
   - C:\projects\julia\bin\julia -e "versioninfo();
       Pkg.clone(pwd(), \"SampledSignals\"); Pkg.build(\"SampledSignals\")"
+  - C:\projects\julia\bin\julia -e "%UPDATE_CMD%"
   # manually install test dependencies so we can run the test script directly, which avoids
   # clobberling our environment
   - C:\projects\julia\bin\julia -e 'Pkg.add("FixedPointNumbers"); Pkg.add("DSP"); Pkg.add("FileIO"); Pkg.add("Gumbo"); '
