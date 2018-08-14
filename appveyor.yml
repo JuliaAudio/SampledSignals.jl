@@ -38,7 +38,7 @@ build_script:
   # clobberling our environment
   - C:\projects\julia\bin\julia -e "Pkg.add(\"Compat\"); Pkg.add(\"Unitful\");
       Pkg.add(\"FixedPointNumbers\"); Pkg.add(\"DSP\"); Pkg.add(\"FileIO\");
-      Pkg.add(\"Gumbo\")"
+      Pkg.add(\"Gumbo\"); Pkg.add(\"FFTW\")"
 
 test_script:
   # - C:\projects\julia\bin\julia --check-bounds=yes -e "Pkg.test(\"SampledSignals\")"

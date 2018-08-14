@@ -32,7 +32,7 @@ script:
  - julia -e "$UPDATECMD"
  # manually install test dependencies so we can run the test script directly, which avoids
  # clobberling our environment
- - julia -e 'Pkg.add("Compat"); Pkg.add("Unitful"); Pkg.add("FixedPointNumbers"); Pkg.add("DSP"); Pkg.add("FileIO"); Pkg.add("Gumbo")'
+ - julia -e 'Pkg.add("Compat"); Pkg.add("Unitful"); Pkg.add("FixedPointNumbers"); Pkg.add("FFTW"); Pkg.add("DSP"); Pkg.add("FileIO"); Pkg.add("Gumbo")'
  - julia test/runtests.jl
 after_success:
   - julia -e 'cd(Pkg.dir("SampledSignals")); Pkg.add("Coverage"); using Coverage; Codecov.submit(process_folder())'
