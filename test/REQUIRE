@@ -3,3 +3,4 @@ LibSndFile
 DSP
 FileIO
 Gumbo
+Unitful
