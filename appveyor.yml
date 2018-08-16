@@ -14,6 +14,11 @@ notifications:
     on_build_failure: false
     on_build_status_changed: false
 
+matrix:
+  allow_failures:
+    # currently failing on 1.0 until https://github.com/JuliaLang/METADATA.jl/pull/16370 is merged
+    - JULIA_URL: "https://julialang-s3.julialang.org/bin/winnt/x64/1.0/julia-1.0-latest-win64.exe"
+
 # only build master and PRs
 branches:
   only:
