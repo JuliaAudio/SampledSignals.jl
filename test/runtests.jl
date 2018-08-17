@@ -12,6 +12,6 @@ include("support/util.jl")
     include.(["DummySampleStream.jl",
               "SampleBuf.jl",
               "SampleStream.jl",
-              "SinSource.jl",
               "WAVDisplay.jl"])
 end
+

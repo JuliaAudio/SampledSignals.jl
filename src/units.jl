@@ -20,19 +20,16 @@ julia> inframes(1000Hz, 2048/44100Hz)
 46.439909297052154
 
 """
-inframes(::Type{T}, frame::FrameQuant, rate=nothing) where T <: Integer =
-    round(T, ustrip(uconvert(frames, frame)))
+inframes(::Type{T}, args...) where T<:Number = round(T, inframes(args...))
 inframes(frame::FrameQuant, rate=nothing) = ustrip(uconvert(frames, frame))
-inframes(::Type{T}, time::Unitful.Time, rate) where T <: Integer =
-    round(T, inseconds(time)*inHz(rate))
-inframes(time::Unitful.Time, rate) = inseconds(time)*inHz(rate)
-inframes(::Type{T}, freq::Unitful.Frequency, rate) where T <: Integer =
-    round(T, inHz(freq)*inseconds(rate))
-inframes(freq::Unitful.Frequency, rate) = inHz(freq)*inseconds(rate)
-inframes(::Type, frame::Quantity) = error("Unknown sample rate")
+inframes(frame::FrameQuant, rate::Quantity) = ustrip(uconvert(frames, frame))
+inframes(len::Quantity, rate::Quantity) = checkframes(len*rate,rate)
+checkframes(frame::FrameQuant,sr::Number) = uconvert(Unitful.NoUnits,frame)
+checkframes(frame,sr) =
+    error("Expected a quantity in units of $(show_sampleunit(1/sr))")
+
 inframes(frame::Quantity) = error("Unknown sample rate")
-inframes(::Type{T}, frame::Real) where T = T(frame)
-inframes(frame::Real) = frame
+inframes(frame::Real, rate=nothing) = frame
 
 """
     inHz(quantity[, rate])

@@ -10,7 +10,6 @@ export SampleSource, SampleSink
 export SampleRate
 export ResampleSink, ReformatSink, DownMixSink, UpMixSink
 export SampleBufSource, SampleBufSink
-export SinSource
 export ClosedInterval, ..
 # general methods for types in SampledSignals
 export samplerate, samplerate!, nchannels, nframes
@@ -47,9 +46,9 @@ const PCM32Sample = Fixed{Int32, 31}
 const PCM64Sample = Fixed{Int64, 63}
 
 include("units.jl")
+include("SampleFormat.jl")
 include("SampleBuf.jl")
 include("SampleStream.jl")
-include("SignalGen/SinSource.jl")
 include("WAVDisplay.jl")
 include("deprecated.jl")
 

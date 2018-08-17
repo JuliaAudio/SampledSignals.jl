@@ -42,7 +42,7 @@ end
 @testset "WAVDisplay Tests" begin
     @testset "SampleBuf display Generates valid HTML" begin
         buf = SampleBuf(rand(16, 2), 48000)
-        parsehtmldisplay(buf)
+        @test nothing != parsehtmldisplay(buf)
     end
 
     @testset "SampleBuf display has the right buttons" begin

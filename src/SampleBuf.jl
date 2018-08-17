@@ -1,46 +1,78 @@
-abstract type AbstractSampleBuf{T, N} <: AbstractArray{T, N} end
+export SampleFreqBuf, SampleTimeBuf
 
 """
-Represents a multi-channel regularly-sampled buffer that stores its own sample
-rate (in samples/second). The wrapped data is an N-dimensional array. A 1-channel
-sample can be represented with a 1D array or an Mx1 matrix, and a C-channel
-buffer will be an MxC matrix. So a 1-second stereo audio buffer sampled at
-44100Hz with 32-bit floating-point samples in the time domain would have the
-type SampleBuf{Float32, 2}.
+Wraps any Abstract array as a signal of regularly-sampled values.
+The arrays must be 1D or 2D. The rows correspond to time points and the
+columns to channels.
 """
-mutable struct SampleBuf{T, N} <: AbstractSampleBuf{T, N}
-    data::Array{T, N}
-    samplerate::Float64
+struct SampleBuf{A, R, T, N} <: AbstractArray{T, N}
+    data::A
+    function SampleBuf{A,R,T,N}(data::A) where {A,R,T,N}
+        @assert N ∈ [1,2] "Signal dimension must be 1 or 2."
+        @assert R isa Quantity "Unspecified units of sample rate."
+        new{A,R,T,N}(data)
+    end
 end
 
-# define constructor so conversion is applied to `sr`
-SampleBuf(arr::Array{T, N}, sr::Real) where {T, N} = SampleBuf{T, N}(arr, sr)
+function SampleBuf(arr::AbstractArray{T, N}, R::Number) where {T,N}
+    SampleBuf{typeof(arr), format(R), T, N}(arr)
+end
+SampleBuf(arr::AbstractArray, sr::Real, dim::Symbol) =
+    SampleBuf(arr,sr/dimsymbol(dim))
+function dimsymbol(dim::Symbol)
+    dim == :time ? s :
+    dim == :freq ? Hz :
+    error("Unexpected dimension specification $dim.")
+end
+signal(x::AbstractArray,R,::NotSignal) = SampleBuf(x,R)
 
-"""
-Represents a multi-channel regularly-sampled buffer representing the frequency-
-domain spectrum of a `SampleBuf`. The wrapped data is an N-dimensional array. A
-1-channel sample can be represented with a 1D array or an Mx1 matrix, and a
-C-channel buffer will be an MxC matrix. So a 1-second stereo audio buffer
-sampled at 44100Hz with 32-bit floating-point samples in the time domain would
-have the type SampleBuf{Float32, 2}.
-"""
-mutable struct SpectrumBuf{T, N} <: AbstractSampleBuf{T, N}
-    data::Array{T, N}
-    samplerate::Float64
+Base.Array(x::SampleBuf) = x.data
+SampleBufVector{A,R,T} = SampleBuf{A,R,T,1}
+SampleBufMatrix{A,R,T} = SampleBuf{A,R,T,2}
+SignalFormat(x::SampleBuf{<:Any,R,T}) where {R,T} = IsSignal{R,T}()
+Base.copy(x::SampleBuf{<:Any,R}) where R = SampleBuf(copy(x.data),R)
+
+ismono(x::SampleBufVector) = true
+isstereo(x::SampleBufVector) = false
+
+dims_to_frames(::Type{T},len,ch,rate) where T<:Integer = (inframes(T,len,rate),ch)
+dims_to_frames(::Type{T},len,rate) where T<:Integer = (inframes(T,len,rate),)
+SampleBuf(::Type{T},sr::Real,dims...) where T<:Number =
+    SampleBuf(T,sr*Hz,dims...)
+SampleBuf(::Type{T},sr::Real,dim::Symbol,dims...) where T<:Number =
+    SampleBuf(T,sr*dimsymbol(dim),dims...)
+function SampleBuf(::Type{T},sr::Quantity,dims...) where T<:Number
+    dims = dims_to_frames(Int,dims...,sr)
+    SampleBuf(Array{T}(undef,dims...),sr)
 end
 
-# define constructor so conversion is applied to `sr`
-SpectrumBuf(arr::Array{T, N}, sr::Real) where {T, N} = SpectrumBuf{T, N}(arr, sr)
+"""
+    signal(fn,freq,length;phase=0,ϕ=phase,samplerate=48000)
 
-SampleBuf(T::Type, sr, dims...) = SampleBuf(Array{T}(undef, dims...), sr)
-SpectrumBuf(T::Type, sr, dims...) = SpectrumBuf(Array{T}(undef, dims...), sr)
-SampleBuf(T::Type, sr, len::Quantity) = SampleBuf(T, sr, inframes(Int,len,sr))
-SampleBuf(T::Type, sr, len::Quantity, ch) =
-    SampleBuf(T, sr, inframes(Int,len,sr), ch)
-SpectrumBuf(T::Type, sr, len::Quantity) =
-    SpectrumBuf(T, sr, inframes(Int,len, sr))
-SpectrumBuf(T::Type, sr, len::Quantity, ch) =
-    SpectrumBuf(T, sr, inframes(Int,len, sr))
+Generate a mono signal of the given length by passing function `fn` a `Float64`
+phase value for each sample. The phase (in radians) starts at `ϕ` and
+progresses at the given frequency but it does not wrap around (`mod2pi` can be
+used if needed). Without a unit the sample rate and freq are assumed to be in
+`Hz` and if they do have a unit, they must have the same dimension.
+
+As an example, the following creates a 1 second pure tone at 1 kHz.
+
+    signal(sin,1kHz,1s)
+"""
+function signal(fn::Function,freq,length;phase=0,ϕ=phase,samplerate=48kHz)
+    sr = inunits(samplerate)
+    len = inframes(Int,length,sr*Hz)
+    phases = ϕ .+ 1:len.*(2π * ustrip(uconvert(Unitful.NoUnits,
+                                               inunits(freq) / sr)))
+
+    SampleBuf(br.(fn.(phases)),samplerate)
+end
+inunits(x::Quantity) = x
+inunits(x) = inHz(x)
+
+# `AbstractArray` objects can be interpreted as signals using `SampleBuf`
+signal(x::AbstractArray,::Type{R},::NotSignal) where R<:Quantity =
+    SampleBuf(x,R)
 
 # terminology:
 # sample - a single value representing the amplitude of 1 channel at some point in time (or frequency)
@@ -48,136 +80,95 @@ SpectrumBuf(T::Type, sr, len::Quantity, ch) =
 # frame - a collection of samples from each channel that were sampled simultaneously
 
 # audio methods
-samplerate(buf::AbstractSampleBuf) = buf.samplerate
-nchannels(buf::AbstractSampleBuf{T, 2}) where {T} = size(buf.data, 2)
-nchannels(buf::AbstractSampleBuf{T, 1}) where {T} = 1
-nframes(buf::AbstractSampleBuf) = size(buf.data, 1)
+nchannels(buf::AbstractArray{T, 2}) where {T} = size(buf, 2)
+nchannels(buf::AbstractArray{T, 1}) where {T} = 1
+nframes(buf::AbstractArray) = size(buf, 1)
 
-function samplerate!(buf::AbstractSampleBuf, sr)
-    buf.samplerate = sr
-
-    buf
-end
-
-# define audio methods on raw buffers as well
-nframes(arr::AbstractArray) = size(arr, 1)
-nchannels(arr::AbstractArray) = size(arr, 2)
-
-# it's important to define Base.similar so that range-indexing returns the
-# right type, instead of just a bare array
-Base.similar(buf::SampleBuf, ::Type{T}, dims::Dims) where {T} = SampleBuf(Array{T}(undef, dims), samplerate(buf))
-Base.similar(buf::SpectrumBuf, ::Type{T}, dims::Dims) where {T} = SpectrumBuf(Array{T}(undef, dims), samplerate(buf))
-domain(buf::AbstractSampleBuf) = range(0.0, stop=(nframes(buf)-1)/samplerate(buf), length=nframes(buf))
+domain(buf::SampleBuf) =
+    range(0.0, stop=(nframes(buf)-1)/samplerate(buf), length=nframes(buf))
 
 # There's got to be a better way to define these functions, but the dispatch
 # and broadcast behavior for AbstractArrays is complex and has subtle differences
 # between Julia versions, so we basically just override functions here as they
 # come up as problems
-import Base: +, -, *, /
-import Base.broadcast
 
-const ArrayIsh = Union{Array, SubArray, Compat.LinRange, StepRangeLen}
+import Base: +,-,*,/
+for op in (:+,:-,:*,:/)
+    @eval $op(xs::SampleBuf...) = mapsignals($op,xs...)
+    @eval $op(x::Number,y::SampleBuf) = mapsignals($op,x,y)
+    @eval $op(x::AbstractArray,y::SampleBuf) = mapsignals($op,x,y)
+    @eval $op(x::SampleBuf,y::Number) = mapsignals($op,x,y)
+    @eval $op(x::SampleBuf,y::AbstractArray) = mapsignals($op,x,y)
 
+    # to resolve method ambiguity
+    @eval $op(xs::SampleBufVector...) = mapsignals($op,xs...)
+    @eval $op(x::SampleBufVector,y::AbstractVector) = mapsignals($op,x,y)
+    @eval $op(y::AbstractVector,x::SampleBufVector) = mapsignals($op,x,y)
+end
 
 # Broadcasting in Julia 0.7
 # `find_buf` has borrowed from https://docs.julialang.org/en/latest/manual/interfaces/#Selecting-an-appropriate-output-array-1
+
+import Base.broadcast
 if VERSION >= v"0.7.0-DEV-4936" # Julia PR 26891
-    find_buf(args::Tuple) = find_buf(find_buf(args[1]), Base.tail(args))
-    find_buf(x) = x
+
+    struct SampleBufStyle{R,N} <: Broadcast.AbstractArrayStyle{N} end
+    const SampleBufBroadcasted{R,N} = Broadcast.Broadcasted{SampleBufStyle{R,N}}
+    SampleBufStyle{R,_}(::Val{N}) where {R,N,_} = SampleBufStyle{R,N}()
+
+    Base.BroadcastStyle(::Type{T}) where {R,T <: SampleBuf{<:Any,R}} =
+        SampleBufStyle{R,ndims(T)}()
+    function Base.BroadcastStyle(x::SampleBufStyle{R1,N1},
+                                 y::SampleBufStyle{R2,N2}) where {R1,R2,N1,N2}
+        if R1 != R2
+            error("Sample rate of buffers must match. To operate over mixed"*
+                  " sample rate buffers, use non-broadcasting arithematic, `mix`"*
+                  " `amplify` or `mapsignals`.")
+        end
+
+        SampleBufStyle{R1,max(N1,N1)}()
+    end
+    function Base.similar(bc::SampleBufBroadcasted{R},::Type{T}) where {R,T}
+        SampleBuf(similar(Array{T},axes(bc)),R)
+    end
+else
+    # define broadcasting application
+    function broadcast(op, A1::SampleBuf, A2::SampleBuf)
+        if !isapprox(samplerate(A1), samplerate(A2))
+            error("samplerate-converting arithmetic not supported yet")
+        end
+        SampleBuf(broadcast(op, A1.data, A2.data), usamplerate(A1))
+    end
+    function broadcast(op, A1::SampleBuf, A2::Union{AbstractArray,Number})
+        SampleBuf(broadcast(op, A1.data, A2), usamplerate(A1))
+    end
+    function broadcast(op, A1::Union{AbstractArray,Number}, A2::SampleBuf)
+        SampleBuf(broadcast(op, A1, A2.data), usamplerate(A2))
+    end
+    function broadcast(op, A1::SampleBuf)
+        SampleBuf(broadcast(op, A1.data), usamplerate(A1))
+    end
+
 end # if VERSION
 
-
-for btype in (:SampleBuf, :SpectrumBuf)
-
-    if VERSION >= v"0.7.0-DEV-4936" # Julia PR 26891
-
-        @eval find_buf(bc::Base.Broadcast.Broadcasted{Broadcast.ArrayStyle{$btype{T,N}}}) where {T,N} = find_buf(bc.args)
-        @eval find_buf(::$btype, args::Tuple{$btype}) = args[1]
-        @eval find_buf(::Any, args::Tuple{$btype}) = args[1]
-        @eval find_buf(a::$btype, rest) = a
-
-        @eval Base.BroadcastStyle(::Type{$btype{T,N}}) where {T,N} = Broadcast.ArrayStyle{$btype{T,N}}()
-        @eval function Base.similar(bc::Broadcast.Broadcasted{Broadcast.ArrayStyle{$btype{T,N}}}, ::Type{ElType}) where {T,N,ElType}
-            A = find_buf(bc)
-            $btype(Array{ElType}(undef, length.(axes(bc))), samplerate(A))
-        end
-
-    else
-
-        # define non-broadcasting arithmetic
-        for op in (:+, :-)
-            @eval function $op(A1::$btype, A2::$btype)
-                if !isapprox(samplerate(A1), samplerate(A2))
-                    error("samplerate-converting arithmetic not supported yet")
-                end
-                $btype($op(A1.data, A2.data), samplerate(A1))
-            end
-            @eval function $op(A1::$btype, A2::ArrayIsh)
-                $btype($op(A1.data, A2), samplerate(A1))
-            end
-            @eval function $op(A1::ArrayIsh, A2::$btype)
-                $btype($op(A1, A2.data), samplerate(A2))
-            end
-        end
-
-        # define non-broadcast scalar arithmetic
-        for op in (:+, :-, :*, :/)
-            @eval function $op(A1::$btype, a2::Number)
-                $btype($op(A1.data, a2), samplerate(A1))
-            end
-            @eval function $op(a1::Number, A2::$btype)
-                $btype($op(a1, A2.data), samplerate(A2))
-            end
-        end
-
-        # define broadcasting application
-        @eval function broadcast(op, A1::$btype, A2::$btype)
-            if !isapprox(samplerate(A1), samplerate(A2))
-                error("samplerate-converting arithmetic not supported yet")
-            end
-            $btype(broadcast(op, A1.data, A2.data), samplerate(A1))
-        end
-        @eval function broadcast(op, A1::$btype, A2::ArrayIsh)
-            $btype(broadcast(op, A1.data, A2), samplerate(A1))
-        end
-        @eval function broadcast(op, A1::ArrayIsh, A2::$btype)
-            $btype(broadcast(op, A1, A2.data), samplerate(A2))
-        end
-        @eval function broadcast(op, a1::Number, A2::$btype)
-            $btype(broadcast(op, a1, A2.data), samplerate(A2))
-        end
-        @eval function broadcast(op, A1::$btype, a2::Number)
-            $btype(broadcast(op, A1.data, a2), samplerate(A1))
-        end
-        @eval function broadcast(op, A1::$btype)
-            $btype(broadcast(op, A1.data), samplerate(A1))
-        end
-
-    end # if VERSION
-
-end # for btype
-
-typename(::SampleBuf{T, N}) where {T, N} = "SampleBuf{$T, $N}"
-unitname(::SampleBuf) = "s"
-srname(::SampleBuf) = "Hz"
-typename(::SpectrumBuf{T, N}) where {T, N} = "SpectrumBuf{$T, $N}"
-unitname(::SpectrumBuf) = "Hz"
-srname(::SpectrumBuf) = "s"
+# make Hz more readable, print all other units based on the preferred
+# format (Hz cannot be set to preferred becuase it is derived from time).
 
 # from @mbauman's Sparklines.jl package
 const ticks = ['▁','▂','▃','▄','▅','▆','▇','█']
 # 3-arg version (with explicit mimetype) is needed because we subtype AbstractArray,
 # and there's a 3-arg version defined in show.jl
-function show(io::IO, ::MIME"text/plain", buf::AbstractSampleBuf)
-    println(io, "$(nframes(buf))-frame, $(nchannels(buf))-channel $(typename(buf))")
-    len = nframes(buf) / samplerate(buf)
-    ustring = unitname(buf)
-    srstring = srname(buf)
-    print(io, "$(len)$ustring sampled at $(samplerate(buf))$srstring")
+function show(io::IO, ::MIME"text/plain", buf::SampleBuf)
+    println(io, "$(nframes(buf))-frame, $(nchannels(buf))-channel, "*
+            string(eltype(buf))*
+            " buffer.")
+    len = upreferred(nframes(buf) / usamplerate(buf))
+    print(io, show_samplerate(len)*" sampled at "*
+          show_samplerate(usamplerate(buf)))
     nframes(buf) > 0 && showchannels(io, buf)
 end
 
-function showchannels(io::IO, buf::AbstractSampleBuf, widthchars=80)
+function showchannels(io::IO, buf::SampleBuf, widthchars=80)
     # number of samples per block
     blockwidth = round(Int, nframes(buf)/widthchars, RoundUp)
     nblocks = round(Int, nframes(buf)/blockwidth, RoundUp)
@@ -186,10 +177,14 @@ function showchannels(io::IO, buf::AbstractSampleBuf, widthchars=80)
         i = (blk-1)*blockwidth + 1
         n = min(blockwidth, nframes(buf)-i+1)
         peaks = Compat.maximum(abs.(float.(buf[(1:n) .+ i .- 1, :])), dims=1)
-        # clamp to -60dB, 0dB
-        peaks = clamp.(20log10.(peaks), -60.0, 0.0)
-        idxs = trunc.(Int, (peaks.+60)/60 * (length(ticks)-1)) .+ 1
-        blocks[blk, :] = ticks[idxs]
+        if !any(isnan,peaks)
+          # clamp to -60dB, 0dB
+          peaks = clamp.(20 .* log10.(peaks), -60.0, 0.0)
+          idxs = trunc.(Int, (peaks.+60)./60 .* (length(ticks)-1)) .+ 1
+          blocks[blk, :] = ticks[idxs]
+        else
+          blocks[blk, :] = ticks[1]
+        end
     end
     for ch in 1:nchannels(buf)
         println(io)
@@ -202,70 +197,11 @@ where T is the element type of the buffer. This is particularly useful for
 passing to C libraries to fill the buffer"""
 channelptr(buf::Array, channel, frameoffset=0) =
     pointer(buf) + ((channel-1)*nframes(buf)+frameoffset) * sizeof(eltype(buf))
-channelptr(buf::AbstractSampleBuf, channel, frameoffset=0) =
+channelptr(buf::SampleBuf{<:Array}, channel, frameoffset=0) =
     channelptr(buf.data, channel, frameoffset)
+channelptr(buf::SampleBuf, ch, offset) =
+    error("`SampleBuf` must have data of type `Array`.")
 
-"""Mix the channels of the source array into the channels of the dest array,
-using coefficients from the `mix` matrix. To mix an M-channel buffer to a
-N-channel buffer, `mix` should be MxN. `src` and `dest` should not share
-memory."""
-function mix!(dest::AbstractMatrix, src::AbstractMatrix, mix::AbstractArray)
-    inchans = nchannels(src)
-    outchans = nchannels(dest)
-    size(mix) == (inchans, outchans) || error("Mix Matrix should be $(inchans)x$(outchans)")
-    mul!(dest, src, mix)
-end
-
-function mix!(dest::AbstractVector, src::AbstractVector, mix::AbstractArray)
-    mix!(reshape(dest, (length(dest), 1)), reshape(src, (length(src), 1)), mix)
-    dest
-end
-
-function mix!(dest::AbstractVector, src::AbstractMatrix, mix::AbstractArray)
-    mix!(reshape(dest, (length(dest), 1)), src, mix)
-    dest
-end
-
-function mix!(dest::AbstractMatrix, src::AbstractVector, mix::AbstractArray)
-    mix!(dest, reshape(src, (length(src), 1)), mix)
-end
-
-
-"""Mix the channels of the source array into the channels of the dest array,
-using coefficients from the `mix` matrix. To mix an M-channel buffer to a
-N-channel buffer, `mix` should be MxN. `src` and `dest` should not share
-memory."""
-function mix(src::AbstractArray, mix::AbstractArray)
-    dest = similar(src, (nframes(src), size(mix, 2)))
-    mix!(dest, src, mix)
-end
-
-"""Mix the channels of the `src` array into the mono `dest` array."""
-function mono!(dest::AbstractArray, src::AbstractArray)
-    mix!(dest, src, ones(nchannels(src), 1) ./ nchannels(src))
-end
-
-"""Mix the channels of the `src` array into a mono array."""
-function mono(src::AbstractArray)
-    dest = similar(src, (nframes(src), 1))
-    mono!(dest, src)
-end
-
-
-# the index types that Base knows how to handle. Separate out those that index
-# multiple results
-const BuiltinMultiIdx = Union{Colon,
-                        Vector{Int},
-                        Vector{Bool},
-                        AbstractRange{Int}}
-const BuiltinIdx = Union{Int, BuiltinMultiIdx}
-# the index types that will need conversion to built-in index types. Each of
-# these needs a `toindex` method defined for it
-const ConvertIdx{T1 <: Quantity, T2 <: Int} = Union{T1,
-                                                # Vector{T1}, # not supporting vectors of Quantities (yet?)
-                                                # Range{T1}, # not supporting ranges (yet?)
-                                                ClosedInterval{T2},
-                                                ClosedInterval{T1}}
 
 """
     toindex(buf::SampleBuf, I)
@@ -275,89 +211,166 @@ indexing
 """
 function toindex end
 
-toindex(buf::SampleBuf, t::Number) = t
 toindex(buf::SampleBuf, t::FrameQuant) = inframes(Int, t) + 1
-toindex(buf::SampleBuf, t::Unitful.Time) = inframes(Int, t, samplerate(buf)) + 1
-toindex(buf::SampleBuf, t::Quantity) = throw(Unitful.DimensionError(t, s))
-toindex(buf::SpectrumBuf, f::Number) = f
-toindex(buf::SpectrumBuf, f::FrameQuant) = inframes(Int, f) + 1
-toindex(buf::SpectrumBuf, f::Unitful.Frequency) = inframes(Int, f, samplerate(buf)) + 1
-toindex(buf::SpectrumBuf, f::Quantity) = throw(Unitful.DimensionError(f, Hz))
+toindex(buf::SampleBuf, t::Number) = t
+toindex(buf::SampleBuf, t::Quantity) = inframes(Int, t, usamplerate(buf)) + 1
 
 # indexing by vectors of Quantities not yet supported
-toindex(buf::AbstractSampleBuf, I::ClosedInterval{Int}) =
+toindex(buf::SampleBuf, I::ClosedInterval{Int}) =
     toindex(buf, minimum(I)*frames):toindex(buf, maximum(I)*frames)
-toindex(buf::AbstractSampleBuf, I::ClosedInterval{T}) where {T <: Quantity} =
+toindex(buf::SampleBuf, I::ClosedInterval{T}) where {T <: Quantity} =
     toindex(buf, minimum(I)):toindex(buf, maximum(I))
 
 # AbstractArray interface methods
-Base.size(buf::AbstractSampleBuf) = size(buf.data)
-Base.IndexStyle(::Type{T}) where {T <: AbstractSampleBuf} = Base.IndexLinear()
-# this is the fundamental indexing operation needed for the AbstractArray interface
-Base.getindex(buf::AbstractSampleBuf, i::Int) = buf.data[i];
+Base.size(buf::SampleBuf) = size(buf.data)
+Base.IndexStyle(::Type{<:SampleBuf{A}}) where A = Base.IndexStyle(A)
+Base.similar(buf::SampleBuf, ::Type{T}, dims::Dims) where {T} =
+    SampleBuf(Array{T}(undef, dims), usamplerate(buf))
+@Base.propagate_inbounds Base.getindex(buf::SampleBuf, i::Int...) =
+    buf.data[i...]
+@Base.propagate_inbounds Base.setindex!(buf::SampleBuf, v, i::Int...) =
+    buf.data[i...] = v
 
-Base.getindex(buf::AbstractSampleBuf, I::ConvertIdx) = buf[toindex(buf, I)]
-Base.getindex(buf::AbstractSampleBuf, I1::ConvertIdx, I2::BuiltinIdx) =
+# the index types that Base knows how to handle. Separate out those that index
+# multiple results
+const BuiltinMultiIdx = Union{Colon,AbstractArray{Int}}
+const BuiltinIdx = Union{Int, BuiltinMultiIdx}
+# the index types that will need conversion to built-in index types. Each of
+# these needs a `toindex` method defined for it
+const ConvertIdx{T1 <: Quantity, T2 <: Int} =
+   Union{T1,ClosedInterval{T2},ClosedInterval{T1}}
+         # Vector{T1}, # not supporting vectors of Quantities (yet?)
+         # Range{T1}, # not supporting ranges (yet?)
+
+Base.getindex(buf::SampleBuf, I::ConvertIdx) = buf[toindex(buf, I)]
+Base.getindex(buf::SampleBuf, I1::ConvertIdx, I2::BuiltinIdx) =
     buf[toindex(buf, I1), I2]
 # In Julia 0.5 scalar indices are now dropped, so by default indexing
 # buf[5, 1:2] gives you a 2-frame single-channel buffer instead of a 1-frame
-# two-channel buffer. The following getindex method defeats the index dropping
-Base.getindex(buf::AbstractSampleBuf, I1::Int, I2::BuiltinMultiIdx) = buf[I1:I1, I2]
+# two-channel buffer. The following getindex method bypasses this index dropping
+Base.getindex(buf::SampleBuf, I1::Int, I2::BuiltinMultiIdx) = buf[I1:I1, I2]
 
-function Base.setindex!(buf::AbstractSampleBuf, val, i::Int)
-    buf.data[i] = val
+function Base.vcat(xs::SampleBuf...)
+    promoted = promote_signals(xs...)
+    SampleBuf(vcat((p.data for p in promoted)...),usamplerate(promoted[1]))
+end
+
+struct Changedeltype{T,N,S} <: AbstractArray{T,N}
+  data::S
+end
+Changedeltype(::Type{T},data::AbstractArray) where T =
+    Changedeltype{T,ndims(data),typeof(data)}(data)
+IndexStyle(::Type{<:Changedeltype{<:Any,<:Any,S}}) where S = IndexStyle(S)
+Base.size(x::Changedeltype) = size(x.data)
+@Base.propagate_inbounds function Base.getindex(p::Changedeltype{T},
+                                                        ixs::Int...) where T
+    T.(p.data[ixs...])
+end
+@Base.propagate_inbounds function Base.setindex(p::Changedeltype{T},v,
+                                                        ixs::Int...) where T
+    p.data[ixs...] = v
+end
+Base.copy(x::Changedeltype) = collect(x)
+
+function tosamplerate(x::SampleBuf,R2,::IsSignal{R1}) where R1
+    if dimension(R1) != dimension(R2)
+        if dimension(R1) isa Unitful.Time &&
+            dimension(R2) isa Unitful.Frequency
+            toformat(ifft(x),R2)
+        elseif dimension(R1) isa Unitful.Frequency &&
+            dimension(R2) isa Unitful.Time
+            toformat(fft(x),R2)
+        else
+            error("Do not know how to convert from sample rate of ",
+                  "$(R1) to a samplerate of $R2.")
+        end
+    elseif !isapprox(R1,R2)
+        if R1 > R2
+            Base.warn("The sample rate of a signal was reduced; "*
+                      "information past $(R2/2) will be lost.",bt=backtrace())
+        end
+
+        factor = uconvert(Unitful.NoUnits,R2/R1)
+        SampleBuf(DSP.resample(x,factor),R2)
+    else
+        x
+    end
+end
+
+struct SqueezedChannels{S,T} <: AbstractArray{T,1}
+    data::S
+end
+SqueezedChannels(x) = SqueezedChannels{typeof(x),eltype(x)}(x)
+IndexStyle(::Type{<:SqueezedChannels{S}}) where S = IndexStyle(S)
+Base.size(x::SqueezedChannels) = (size(x.data,1),)
+@Base.propagate_inbounds Base.getindex(p::SqueezedChannels,ixs::Int...) =
+    sum(p.data[ixs[1],:])
+Base.copy(x::SqueezedChannels) = collect(x)
+
+struct SpreadChannels{S,T} <: AbstractArray{T,2}
+    data::S
+    ch::Int
+end
+SpreadChannels(x,ch) = SpreadChannels{typeof(x),eltype(x)}(x,ch)
+IndexStyle(::Type{SpreadChannels{S}}) where S = IndexStyle(S)
+Base.size(x::SpreadChannels) = (size(x.data,1),x.ch)
+@Base.propagate_inbounds Base.getindex(p::SpreadChannels,ixs::Int...) =
+    p.data[ixs[1]]
+Base.copy(x::SpreadChannels) = collect(x)
+
+function tochannels(x::SampleBuf,ch::Int)
+  if nchannels(x) == ch
+      x
+  elseif nchannels(x) == 1
+      SampleBuf(SpreadChannels(x,ch),format(x))
+  elseif ch == 1
+      SampleBuf(SqueezedChannels(x),format(x))
+  else
+      error("Don't know how to coerce a $(nchannels(x))-channel buffer",
+           " to have $ch channels.")
+  end
 end
 
 # equality
-import Base.==
-==(buf1::AbstractSampleBuf, buf2::AbstractSampleBuf) =
-    samplerate(buf1) == samplerate(buf2) &&
-    buf1.data == buf2.data
+Base.:(==)(buf1::SampleBuf, buf2::SampleBuf) =
+    usamplerate(buf1) == usamplerate(buf2) &&
+    all(buf1.data .== buf2.data)
 
-FFTW.fft(buf::SampleBuf) = SpectrumBuf(FFTW.fft(buf.data), nframes(buf)/samplerate(buf))
-FFTW.ifft(buf::SpectrumBuf) = SampleBuf(FFTW.ifft(buf.data), nframes(buf)/samplerate(buf))
-
-# does a per-channel convolution on SampleBufs
-for buftype in (:SampleBuf, :SpectrumBuf)
-    @eval function DSP.conv(b1::$buftype{T, 1}, b2::$buftype{T, 1}) where {T}
-        if !isapprox(samplerate(b1), samplerate(b2))
-            error("Resampling convolution not yet supported")
-        end
-        $buftype(conv(b1.data, b2.data), samplerate(b1))
+function FFTW.fft(buf::SampleBuf{<:Any,R}) where R
+    if R isa Unitful.Frequency
+        SampleBuf(FFTW.fft(buf.data), nframes(buf)/usamplerate(buf))
+    elseif R isa Unitful.Time
+        error("Expected temporal buffer, got frequency buffer. Call ifft",
+              " instead.")
+    else
+        error("Unsupported samplerate dimension of $(dimension(R)).")
     end
-
-    @eval function DSP.conv(b1::$buftype{T, N1}, b2::$buftype{T, N2}) where {T, N1, N2}
-        if !isapprox(samplerate(b1), samplerate(b2))
-            error("Resampling convolution not yet supported")
-        end
-        if nchannels(b1) != nchannels(b2)
-            error("Broadcasting convolution not yet supported")
-        end
-        out = $buftype(T, samplerate(b1), nframes(b1)+nframes(b2)-1, nchannels(b1))
-        for ch in 1:nchannels(b1)
-            out[:, ch] = conv(b1.data[:, ch], b2.data[:, ch])
-        end
-
-        out
-    end
-
-    @eval function DSP.conv(b1::$buftype{T, 1}, b2::StridedVector{T}) where {T}
-        $buftype(conv(b1.data, b2), samplerate(b1))
-    end
-
-    @eval DSP.conv(b1::StridedVector{T}, b2::$buftype{T, 1}) where {T} = conv(b2, b1)
-
-    @eval function DSP.conv(b1::$buftype{T, 2}, b2::StridedMatrix{T}) where {T}
-        if nchannels(b1) != nchannels(b2)
-            error("Broadcasting convolution not yet supported")
-        end
-        out = $buftype(T, samplerate(b1), nframes(b1)+nframes(b2)-1, nchannels(b1))
-        for ch in 1:nchannels(b1)
-            out[:, ch] = conv(b1.data[:, ch], b2[:, ch])
-        end
-
-        out
-    end
-
-    @eval DSP.conv(b1::StridedMatrix{T}, b2::$buftype{T, 2}) where {T} = conv(b2, b1)
 end
+function FFTW.ifft(buf::SampleBuf{<:Any,R}) where R
+    if R isa Unitful.Frequency
+        error("Expected frequency buffer, got temporal buffer. Call ifft",
+              " instead.")
+    elseif R isa Unitful.Time
+        SampleBuf(FFTW.ifft(buf.data), nframes(buf)/usamplerate(buf))
+    else
+        error("Unsupported samplerate dimension of $(dimension(R)).")
+    end
+end
+
+DSP.conv(b1::SampleBuf, b2::SampleBuf) =
+    conv_helper(promote_signals(b1,b2)...)
+DSP.conv(b1::SampleBuf, b2::AbstractArray) =
+    conv_helper(promote_signals(b1,b2)...)
+DSP.conv(b1::AbstractArray, b2::SampleBuf) =
+    conv_helper(promote_signals(b1,b2)...)
+function conv_helper(b1,b2)
+    out = SampleBuf(eltype(b1),usamplerate(b1),nframes(b1)+nframes(b2)-1,
+                    Base.tail(size(b1))...)
+    for ch in 1:nchannels(b1)
+        out[:, ch] = conv(b1.data[:, ch], b2.data[:, ch])
+    end
+
+    out
+end
+
+

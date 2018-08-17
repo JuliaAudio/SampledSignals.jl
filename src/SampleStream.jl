@@ -1,143 +1,152 @@
 """
 Represents a source of samples, such as an audio file, microphone input, or
-SDR Receiver.
+SDR Receiver, using sample rate `R` and eltype `T`. The rate is assumed
+to be specified in units compatible with `Hz`.
 
-Subtypes should implement the `samplerate`, `nchannels`, `eltype`, and
-`unsafe_read!` methods. `unsafe_read!` can assume that the samplerate, channel
-count, and element type are all matching.
-"""
-abstract type SampleSource end
+Subtypes should implement the `nchannels` and a specific `read!` method,
+described below.  Optionally it can also implement `nframes`, `blocksize`
+and `tosamplerate`, which all have default implementations.
 
-"""
-unsafe_read!(source::SampleSource, buf::Array, frameoffset, framecount)
+The read! method should take the following form.
 
-Reads samples from the given source to the given array, assuming that the
-channel count, sampling rate, and element types are matching. This isn't called
-from user code, but is called by the `read!` (and likewise `read`) implementions
-in SampledSignals after it verifies that the buffer and sink are compatible, or
-possibly adds a conversion wrapper. SampledSignals will call this method with
-a 1D or 2D (nframes x nchannels) `Array`, with each channel in its own column.
-`framecount` frames of data should be copied into the array starting at
-`frameoffset+1`.
+    Base.read!(source::SampleSource{R}, buf::AbstractArray, ::IsSignal{R})
+
+This internal method will be called after `buf` and `source` have been coerced
+to have the same sample rate and channel count. This call is expected to fill
+the entire contents of `buf` with samples, unless there are fewer samples
+available than `nframes(buf)`. The total number of samples successfully read
+from `source` should be returned.
+
+NOTE: you can implement `tosamplerate` if there is some efficient way to
+compute more samples with a new sample rate rather than signal
+interpolation via FFT (the default approach).
 """
-function unsafe_read! end
+abstract type SampleSource{R,T} end
+SignalFormat(x::SampleSource{R,T}) where {R,T} = IsSignal{R,T}()
+Base.eltype(x::SampleSource{<:Any,T}) where T = T
+Base.eltype(::Type{<:SampleSource{<:Any,T}}) where T = T
+nframes(::SampleSource) = missing
+blocksize(::SampleSource) = missing
+
+function Base.read!(source::SampleSource{R}, buf::AbstractArray,
+                    ::IsSignal{R}) where {R}
+    error("No appropriate implementation of `read!` for $(typeof(source)).",
+          " Define a signature of the form ",
+          "`Base.read!(source::SampleSource{R},buf::AbstractArray,",
+          "::IsSignal{R})`.")
+end
 
 """
 Represents a sink that samples can be written to, such as an audio file or
-headphone output.
+headphone output, using samplerate `R` and eltype `T`. The rate is assumed
+to be specified in units compatible with `Hz`.
 
-Subtypes should implement the `samplerate`, `nchannels`, `eltype`, and
-`unsafe_write` methods. `unsafe_write` can assume that the samplerate, channel
-count, and element type are all matching.
-"""
-abstract type SampleSink end
+Subtypes should implement the `nchannels`, and `write` methods.  The
+Optionally it can also implement `nframes` and `blocksize`.
+
+The `write` method should take the following form.
+
+    Base.write(sink::SampleSink{R}, buf::AbstractArray, ::IsSignal{R})
+
+This internal method will be called after `buf` and `source` have the same
+sample rate and channel count. This call should send the entire contents of
+`buf` to `sink`, unless there are fewer samples that can be written to `sink`
+than `nframes(buf)`. The total number of samples successfully written to `sink`
+should be returned.
+
+Note that raw `Array` objects and other types that do not have a known sample
+rate are assumed to have the same sample rate as `source`. The `eltype` may
+differ between `source` and `buf`.
 
 """
-unsafe_write(sink::SampleSink, buf::Array, frameoffset, framecount)
+abstract type SampleSink{R,T} end
+SignalFormat(x::SampleSink{R,T}) where {R,T} = IsSignal{R,T}()
+Base.eltype(x::SampleSink{R,T}) where {R,T} = T
+Base.eltype(::Type{<:SampleSink{<:Any,T}}) where T = T
+blocksize(::SampleSink) = missing
+nframes(::SampleSink) = missing
 
-Writes the given buffer to the given sink, assuming that the channel count,
-sampling rate, and element types are matching. This isn't called from user code,
-but is called by the `write` implemention in SampledSignals after it verifies that
-the buffer and sink are compatible, or possibly adds a conversion wrapper.
-sampledsignals will call this method with a 1D or 2D (nframes x nchannels)
-`Array`, with each channel in its own column. `framecount` frames of data should
-be copied from the array starting at `frameoffset+1`.
-"""
-function unsafe_write end
+function Base.write(sink::SampleSink{R}, buf::AbstractArray,
+                    ::IsSignal{R}) where R
+    error("No appropriate implementation of `write!` for $(typeof(sink)).",
+          " Define a signature of the form ",
+          "`Base.write(sink::SampleSink{R},buf::AbstractArray,",
+          "::IsSignal{R})`.")
+end
 
 # fallback functions for sources and sinks that don't have a preferred buffer
 # size. This will cause any chunked writes to use the default buffer size
-blocksize(src::SampleSource) = 0
-blocksize(src::SampleSink) = 0
+"""
+    blocksize(x)
 
-toindex(stream::SampleSource, t) = inframes(Int,t, samplerate(stream)) + 1
-
-# subtypes should only have to implement the `unsafe_read!` and `unsafe_write` methods, so
-# here we implement all the converting wrapper methods
-
-# when used as an amount of time to read, subtract one from the result of `toindex`
-Base.read(stream::SampleSource, t) = read(stream, toindex(stream, t)-1)
-
-function Base.read(src::SampleSource, nframes::Integer)
-    buf = SampleBuf(eltype(src), samplerate(src), nframes, nchannels(src))
-    n = read!(src, buf)
-
-    buf[1:n, :]
-end
-
+Returns the preferred block size of the sampled sink or source. Only implement
+this method if there is a particular size that is more efficient for the sink
+or source. If no particular size is necessary, to indicate this the default
+fall-back method returns missing.
+"""
+function blocksize end
 const DEFAULT_BLOCKSIZE=4096
 
-# handle sink-to-source writing with a duration in seconds
-function Base.write(sink::SampleSink, source::SampleSource, duration::Quantity;
-                    blocksize=-1)
-    sr = samplerate(sink)
-    frames = trunc(Int, inseconds(duration) * sr)
-    n = write(sink, source, frames; blocksize=blocksize)
-
-    # if we completed the operation return back the original duration so the
-    # caller can check equality to see if the operation succeeded. Note this
-    # isn't going to be type-stable, but I don't expect this to be getting called
-    # in a hot loop
-    n == frames ? duration : n/sr
-end
-
-# wraps the given sink to match the sampling rate and channel count of the source
-# TODO: we should be able to add reformatting support to the ResampleSink and
-# xMixSink types, to avoid an extra buffer copy
-function wrap_sink(sink::SampleSink, source::SampleSource, blocksize)
-    if eltype(sink) != eltype(source) && !isapprox(samplerate(sink), samplerate(source))
-        # we're going to resample AND reformat. We prefer to resample
-        # in the floating-point space because it seems to be about 40% faster
-        if eltype(sink) <: AbstractFloat
-            wrap_sink(ResampleSink(sink, samplerate(source), blocksize), source, blocksize)
-        else
-            wrap_sink(ReformatSink(sink, eltype(source), blocksize), source, blocksize)
-        end
-    elseif eltype(sink) != eltype(source)
-        wrap_sink(ReformatSink(sink, eltype(source), blocksize), source, blocksize)
-    elseif !isapprox(samplerate(sink), samplerate(source))
-        wrap_sink(ResampleSink(sink, samplerate(source), blocksize), source, blocksize)
-    elseif nchannels(sink) != nchannels(source)
-        if nchannels(sink) == 1
-            DownMixSink(sink, nchannels(source), blocksize)
-        elseif nchannels(source) == 1
-            UpMixSink(sink, blocksize)
-        else
-            error("General M-to-N channel mapping not supported")
-        end
+########################################
+# read methods
+function Base.read(src::SampleSource,
+                   len=coalesce(nframes(src),blocksize(src),DEFAULT_BLOCKSIZE))
+    nframes = inframes(Int,len,usamplerate(src))
+    if nchannels(src) > 1
+        buf = SampleBuf(eltype(src), usamplerate(src), nframes, nchannels(src))
     else
-        # everything matches, just return the sink
-        sink
+        buf = SampleBuf(eltype(src), usamplerate(src), nframes)
+    end
+    n = read!(src, buf)
+
+    if ndims(buf) > 1
+        buf[1:n, :]
+    else
+        buf[1:n]
     end
 end
 
-function Base.write(sink::SampleSink, source::SampleSource, frames::FrameQuant;
-                    blocksize=-1)
-    write(sink, source, inframes(Int,frames,samplerate(source));
-          blocksize=blocksize)
+function Base.read!(src::SampleSource, buf::AbstractArray, len=nframes(buf))
+
+    checkformat(src)
+    frames = inframes(Int,len,usamplerate(src))
+    n = write(SampleBufSink(signal(buf,usamplerate(src))), src, frames)
+    sameunits(len,nframes,n,usamplerate(src))
 end
-function Base.write(sink::SampleSink, source::SampleSource, frames=-1;
-        blocksize=-1)
-    if blocksize < 0
-        blocksize = SampledSignals.blocksize(source)
-    end
-    if blocksize == 0
-        blocksize = DEFAULT_BLOCKSIZE
-    end
-    # looks like everything matches, now we can actually hook up the source
-    # to the sink
-    unsafe_write(wrap_sink(sink, source, blocksize), source, frames, blocksize)
+
+sameunits(len::Unitful.Time,nframes,n,sr) =
+    nframes == n ? len : inseconds(n*frames,sr)*s
+sameunits(len,nframes,n,sr) = n
+
+########################################
+# write methods
+
+Base.write(sink::SampleSink, source, frames=nothing;kwds...) =
+    write(sink,tosource(signal(source,usamplerate(sink))),frames;kwds...)
+
+function Base.write(sink::SampleSink, source::SampleSource, len=nothing;
+                    blocksize=coalesce(SampledSignals.blocksize(source),
+                                       DEFAULT_BLOCKSIZE))
+    checkformat(sink)
+    checkformat(source)
+
+    nframes = len==nothing ? nothing :
+        trunc(Int,inframes(len,usamplerate(source)))
+
+    n = write_helper(sink, promote_signal(source,by=sink), nframes, blocksize)
+    sameunits(len,nframes,n,usamplerate(sink))
 end
 
 # internal function to wire up a sink and source, assuming they have the same
 # sample rate and channel count
-function unsafe_write(sink::SampleSink, source::SampleSource, frames=-1, blocksize=-1)
+function write_helper(sink::SampleSink{R}, source::SampleSource{R},
+                      frames, blocksize) where R
     written::Int = 0
     buf = Array{eltype(source)}(undef, blocksize, nchannels(source))
-    while frames < 0 || written < frames
-        n = frames < 0 ? blocksize : min(blocksize, frames - written)
-        nr = unsafe_read!(source, buf, 0, n)
-        nw = unsafe_write(sink, buf, 0, nr)
+    while frames == nothing || written < frames
+        n = frames == nothing ? blocksize : min(blocksize, frames - written)
+        nr = read!(source, view(buf,1:n,:), SignalFormat(source))
+        nw = write(sink, view(buf,1:nr,:), SignalFormat(source))
         written += nw
         if nr < n || nw < nr
             # one of the streams has reached its end
@@ -148,316 +157,694 @@ function unsafe_write(sink::SampleSink, source::SampleSource, frames=-1, blocksi
     written
 end
 
-function Base.write(sink::SampleSink, buf::SampleBuf, nframes=nframes(buf))
-    if nchannels(sink) == nchannels(buf) &&
-            eltype(sink) == eltype(buf) &&
-            isapprox(samplerate(sink), samplerate(buf))
-        # everything matches, call the sink's low-level write method
-        unsafe_write(sink, buf.data, 0, nframes)
+########################################
+# sink coercion: all coercion is handled by changing the sample rate and
+# channels of the sink (see write and read above).  to coerce source they are
+# first interpreted as sinks
+
+function tosamplerate(sink::SampleSource,S,::IsSignal{R}) where {R}
+    if dimension(S) != dimension(R)
+        error("Changing the dimension of a stream from $(dimension(S)) to ",
+              "$(dimension(R)) is not supported.")
+    elseif !isapprox(S,R)
+        ResampleSource(sink, S)
     else
-        # some conversion is necessary. Wrap in a source so we can use the
-        # stream conversion machinery
-        write(sink, SampleBufSource(buf), nframes)
+        sink
     end
 end
+tochannels(sink::SampleSource,ch) = ChannelMixSource(sink,ch)
 
-function Base.write(sink::SampleSink, buf::SampleBuf, duration::Quantity)
-    n = inframes(Int, duration, samplerate(buf))
-    written = write(sink, buf, n)
-    if written == n
-        return duration
-    else
-        return written / samplerate(buf) * s
-    end
-end
+# simple coercion of sinks (everything but sample rate)
+# using SampleBuf coercion
 
-# treat bare arrays as a buffer with the same samplerate as the sink
-function Base.write(sink::SampleSink, arr::Array, dur=nframes(arr))
-    buf = SampleBuf(arr, samplerate(sink))
-    write(sink, buf, dur)
-end
-
-function Base.read!(source::SampleSource, buf::SampleBuf, n::Integer)
-    if nchannels(source) == nchannels(buf) &&
-            eltype(source) == eltype(buf) &&
-            isapprox(samplerate(source), samplerate(buf))
-        unsafe_read!(source, buf.data, 0, n)
-    else
-        # some conversion is necessary. Wrap in a sink so we can use the
-        # stream conversion machinery
-        write(SampleBufSink(buf), source, n)
-    end
-end
-
-# when reading into a SampleBuf, calculate frames based on the given buffer,
-# which might differ from the source samplerate if there's a samplerate
-# conversion involved.
-function Base.read!(source::SampleSource, buf::SampleBuf, t)
-    n = inframes(Int, t, samplerate(source))
-    written = read!(source, buf, n)
-    if written == n
-        return t
-    else
-        return written / samplerate(buf) * s
-    end
-end
-
-function Base.read!(source::SampleSource, buf::Array, t)
-    n = inframes(Int, t, samplerate(source))
-    written = read!(source, buf, n)
-    if written == n
-        return t
-    else
-        return written / samplerate(buf) * s
-    end
-end
-
-# treat bare arrays as a buffer with the same samplerate as the source
-function Base.read!(source::SampleSource, arr::Array, n::Integer)
-    buf = SampleBuf(arr, samplerate(source))
-    read!(source, buf, n)
-end
-
-# if no frame count is given default to the number of frames in the destination
-Base.read!(source::SampleSource, arr::AbstractArray) = read!(source, arr, nframes(arr))
-
-function Base.read(source::SampleSource)
-    buf = SampleBuf(eltype(source),
-                    samplerate(source),
-                    DEFAULT_BLOCKSIZE,
-                    nchannels(source))
-    # during accumulation we keep the channels separate so we can grow the
-    # arrays without needing to copy data around as much
-    cumbufs = [Vector{eltype(source)}() for _ in 1:nchannels(source)]
-    while true
-        n = read!(source, buf)
-        for ch in 1:length(cumbufs)
-            append!(cumbufs[ch], @view buf.data[1:n, ch])
-        end
-        n == nframes(buf) || break
-    end
-    SampleBuf(hcat(cumbufs...), samplerate(source))
-end
-
-"""UpMixSink provides a single-channel sink that wraps a multi-channel sink.
-Writing to this sink copies the single channel to all the channels in the
-wrapped sink"""
-struct UpMixSink{W <: SampleSink, B <: Array} <: SampleSink
+struct ChannelMixSource{Dir,R,T,W<:SampleSource} <: SampleSource{R,T}
     wrapped::W
-    buf::B
+    ch::Int
 end
-
-function UpMixSink(wrapped::SampleSink, blocksize=DEFAULT_BLOCKSIZE)
-    N = nchannels(wrapped)
-    T = eltype(wrapped)
-    buf = Array{T}(undef, blocksize, N)
-
-    UpMixSink(wrapped, buf)
-end
-
-samplerate(sink::UpMixSink) = samplerate(sink.wrapped)
-nchannels(sink::UpMixSink) = 1
-Base.eltype(sink::UpMixSink) = eltype(sink.wrapped)
-blocksize(sink::UpMixSink) = size(sink.buf, 1)
-
-function unsafe_write(sink::UpMixSink, buf::Array, frameoffset, framecount)
-    blksize = blocksize(sink)
-    written = 0
-
-    while written < framecount
-        n = min(blksize, framecount - written)
-        for ch in 1:nchannels(sink.wrapped)
-            sink.buf[1:n, ch] = view(buf, (1:n) .+ written .+ frameoffset)
-        end
-        actual = unsafe_write(sink.wrapped, sink.buf, 0, n)
-        written += actual
-        if actual != n
-            # write stream closed early
-            break
-        end
+function ChannelMixSource(wrapped::SampleSource{R,T}, ch) where {R,T}
+    dir = if nchannels(wrapped) == 1
+      :down
+    elseif ch == 1
+      :up
+    else
+      error("Don't know how to coerce a $(nchannels(x))-channel stream",
+            " to have $ch channels.")
     end
-
-    written
+    ChannelMixSource{dir,R,T,typeof(wrapped)}(wrapped,ch)
+end
+nchannels(x::ChannelMixSource) = x.ch
+tochannels(x::ChannelMixSource,ch) = ChannelMixSource(x.wrapped,ch)
+function Base.read!(source::ChannelMixSource{:down,R}, buf::AbstractArray,
+                    trait::IsSignal{R}) where R
+  n = read!(source.wrapped,view(buf,:,1),trait)
+  buf[1:n,2:end] .= view(buf,1:n,1)
+  n
+end
+function Base.read!(source::ChannelMixSource{:up,R}, buf::AbstractArray,
+                    trait::IsSignal{R}) where R
+  unmixed = Array{eltype(buf)}(undef, nframes(buf), nchannels(source.wrapped))
+  n = read!(source.wrapped, unmixed, trait)
+  sum!(view(buf,1:n,:),view(unmixed,1:n,:))
+  n
 end
 
-"""DownMixSink provides a multi-channel sink that wraps a single-channel sink.
-Writing to this sink mixes all the channels down to the single channel"""
-struct DownMixSink{W <: SampleSink, B <: Array} <: SampleSink
+mutable struct ResampleSource{R, T, W <: SampleSource, B <: Array,
+                              L, FIR <: FIRFilter} <: SampleSource{R,T}
     wrapped::W
-    buf::B
-    channels::Int
-end
-
-function DownMixSink(wrapped::SampleSink, channels, blocksize=DEFAULT_BLOCKSIZE)
-    T = eltype(wrapped)
-    buf = Array{T}(undef, blocksize, 1)
-
-    DownMixSink(wrapped, buf, channels)
-end
-
-samplerate(sink::DownMixSink) = samplerate(sink.wrapped)
-nchannels(sink::DownMixSink) = sink.channels
-Base.eltype(sink::DownMixSink) = eltype(sink.wrapped)
-blocksize(sink::DownMixSink) = size(sink.buf, 1)
-
-function unsafe_write(sink::DownMixSink, buf::Array, frameoffset, framecount)
-    blocksize = nframes(sink.buf)
-    written = 0
-    if nchannels(buf) == 0
-        error("Can't do channel conversion from a zero-channel source")
-    end
-
-    while written < framecount
-        n = min(blocksize, framecount - written)
-        # initialize with the first channel
-        sink.buf[1:n] = buf[(1:n) .+ written .+ frameoffset, 1]
-        for ch in 2:nchannels(buf)
-            sink.buf[1:n] += buf[(1:n) .+ written .+ frameoffset, ch]
-        end
-        actual = unsafe_write(sink.wrapped, sink.buf, 0, n)
-        written += actual
-        if actual != n
-            # write stream closed early
-            break
-        end
-    end
-
-    written
-end
-
-mutable struct ReformatSink{W <: SampleSink, B <: Array, T} <: SampleSink
-    wrapped::W
-    buf::B
-    typ::T
-end
-
-function ReformatSink(wrapped::SampleSink, T, blocksize=DEFAULT_BLOCKSIZE)
-    WT = eltype(wrapped)
-    N = nchannels(wrapped)
-    buf = Array{WT}(undef, blocksize, N)
-
-    ReformatSink(wrapped, buf, T)
-end
-
-samplerate(sink::ReformatSink) = samplerate(sink.wrapped)
-nchannels(sink::ReformatSink) = nchannels(sink.wrapped)
-Base.eltype(sink::ReformatSink) = sink.typ
-blocksize(sink::ReformatSink) = nframes(sink.buf)
-
-function unsafe_write(sink::ReformatSink, buf::Array, frameoffset, framecount)
-    blocksize = nframes(sink.buf)
-    written = 0
-
-    while written < framecount
-        n = min(blocksize, framecount - written)
-        # copy to the buffer, which will convert to the wrapped type
-        sink.buf[1:n, :] = view(buf, (1:n) .+ written .+ frameoffset, :)
-        actual = unsafe_write(sink.wrapped, sink.buf, 0, n)
-        written += actual
-        if actual != n
-            # write stream closed early
-            break
-        end
-    end
-
-    written
-end
-
-mutable struct ResampleSink{W <: SampleSink, B <: Array, F <: FIRFilter} <: SampleSink
-    wrapped::W
-    samplerate::Float32
     buf::B
     ratio::Rational{Int}
-    filters::Vector{F}
+    filters::Vector{FIR}
+    leftover::L
+    leftover_range::UnitRange{Int}
 end
+# coercion of sample rate
+function ResampleSource(wrapped::SampleSource, sr,
+                        blocksize=coalesce(SampledSignals.blocksize(wrapped),
+                                           DEFAULT_BLOCKSIZE))
 
-function ResampleSink(wrapped::SampleSink, sr, blocksize=DEFAULT_BLOCKSIZE)
+    ratio = rationalize(uconvert(Unitful.NoUnits,sr/usamplerate(wrapped)))
+
     wsr = samplerate(wrapped)
     T = eltype(wrapped)
     N = nchannels(wrapped)
-    buf = Array{T}(undef, blocksize, N)
+    buf = Array{T}(undef, trunc(Int,blocksize*ratio), N)
 
-    ratio = rationalize(wsr/sr)
     coefs = resample_filter(ratio)
     filters = [FIRFilter(coefs, ratio) for _ in 1:N]
 
-    ResampleSink{typeof(wrapped), typeof(buf), eltype(filters)}(wrapped, sr, buf, ratio, filters)
+    R = format(sr)
+    W = typeof(wrapped)
+    B = typeof(buf)
+    FIR = eltype(filters)
+
+    leftover = zeros(T, max(2,ceil(Int,ratio)), nchannels(wrapped))
+    L = typeof(leftover)
+    ResampleSource{R, T, W, B, L, FIR}(wrapped, buf, ratio, filters,
+                                       leftover, 1:0)
 end
+blocksize(x::ResampleSource) = trunc(Int,nfrmaes(x.buf) * x.ratio)
+nchannels(source::ResampleSource) = nchannels(source.wrapped)
+tosamplerate(source::ResampleSource,R,::IsSignal) =
+  tosamplerate(source.wrapped,R)
+function tochannels(source::ResampleSource,ch)
+  # do the channel mixing in the most efficient order (to minimize the number
+  # of resampling operations required)
+  if ch < nchannels(source)
+    tosamplerate(ChannelMixSource(source.wrapped,ch),usamplerate(source))
+  else
+    ChannelMixSource(source,ch)
+  end
+end
+function Base.read!(source::ResampleSource{R}, buf::AbstractArray,
+                    trait::IsSignal{R}) where R
+    nchannels(buf) > 0 || return nframes(buf)
+    tosr(x) = ceil(Int,x * source.ratio)
+    fromsr(x) = trunc(Int,x / source.ratio)
 
-samplerate(sink::ResampleSink) = sink.samplerate
-nchannels(sink::ResampleSink) = nchannels(sink.wrapped)
-Base.eltype(sink::ResampleSink) = eltype(sink.wrapped)
-# TODO: implement blocksize for this
+    n = 0
+    trait = IsSignal{usamplerate(source.wrapped), eltype(source.buf)}()
+    while n < nframes(buf)
+        # if there are samples leftover from a previous read,
+        # write them to the buffer
+        if length(source.leftover_range) > 0
+            buf[(1:length(source.leftover_range)) .+ n,:] =
+                view(source.leftover,source.leftover_range,:)
+            n += length(source.leftover_range)
+            source.leftover_range = 1:0
+        end
 
-function unsafe_write(sink::ResampleSink, buf::Array, frameoffset, framecount)
-    # check here for a zero-channel sink so we don't crash below
-    nchannels(sink) < 1 && return framecount
-    dest_blocksize = nframes(sink.buf)
-    src_blocksize = trunc(Int, dest_blocksize / sink.ratio)
+        toread = max(1,min(fromsr(nframes(buf)) - n,tosr(nframes(source.buf))))
+        actual_wrapped = read!(source.wrapped, view(source.buf,1:toread,:),
+                               trait)
 
-    written = 0
-    while written < framecount
-        towrite = min(src_blocksize, framecount - written)
-        # good thing we checked for a zero-channel sink up there
-        actual = filt!(view(sink.buf, :, 1),
-                       sink.filters[1],
-                       view(buf, (1:towrite) .+ written .+ frameoffset, 1))
-        for ch in 2:nchannels(sink)
-            if actual != filt!(view(sink.buf, :, ch),
-                               sink.filters[ch],
-                               view(buf, (1:towrite) .+ written .+ frameoffset, ch))
+        actual_wrapped > 0 || break
+        actual_resamp = actual_ch = 0
+        for ch in 1:nchannels(buf)
+            # good thing we checked for a zero-channel source up there
+            tofilt = min(nframes(buf)-n,tosr(actual_wrapped))
+            # we might have to save some samples in `leftover` if `filt!` will
+            # produce more samples than we want to read.
+            if tofilt < tosr(actual_wrapped)
+                actual_ch = filt!(view(source.leftover,:,ch),
+                                        source.filters[ch],
+                                        view(source.buf,1:actual_wrapped,ch))
+                actual_fill = min(actual_ch,tofilt)
+                buf[(1:actual_fill) .+ n,ch] =
+                    view(source.leftover,1:actual_fill,ch)
+                source.leftover_range = (actual_fill+1):actual_ch
+                actual_ch = actual_fill
+            else
+                actual_ch = filt!(view(buf,(1:tofilt) .+ n,ch),
+                                  source.filters[ch],
+                                  view(source.buf,1:actual_wrapped,ch))
+            end
+
+            if ch == 1
+                actual_resamp = actual_ch
+            elseif actual_resamp != actual_ch
                 error("Something went wrong - resampling channels out-of-sync")
             end
         end
-        unsafe_write(sink.wrapped, sink.buf, 0, actual)
-        written += towrite
+        n += actual_resamp
     end
 
-    written
+    return n
 end
 
-"""SampleBufSource is a SampleSource backed by a buffer. It's mostly useful to
-hook into the stream conversion infrastructure, because you can wrap a buffer in
-a SampleBufSource and then write it into a sink with a different channel count,
-sample rate, or channel count."""
-mutable struct SampleBufSource{B<:SampleBuf} <: SampleSource
+########################################
+# coerce objects into sources
+
+"""
+    tosource(x,::IsSignal)
+
+Internal method used by `mapsignals`: if a signal isn't an `AbstractArray` it
+must implement this to be used in `mapsignals`. The method for a new signal
+type should always return a `SampleSource` object.
+"""
+tosource(x::SampleBuf) = ArrayLikeSource(x)
+tosource(x::SampleSource) = x
+tosource(x) = tosource(x,SignalFormat(x))
+tosource(x::AbstractArray,::IsSignal) = ArrayLikeSource(x)
+tosource(x,::IsSignal) =
+    error("Don't know how to read from signal $x. ",
+          "Implement `tosource(x::$(typeof(x)),::IsSignal)`.")
+tosource(x,::NotSignal) = error("$x is not a signal.")
+
+signal(x::Number,R,::NotSignal) = SingletonSource{format(R),typeof(x)}(x,1)
+struct SingletonSource{R,T} <: SampleSource{R,T}
+    num::T
+    ch::Int
+end
+nchannels(x::SingletonSource) = 1
+tosamplerate(x::SingletonSource,sr,::IsSignal) = signal(x.num,sr)
+tochannels(x::SingletonSource{R,T},ch) where {R,T} =
+    SingletonSource{R,T}(x.num,ch)
+function Base.read!(source::SingletonSource{R}, buf::AbstractArray,
+                    ::IsSignal{R}) where R
+    buf .= source.num
+    nframes(buf)
+end
+
+# TODO: can this be any signal that's an array our just a SampleBuf?
+"""
+ArrayLikeSource is a SampleSource backed by an array. It's used to handle
+interactions between any signal that satisfies the `AbstractArray` interface
+(including `SampleBuf` objects) and SampleSource objects in a uniform way.
+"""
+mutable struct ArrayLikeSource{B,R,T} <: SampleSource{R,T}
     buf::B
     read::Int
 end
-
-SampleBufSource(buf::SampleBuf) = SampleBufSource(buf, 0)
-
-samplerate(source::SampleBufSource) = samplerate(source.buf)
-nchannels(source::SampleBufSource) = nchannels(source.buf)
-Base.eltype(source::SampleBufSource) = eltype(source.buf)
-
-function unsafe_read!(source::SampleBufSource, buf::Array, frameoffset, framecount)
-    n = min(framecount, nframes(source.buf)-source.read)
-    buf[(1:n) .+ frameoffset, :] = view(source.buf, (1:n) .+ source.read, :)
+ArrayLikeSource(buf) = ArrayLikeSource(buf,SignalFormat(buf))
+ArrayLikeSource(buf,::IsSignal{R,T}) where {R,T} =
+    ArrayLikeSource{typeof(buf),R,T}(buf, 0)
+nchannels(source::ArrayLikeSource) = nchannels(source.buf)
+nframes(source::ArrayLikeSource) = nframes(source.buf)
+blocksize(source::ArrayLikeSource) = nframes(source.buf)
+function Base.read!(source::ArrayLikeSource{<:Any,R}, buf::AbstractArray,
+                    ::IsSignal{R}) where R
+    n = min(nframes(buf), nframes(source.buf)-source.read)
+    buf[(1:n), :] = view(source.buf, (1:n) .+ source.read, :)
     source.read += n
 
     n
 end
+function tosamplerate(x::ArrayLikeSource,sr,::IsSignal{R}) where R
+    if sr != R
+        tosource(tosamplerate(x.buf[x.read+1:end,:],sr))
+    else
+        x
+    end
+end
 
-"""SampleBufSink is a SampleSink backed by a buffer. It's mostly useful to
-hook into the stream conversion infrastructure, because you can wrap a buffer in
-a SampleBufSink and then read a source into it with a different channel count,
-sample rate, or channel count."""
-mutable struct SampleBufSink{B<:SampleBuf} <: SampleSink
+"""
+SampleBufSink is a SampleSink backed by a buffer. It's used to handle
+writing to a SampleBuf from a set of SampleSource objects.
+"""
+mutable struct SampleBufSink{B<:SampleBuf,R,T} <: SampleSink{R,T}
     buf::B
     written::Int
 end
-
-SampleBufSink(buf::SampleBuf) = SampleBufSink(buf, 0)
-
-samplerate(sink::SampleBufSink) = samplerate(sink.buf)
+SampleBufSink(buf::SampleBuf{<:Any,R,T}) where {R,T} =
+    SampleBufSink{typeof(buf),R,T}(buf, 0)
 nchannels(sink::SampleBufSink) = nchannels(sink.buf)
-Base.eltype(sink::SampleBufSink) = eltype(sink.buf)
-
-function unsafe_write(sink::SampleBufSink, buf::Array, frameoffset, framecount)
-    n = min(framecount, nframes(sink.buf)-sink.written)
-    sink.buf[(1:n) .+ sink.written, :] = view(buf, (1:n) .+ frameoffset, :)
+blocksize(buf::SampleBufSink) = nframes(sink.buf)
+function Base.write(sink::SampleBufSink{<:Any,R}, buf::AbstractArray,
+                    ::IsSignal{R}) where R
+    n = min(nframes(buf), nframes(sink.buf)-sink.written)
+    sink.buf[(1:n) .+ sink.written, :] = view(buf, (1:n), :)
     sink.written += n
 
     n
 end
+
+########################################
+# function -> signal
+mutable struct FnSource{Fn,R,T} <: SampleSink{R,T}
+    fn::Fn
+    freq2pi::Float64
+    ϕ::Float64
+end
+
+"""
+    signal(fn,freq,eltype=Float64;phase=0,ϕ=phase,samplerate=48000)
+
+Generate an infinite mono signal (a `SampleSource`) with the given eltype. In
+other ways this works in exactly the way generating finite signals with
+`signal` does.
+
+For example, the following creates an arbitrary length pure tone at
+1000 Hz.
+
+signal(sin,1kHz)
+
+"""
+function signal(fn::Function,freq,eltype::Type{T}=Float64;phase=0,ϕ=phase,
+                samplerate=48kHz) where T
+    ratio = inHz(freq) / inHz(samplerate)
+    FnSource{typeof(fn),usamplerate(sr),T}(fn,2π * ratio,ϕ)
+end
+nchannels(::FnSource) = 1
+function Base.read!(source::FnSource{<:Any,R}, buf::AbstractArray,
+                    ::IsSignal{R}) where R
+    br = eltype(F)
+    ϕ = 1:nframes(buf).*source.freq2pi .+ source.ϕ
+    buf[1:nframes(buf)] .= br.(fn.(ϕ))
+    source.ϕ += last(ϕ)
+
+    nframes(buf)
+end
+function tosamplerate(x::FnSource{Fn,R,T},sr,::IsSignal{R}) where {Fn,R,T}
+    ratio = inHz(R) / inHz(sr)
+    FnSource{Fn,sr,T}(x.fn,x.freq2pi * ratio ,x.ϕ)
+end
+
+struct SampleSourceByFn{Fn,R,T} <: SampleSource{R,T}
+    fn::Fn
+    ch::Int
+end
+nchannels(x::SampleSourceByFn) = x.ch
+function Base.read!(source::SampleSourceByFn{<:Any,R}, buf::AbstractArray,
+                    ::IsSignal{R}) where R
+    source.fn(buf)
+end
+
+"""
+    stream(fn,eltype=Float64;samplerate=48kHz,nchannels=1)
+
+Creates `SampleSource` object of the given format, from a single function.  The
+function should write as many frames into its single argument (an
+`AbstractArray`) and return the number of frames successfully written.
+"""
+function stream(fn::Function,eltype::Type{T}=Float64;samplerate=48kHz,
+                nchannels=1) where T
+
+    SampleSourceByFn{typeof(fn),format(samplerate),T}(fn,nchannels)
+end
+
+########################################
+# flexible mapping that pads missing samples
+
+"""
+    mapsignals(f,xs...;pad=[usually 0], blocksize=[default varies, see below])
+
+Analogous to `broadcast`, applies `f` to each sample across all the signals.
+The key difference from `broadcast` is that `mapsignals` first coerces all of
+the signals to the same sample rate and then pads any missing samples at the
+end of signals to match the longest one. Any object that can be interpreted as
+a signal (e.g. `Number` or `AbstractArray`) using the `signal` method can also
+be passed.  Non-signals are assumed to be at the highest sample rate passed.
+You can interpret an array to be at a different, explicit sample rate by
+passing it to `signal` first. Returns either a `SampleBuf` if all of the
+inputs are numbers or `AbstractArray` objects (includes `SampleBuf`), otherwise
+a `SampleStream`.
+
+NOTE: The `eltype` of the result is inferred from the first call to `f`.  This
+means that if the type of the return value of `f` changes sometime later, it
+will be coerced to be the same type as prior outputs.
+
+# Keyword arguments:
+
+## Blocksize
+
+The block size is set to a sensible default and need not normally be configured.
+
+When all inputs are of known lengths (e.g. any `AbstractArray` or `Number`) the
+block size will be set to the longest length signal. It is not recommended to
+change the `blocksize` in this case. For streams the block size will be set to
+the minimum `blocksize` of the inputs.
+
+# Padding
+
+Padding determines what value to pass to `f` once the end of a signal
+is reached.  Available padding functions are `padlast`, `padcycle` and
+`padzero`.
+
+## Padding
+
+Padding can be a specific number, one of the predefined padding functions
+(`padzero`, `padlast` or `padcycle`) or a custom function (see below).
+
+By default, padding is determined by the mapping function `f`, and normally
+defaults to `padzero`. If `f` is `*` or '/` the default is `padlast`. You can
+pass a different padding with the `pad` keyword or you can indicate that
+a different padding should be used by default for mapping funciton `f` by
+defining
+
+    SampledSignals.padding(::typeof(f)) = [padding function here]
+
+### Custom Padding
+
+Custom padding functions should take the same functional form as `getindex` and
+will be passed an `AbstractArray` and the invalid indices for each signal.
+
+There are several properties assumed about a custom padding function by
+default. These can be changed for faster performance or to make the function
+usuable in more situations.
+
+#### Padding a signal of an unknown length is an error by default.
+
+By default it is assumed that a custom padding function may access any valid
+index of the passed array: therefore an error will be thrown if the padding
+function is passed a signal with an unknown length such as a `SampleSource`. To
+support signals with an unknown length for function `padfn`, you can declare
+the following.
+
+    SampledSignals.pad_stream(::typeof(padfn)) = true
+
+When implementing such a function, keep in mind that `padfn` may not be passed
+the entire signal and the index will reference the start of the passed array
+not the start of the signal: when operating over `SampleSource` objects, this
+passed array is at most `blocksize` in length, and may be shorter.
+
+#### The padding output may vary across indices.
+
+It is normally assumed a different padding value might be used for different
+indices past the end of a signal. To further optimize a padding function you
+can indicate that its result only depends on the array input (1st argument) and
+not any of the indexing arguments. If you wish to indicate otherwise, declare
+the following.
+
+    SampleSignals.pad_index_constant(::typeof(padfn)) = true
+
+The function will only be called once for each signal rather than for each
+index of the array past the end of the signal that is needed.
+
+#### The padding function requires at least one valid index.
+
+It is normally assumed that the padding function will require the input
+array to have at least one valid index (`a[1]`). If the padding function
+can safely return a result even when the array is empty, you can define
+the following.
+
+    SampledSignals.pad_empty_array(::typeof(padfn)) = true
+
+"""
+mapsignals(f;kwds...) = error("No signals passed to `mapsignals`.")
+mapsignals(f,xs::Number...;kwds) = f(xs...)
+function mapsignals(f,xs...;blocksize=nothing,kwds...)
+    signals = promote_signals(xs...)
+    MappedSource(f,signals...;blocksize=findblocksize(xs,blocksize),kwds...)
+end
+mapsignal_len(x::Number) = 0
+mapsignal_len(x::AbstractArray) = nframes(x)
+function mapsignals(f,xs::Union{AbstractArray,Number}...;blocksize=nothing,
+                    kwds...)
+    signals = promote_signals(xs...)
+    len = maximum(mapsignal_len.(xs))
+    result = MappedSource(f,signals...; blocksize=len, kwds...)
+    read(result,len)
+end
+function findblocksize(xs,blocksize)
+  if blocksize==nothing
+    sizes = skipmissing(SampledSignals.blocksize.(xs))
+    if isempty(sizes)
+      DEFAULT_BLOCKSIZE
+    else
+      minimum(sizes)
+    end
+  else
+    blocksize
+  end
+end
+
+nframes_helper(::Number) = missing
+nframes_helper(x) = nframes(x)
+
+"""
+    mapsignals!(f,result,xs...;pad=SampleSource.padding(f))
+
+Like `mapsignals` but stores the result in `result`.
+"""
+function mapsignals!(f,result::SampleSink,xs...;kwds...)
+    write(result,mapsignals(f,xs...;kwds...))
+end
+mapsignals!(f,result,xs...;kwds...) =
+    mapsignals(f,result,SignalFormat(result),xs...;kwds...)
+function mapsignals!(f,result,::NotSignal,xs...;kwds...)
+    xs = promote_signals(xs...)
+    mapsignals(f,signal(result,usamplerate(xs[1])),xs...;kwds...)
+end
+function mapsignals!(f,result::AbstractArray,::IsSignal,
+                     xs::Union{Number,AbstractArray}...; kwds...)
+    source = MappedSource(f,promote_signal.(xs,by=result);kwds...)
+    write(SampleBufSink(result), source, nframes(result))
+end
+padding(x) = padzero
+padding(::typeof(*)) = padlast
+padding(::typeof(/)) = padlast
+pad_stream(x) = false
+pad_empty_array(x) = false
+pad_index_constant(x) = false
+pad_stream(::Number) = true
+pad_empty_array(::Number) = true
+apply_pad(pad,x,ixs...) = pad(x,i)
+apply_pad(pad::Number,x,ixs...) = pad
+
+"""
+    padzero(x,ixs...)
+
+Pads indices with `zero(eltype(x))`. See `mapsignals`.
+"""
+@Base.propagate_inbounds padzero(x,ixs...) = zero(eltype(x))
+pad_stream(::typeof(padzero)) = true
+pad_index_constant(::typeof(padzero)) = true
+
+"""
+    padlast(x,ixs...)
+
+Pads indices with the last frame in x. See `mapsignals`.
+"""
+@Base.propagate_inbounds padlast(x,i,ixs...) = x[end,ixs...]
+pad_stream(::typeof(padlast)) = true
+pad_index_constant(::typeof(padlast)) = true
+
+"""
+    padcycle(x,ixs...)
+
+Pad indices by wrapping around, starting back at the first sample.
+This only works on objects with a known length: `AbstractArray`
+and `SampleBuf` objects.
+"""
+@Base.propagate_inbounds padcycle(x,i,ixs...) = x[(i-1 % end)+1,ixs...]
+
+# ASSUMPTION: sources have the same format and channel count (that is,
+# promote_signals should first be called before passing input to a MappedSource
+# constructor)
+struct MappedSource{R,T,Fn,P,Ss,Fs,Bs} <: SampleSource{R,T}
+    fn::Fn
+    pad::P
+    sources::Ss
+    firstsample::Fs
+    buffers::Bs
+    buflen::Vector{Int}
+end
+firstsample_unused(x::MappedSource) = x.buflen[1] < 0
+function MappedSource(fn::Fn,pad::P,sources,buffers::Bs) where {Fn,P,Bs}
+    sr = usamplerate(sources[1])
+    sources = tosource.(sources)
+    Ss = Tuple{typeof.(sources)...}
+    buflen = zeros(Int,length(buffers))
+
+    # compute the first sample of the mapped source so we can figure out the
+    # `eltype`.
+    firstsample = read_first_sample(fn,pad,sources)
+    if firstsample isa Type
+        # `read_first_sample` returned a type: there are no samples available
+        # and all buffers were padded. Just mark the appropriate types
+        # and return a `MappedSource` that will provide 0 samples.
+        Fs = firstsample
+        T = eltype(firstsample)
+    else
+        # at least one sample is available: mark the types and create a mapped
+        # source that will provide the samples, indicating with a -1 that the
+        # first sample has been read, and has yet to be 'used' by the mapped
+        # source
+        Fs = typeof(firstsample)
+        T = eltype(firstsample)
+        buflen[1] = -1 ## hack to mark that firstsample is unused
+    end
+
+    # create the mapped source
+    MappedSource{sr,T,Fn,P,Ss,Fs,Bs}(fn, pad, sources, firstsample, buffers,
+                                     buflen)
+end
+
+function read_first_sample(fn,pad,sources::Tuple)
+    bufs = map(sources) do source
+        Array{eltype(source)}(undef,1,nchannels(source))
+    end
+    maxn = 0
+    for (source,buf) in zip(sources,bufs)
+        n = read!(source,buf,IsSignal{usamplerate(source),eltype(buf)}())
+        maxn = max(n,maxn)
+        if n < 1
+            if pad_empty_array(pad)
+                buf[1,:] = apply_pad(pad,buf,1,:)
+            else
+                error("One of the signals ($source) has no samples but the ",
+                      "padding function $pad requires at least one sample ",
+                      "to exist.")
+            end
+        end
+    end
+    result = fn.(map(buf -> buf[1,:],bufs)...)
+    (maxn > 0) ? result : typeof(result)
+end
+
+MappedSource(f,xs...;pad=padding(f),blocksize) =
+    MappedSource(f,pad,xs,select_buffer.(xs,blocksize))
+
+select_buffer(x::SampleSource,blocksize) =
+    Array{eltype(x)}(undef, blocksize, nchannels(x))
+select_buffer(x::SampleBuf,blocksize) = nothing
+select_buffer(x::SingletonSource,blocksize) = nothing
+
+nchannels(x::MappedSource) = nchannels(x.sources[1])
+function Base.read!(source::MappedSource{R}, result::AbstractArray,
+                    ::IsSignal{R}) where R
+    offset = 0
+    length_result = nframes(result)
+    if firstsample_unused(source)
+        result[1,:] = source.firstsample
+        offset += 1
+        length_result -= 1
+    end
+
+    padded = map((s,b,l) -> padbuffer(s,b,l,length_result,source.pad),
+                 source.sources, source.buffers, source.buflen)
+    # @show padded[1]
+    # @show padded[2]
+
+    source.buflen .= map(nframes ∘ first,padded)
+    start = 1
+    for (i,len) in enumerate(sort(source.buflen))
+        len = max(len,length_result)
+        selected = map(padded) do (buf,padding)
+            nframes(buf) >= len ?
+                view(buf,start:len,:) :
+                view(padding,start:len,:)
+        end
+        result[(start:len) .+ offset,:] .= source.fn.(selected...)
+        start = len+1
+    end
+    start-1 + offset
+end
+
+function padbuffer(source::SampleSource,buffer,buflen,framecount,pad)
+    n = read!(source, view(buffer,1:framecount))
+    if n > 0
+        if n < framecount && !pad_stream(pad)
+            error("$pad does not support stream padding.")
+        end
+
+        buffer, PaddedArray(view(buffer,1:n),framecount,pad,0)
+    else
+        if !pad_stream(pad)
+            error("$pad does not support stream padding.")
+        end
+
+        [], PaddedArray(view(buffer,1:buflen),framecount,pad,buflen)
+    end
+end
+
+function padbuffer(source::ArrayLikeSource,buffer,buflen,framecount,pad)
+    if source.read < nframes(source.buf)
+        start = source.read+1
+        stop = min(source.read+framecount,nframes(source.buf))
+        source.read = stop
+        view(source.buf,start:stop,:),
+          PaddedArray(source.buf, framecount, pad, stop)
+    else
+        [], PaddedArray(source.buf, framecount, pad, source.read)
+    end
+end
+
+struct PaddedArray{P,A,T,N} <: AbstractArray{T,N}
+    pad::P
+    data::A
+    length::Int
+    offset::Int
+end
+function PaddedArray(data::A,length,pad::P,offset) where {A,P}
+    if pad_index_constant(pad)
+        val = pad(data,1)
+        PaddedArray{typeof(val),A,eltype(A),ndims(A)}(val,data,length,offset)
+    else
+        PaddedArray{P,A,eltype(A),ndims(A)}(pad,data,length,offset)
+    end
+end
+Base.size(x::PaddedArray) = (x.length,Base.tail(size(x.data))...)
+@Base.propagate_inbounds Base.getindex(x::PaddedArray,i::Int...) =
+    x.pad(x.data,i[1]+x.offset,Base.tail(i)...)
+@Base.propagate_inbounds Base.getindex(x::PaddedArray{<:Number},i::Int...) =
+    eltype(x)(x.pad)
+
+function padbuffer(source::SingletonSource,buffer,buflen,framecount,pad)
+    SingletonBuffer(source.num,framecount), []
+end
+struct SingletonBuffer{T} <: AbstractArray{T,1}
+    val::T
+    len::Int
+end
+Base.size(x::SingletonBuffer) = (x.len,)
+Base.IndexStyle(::Type{<:SingletonBuffer}) = IndexLinear()
+@Base.propagate_inbounds Base.getindex(x::SingletonBuffer,i::Int...) = x.val
+
+"""
+    mix(xs...;pad=padzero)
+
+Mix (sum) signals, or anything that can be interpreted as a signal (arrays and
+numbers) together, padding the shorter signals with zeros.  Coerces the sample
+rate and number of channels of all signals to be the same.
+
+Custom padding can be used, refer to the documentation for `mapsignals` for
+details.
+"""
+mix(xs...;kwds...) = mapsignals(+,xs...;kwds...)
+mix!(result,xs...;kwds...) = mapsignals!(+,result,xs...;kwds...)
+
+"""
+    amplify(xs...;pad=padlast)
+
+Amplify (multiply) signals, or anything that can be interpreted as a signla
+(arrays and numbers) together, padding the shorter signals with their last
+sample. Coerces the samplerate and channels of all signals to be the same.
+
+Custom padding can be used, refer to the documentation for `mapsignals` for
+details.
+"""
+amplify(xs...;kwds...) = mapsignals(*,xs...;kwds...)
+amplify!(result,xs...;kwds...) = mapsignals!(*,result,xs...;kwds...)
+
+# """
+#     channnels(xs...;pad=padzero)
+
+# Creates a multi-channel signal from multiple single channel signals,
+# padding signals that are too short (by default) with zeros.
+
+# Custom padding can be used, refer to the documentation for `mapsignals` for
+# details.
+# """
+# TODO: cannot exactly use mapsignals, because it can't handle changes in
+# dimensionality

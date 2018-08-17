@@ -42,11 +42,11 @@ include("support/util.jl")
         data = rand(Float32, 16, 2) .- 0.5
         source = DummySampleSource(48000, data)
         sink = DummySampleSink(PCM16Sample, 48000, 2)
-        # the write function tests that the format matches
         write(sink, source)
         @test sink.buf == map(PCM16Sample, data)
     end
 
+    # TODO: this is the last test that failed
     @testset "downsampling conversion" begin
         sr1 = 48000
         sr2 = 9000
@@ -147,13 +147,13 @@ include("support/util.jl")
         sink = DummySampleSink(Float32, 48000, 2)
         duration = 1.0s
         t = write(sink, source, duration, blocksize=8)
-        @test t == (64/48000)
+        @test t == (64/48000)s
         @test sink.buf == data
     end
 
     @testset "SampleBufSource can wrap SampleBuf" begin
         buf = SampleBuf(rand(16, 2), 48000)
-        source = SampleBufSource(buf)
+        source = SampledSignals.tosource(buf)
         @test read(source, 8) == buf[1:8, :]
     end
 
@@ -209,6 +209,8 @@ include("support/util.jl")
         @test buf.data == data
     end
 
+    # TODO: I don't understand this to be the API
+    # DummySource doesn't define the correct blocksize
     @testset "can read long source without specifying frames" begin
         data = rand(10000, 2)
         source = DummySource(data)
@@ -399,10 +401,13 @@ include("support/util.jl")
         @test buf == data[1:32, 1] + data[1:32, 2]
     end
 
-    @testset "blocksize fallback returns 0" begin
-        @test blocksize(DummySampleSource(48000, zeros(5, 2))) == 0
-        @test blocksize(DummySampleSink(Float32, 48000, 2)) == 0
+    @testset "blocksize fallback returns `missing`" begin
+        @test ismissing(blocksize(DummySampleSource(48000, zeros(5, 2))))
+        @test ismissing(blocksize(DummySampleSink(Float32, 48000, 2)))
     end
+
+    # TOOD: add a test to ensure that child source formats
+    # are validated
 
     @testset "Writing source to sink goes blockwise" begin
         source = BlockedSampleSource(32)

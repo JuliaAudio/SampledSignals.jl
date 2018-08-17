@@ -1,48 +1,50 @@
-import SampledSignals: blocksize, samplerate, nchannels, unsafe_read!, unsafe_write
+import SampledSignals: blocksize, samplerate, nchannels
 import Base: eltype
 
-mutable struct DummySampleSource{T} <: SampleSource
-    samplerate::Float64
+mutable struct DummySampleSource{R,T} <: SampleSource{R,T}
     buf::Array{T, 2}
 end
-
-DummySampleSource(sr, buf::Array{T}) where T = DummySampleSource{T}(sr, buf)
-samplerate(source::DummySampleSource) = source.samplerate
+DummySampleSource(sr, buf::Array{T}) where T =
+  DummySampleSource{SampledSignals.format(sr),T}(buf)
 nchannels(source::DummySampleSource) = size(source.buf, 2)
-Base.eltype(source::DummySampleSource{T}) where T = T
+SampledSignals.nframes(source::DummySampleSource) = nframes(source.buf)
 
-function unsafe_read!(src::DummySampleSource, buf::Array, frameoffset, framecount)
-    eltype(buf) == eltype(src) || error("buffer type ($(eltype(buf))) doesn't match source type ($(eltype(src)))")
-    nchannels(buf) == nchannels(src) || error("buffer channel count ($(nchannels(buf))) doesn't match source channel count ($(nchannels(src)))")
+function Base.read!(src::DummySampleSource, buf::AbstractArray, ::IsSignal)
+    if eltype(buf) != eltype(src)
+      error("buffer type ($(eltype(buf))) doesn't match source "*
+            "type ($(eltype(src)))")
+    end
+    if nchannels(buf) != nchannels(src)
+      error("buffer channel count ($(nchannels(buf))) doesn't match source "*
+            "channel count ($(nchannels(src)))")
+    end
 
-    n = min(framecount, size(src.buf, 1))
-    buf[(1:n) .+ frameoffset, :] = src.buf[1:n, :]
+    n = min(nframes(buf), size(src.buf, 1))
+    buf[1:n, :] = src.buf[1:n, :]
     src.buf = src.buf[(n+1):end, :]
 
     n
 end
 
 
-mutable struct DummySampleSink{T} <: SampleSink
-    samplerate::Float64
+mutable struct DummySampleSink{R,T} <: SampleSink{R,T}
     buf::Array{T, 2}
 end
-
-DummySampleSink(eltype, samplerate, channels) =
-    DummySampleSink{eltype}(samplerate, Array{eltype}(undef, 0, channels))
-
-samplerate(sink::DummySampleSink) = sink.samplerate
+function DummySampleSink(eltype, samplerate, channels)
+  R = SampledSignals.format(samplerate)
+  DummySampleSink{R, eltype}(Array{eltype}(undef, 0, channels))
+end
 nchannels(sink::DummySampleSink) = size(sink.buf, 2)
-Base.eltype(sink::DummySampleSink{T}) where T = T
 
-function SampledSignals.unsafe_write(sink::DummySampleSink, buf::Array,
-                                     frameoffset, framecount)
-    eltype(buf) == eltype(sink) || error("buffer type ($(eltype(buf))) doesn't match sink type ($(eltype(sink)))")
-    nchannels(buf) == nchannels(sink) || error("buffer channel count ($(nchannels(buf))) doesn't match sink channel count ($(nchannels(sink)))")
+function Base.write(sink::DummySampleSink, buf::AbstractArray, ::IsSignal)
+    if nchannels(buf) != nchannels(sink)
+        error("buffer channel count ($(nchannels(buf))) doesn't match sink "*
+              "channel count ($(nchannels(sink)))")
+    end
 
-    sink.buf = vcat(sink.buf, view(buf, (1:framecount) .+ frameoffset, :))
+    sink.buf = vcat(sink.buf, buf)
 
-    framecount
+    nframes(buf)
 end
 
 # """
@@ -59,20 +61,18 @@ end
 # stream interface methods
 
 # used in SampleStream tests to test blocked reading
-mutable struct BlockedSampleSource <: SampleSource
+mutable struct BlockedSampleSource{R,T} <: SampleSource{R,T}
     framesleft::Int
 end
-
+BlockedSampleSource(fl) = BlockedSampleSource{48.0Hz,Float32}(fl)
 blocksize(::BlockedSampleSource) = 16
-samplerate(::BlockedSampleSource) = 48.0
-eltype(::BlockedSampleSource) = Float32
 nchannels(::BlockedSampleSource) = 2
 
-function unsafe_read!(src::BlockedSampleSource, buf::Array, frameoffset, framecount)
-    @test framecount == blocksize(src)
-    toread = min(framecount, src.framesleft)
+function Base.read!(src::BlockedSampleSource, buf::AbstractArray, ::IsSignal)
+    @test nframes(buf) == blocksize(src)
+    toread = min(nframes(buf), src.framesleft)
     for ch in 1:nchannels(buf), i in 1:toread
-        buf[i+frameoffset, ch] = i * ch
+        buf[i, ch] = i * ch
     end
     src.framesleft -= toread
 

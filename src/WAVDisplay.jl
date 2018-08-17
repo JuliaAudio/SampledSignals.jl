@@ -18,8 +18,7 @@ function embed_javascript()
     """)
 end
 
-# need to specify that T <: Number to avoid a method ambiguity with AbstractArray{Method} on 0.4
-function show(io::IO, ::MIME"text/html", buf::SampleBuf{T, N}) where {T <: Number, N}
+function show(io::IO, ::MIME"text/html", buf::SampleBuf)
     tempio = IOBuffer()
     wavwrite(tempio, buf)
     data = base64encode(take!(tempio))
@@ -127,17 +126,14 @@ end
 
 # we'll only ever write these formats
 const WAVE_FORMAT_PCM = 0x0001
-const SAMPLE_TYPE = PCM16Sample
+const NativeBitrate = PCM16Sample
 
 # floating-point and 16-bit fixed point buffer display works, but Int32 is
 # broken, so for now we convert to Float32 first. This hack should go away once
 # we switch over to just using WAV.jl
-function wavwrite(io::IO, buf::SampleBuf)
-    wavwrite(io, Float32.(buf))
-end
-
-# we always write 16-bit PCM wav data, because that's what Firefox understands
-function wavwrite(io::IO, buf::SampleBuf{<:Union{Int16, SAMPLE_TYPE, AbstractFloat}, N}) where N
+const ValidBitrate = Union{Int16, NativeBitrate, AbstractFloat}
+wavwrite(io::IO, buf::SampleBuf) = wavwrite(io, Float32.(buf))
+function wavwrite(io::IO, buf::SampleBuf{<:Any,<:Any,<:ValidBitrate, N}) where N
     nbits = 16
     nchans = nchannels(buf)
     blockalign = 2 * nchans
@@ -146,21 +142,21 @@ function wavwrite(io::IO, buf::SampleBuf{<:Union{Int16, SAMPLE_TYPE, AbstractFlo
     datalength::UInt32 = nframes(buf) * blockalign
 
     write_header(io, datalength)
-    write_format(io, WAVFormat(WAVE_FORMAT_PCM, nchans, sr, bps, blockalign, nbits))
+    write_format(io, WAVFormat(WAVE_FORMAT_PCM, nchans, sr, bps,
+                               blockalign, nbits))
 
     # write the data subchunk header
     write(io, b"data")
     write_le(io, datalength) # UInt32
     # write_data(io, fmt, buf.data')
-    for f in 1:nframes(buf), ch in 1:nchannels(buf)
+    @inbounds for f in 1:nframes(buf), ch in 1:nchannels(buf)
         write_le(io, buf[f, ch])
     end
 end
 
-
 write_le(stream::IO, val::Complex) = write_le(stream, abs(val))
 write_le(stream::IO, val::AbstractFloat) = write_le(stream,
-    SAMPLE_TYPE(clamp(val, typemin(SAMPLE_TYPE), typemax(SAMPLE_TYPE))))
+    NativeBitrate(clamp(val, typemin(NativeBitrate), typemax(NativeBitrate))))
 write_le(stream::IO, val::FixedPoint) = write_le(stream, reinterpret(val))
 write_le(stream::IO, value) = write(stream, htol(value))
 
