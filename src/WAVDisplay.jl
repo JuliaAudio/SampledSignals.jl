@@ -6,7 +6,7 @@
 function embed_javascript()
     js_path = joinpath(dirname(dirname(@__FILE__)), "deps", "wavesurfer.min.js")
     js_text = open(js_path) do io
-        readstring(io)
+        read(io, String)
     end
     # the javascript file contains the code to add itself to the require module
     # cache under the name 'wavesurfer'
