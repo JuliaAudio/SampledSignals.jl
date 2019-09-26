@@ -2,7 +2,6 @@ using SampledSignals
 using Compat.Test
 using DSP
 using FixedPointNumbers
-using Gumbo
 using FileIO: File, Stream, @format_str
 import LibSndFile
 
