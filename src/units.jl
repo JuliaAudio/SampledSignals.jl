@@ -29,8 +29,8 @@ inframes(time::Unitful.Time, rate) = inseconds(time)*inHz(rate)
 inframes(::Type{T}, freq::Unitful.Frequency, rate) where T <: Integer =
     round(T, inHz(freq)*inseconds(rate))
 inframes(freq::Unitful.Frequency, rate) = inHz(freq)*inseconds(rate)
-inframes(::Type, frame::Quantity) = error("Unknown sample rate")
-inframes(frame::Quantity) = error("Unknown sample rate")
+inframes(::Type, frame::Unitful.AbstractQuantity) = error("Unknown sample rate")
+inframes(frame::Unitful.AbstractQuantity) = error("Unknown sample rate")
 inframes(::Type{T}, frame::Real) where T = T(frame)
 inframes(frame::Real) = frame
 

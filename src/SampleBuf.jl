@@ -278,11 +278,11 @@ function toindex end
 toindex(buf::SampleBuf, t::Number) = t
 toindex(buf::SampleBuf, t::FrameQuant) = inframes(Int, t) + 1
 toindex(buf::SampleBuf, t::Unitful.Time) = inframes(Int, t, samplerate(buf)) + 1
-toindex(buf::SampleBuf, t::Quantity) = throw(Unitful.DimensionError(t, s))
+toindex(buf::SampleBuf, t::Unitful.AbstractQuantity) = throw(Unitful.DimensionError(t, s))
 toindex(buf::SpectrumBuf, f::Number) = f
 toindex(buf::SpectrumBuf, f::FrameQuant) = inframes(Int, f) + 1
 toindex(buf::SpectrumBuf, f::Unitful.Frequency) = inframes(Int, f, samplerate(buf)) + 1
-toindex(buf::SpectrumBuf, f::Quantity) = throw(Unitful.DimensionError(f, Hz))
+toindex(buf::SpectrumBuf, f::Unitful.AbstractQuantity) = throw(Unitful.DimensionError(f, Hz))
 
 # indexing by vectors of Quantities not yet supported
 toindex(buf::AbstractSampleBuf, I::ClosedInterval{Int}) =
