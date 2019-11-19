@@ -2,117 +2,25 @@
 # WAV.jl package. Rather than full WAV support here we just want to support
 # enough for simple HTML display of SampleBufs
 
-# notebook init code heavily inspired by PlotlyJS - thanks @sglyon!
-function embed_javascript()
-    js_path = joinpath(dirname(dirname(@__FILE__)), "deps", "wavesurfer.min.js")
-    js_text = open(js_path) do io
-        read(io, String)
-    end
-    # the javascript file contains the code to add itself to the require module
-    # cache under the name 'wavesurfer'
-    display("text/html", """
-    <script charset="utf-8" type='text/javascript'>
-    $js_text
-    console.log("SampledSignals.jl: wavesurfer library loaded")
-    </script>
-    """)
-end
-
 # need to specify that T <: Number to avoid a method ambiguity with AbstractArray{Method} on 0.4
 function show(io::IO, ::MIME"text/html", buf::SampleBuf{T, N}) where {T <: Number, N}
     tempio = IOBuffer()
     wavwrite(tempio, buf)
     data = base64encode(take!(tempio))
-    # we want the divID to start with a letter
-    divid = string("a", randstring(10))
-    # include an error message that will get cleared if javascript loads correctly
-    # they won't be able to re-run this cell without importing SampledSignals,
-    # which will run the initialization code above. I can't think of a way to
-    # get in the state where the javascript isn't initialized but the module is
-    # loaded, but if it comes up we'll want to add an instruction to run
-    # `SampledSignals.embed_javascript()`.
-    println(io, """
-        <div id=$divid>
-            <h4>SampleBuf display requires javascript</h4>
-            <p>To enable for the whole notebook select "Trust Notebook" from the
-            "File" menu. You can also trust this cell by re-running it. You may
-            also need to re-run `using SampledSignals` if the module is not yet
-            loaded in the Julia kernel, or `SampledSignals.embed_javascript()`
-            if the Julia module is loaded but the javascript isn't initialized.</p>
-        </div>""")
-    # only show playback controls for real-valued SampleBufs. We also initialize
-    # them hidden and they get displayed if javascript is enabled.
     if isa(buf, SampleBuf) && eltype(buf) <: Real
         println(io, """
-        <button id=$divid-skipback class="btn" style="display:none">
-            <span class="fa fa-step-backward"></span>
-        </button>
-        <button id=$divid-playpause class="btn" style="display:none">
-            <span class="fa fa-play"></span>
-        </button>
-        <button id=$divid-stop class="btn" style="display:none">
-            <span class="fa fa-stop"></span>
-        </button>
-        <button id=$divid-skipahead class="btn" style="display:none">
-            <span class="fa fa-step-forward"></span>
-        </button>""")
+        <audio controls>
+            <source src="data:audio/wav;base64,$data" />
+        </audio>""")
+    else
+        show(io, MIME"text/plain"(), buf)
     end
-    println(io, """
-    <script type="text/javascript">
-        require(["wavesurfer"], function(wavesurfer) {
-            \$("#$divid").empty();
-            var waveform = wavesurfer.create({
-                container: '#$divid',
-                splitChannels: true,
-                scrollParent: true,
-                height: 40
-            });
-            var base64 = "$data";
-            var binary_string = window.atob(base64);
-            var len = binary_string.length;
-            var bytes = new Uint8Array(len);
-            for (var i = 0; i < len; i++) {
-                bytes[i] = binary_string.charCodeAt(i);
-            }
-            waveform.loadArrayBuffer(bytes.buffer);
-            \$("#$divid-skipback").show();
-            \$("#$divid-skipahead").show();
-            \$("#$divid-playpause").show();
-            \$("#$divid-stop").show();
+end
 
-            \$("#$divid-skipback").click(function(event) {
-                waveform.skip(-3);
-            });
-            \$("#$divid-skipahead").click(function(event) {
-                waveform.skip(3);
-            });
-            \$("#$divid-playpause").click(function(event) {
-                var el = \$("#$divid-playpause span")
-                if(waveform.isPlaying()) {
-                    waveform.pause();
-                    el.removeClass("fa-pause");
-                    el.addClass("fa-play");
-                }
-                else {
-                    waveform.play();
-                    el.removeClass("fa-play");
-                    el.addClass("fa-pause");
-                }
-            });
-            \$("#$divid-stop").click(function(event) {
-                waveform.stop();
-                var el = \$("#$divid-playpause span")
-                el.removeClass("fa-pause");
-                el.addClass("fa-play");
-            });
-            waveform.on('finish', function() {
-                var el = \$("#$divid-playpause span")
-                el.removeClass("fa-pause");
-                el.addClass("fa-play");
-            })
-        });
-    </script>
-    """)
+TreeViews.hastreeview(::SampleBuf) = true
+TreeViews.numberofnodes(::SampleBuf) = 0
+function TreeViews.treelabel(io::IO, buf::SampleBuf, ::MIME"text/html")
+    show(io, MIME"text/html"(), buf)
 end
 
 # Required WAV Chunk; The format chunk describes how the waveform data is stored

@@ -29,6 +29,8 @@ using Compat
 using Compat: AbstractRange, undef, range
 using Compat.Random: randstring
 using Compat.Base64: base64encode
+using TreeViews: TreeViews
+
 if VERSION >= v"0.7.0-DEV"
     using LinearAlgebra: mul!
     import FFTW
@@ -52,12 +54,6 @@ include("SampleStream.jl")
 include("SignalGen/SinSource.jl")
 include("WAVDisplay.jl")
 include("deprecated.jl")
-
-function __init__()
-    if isdefined(Main, :IJulia) && Main.IJulia.inited
-        embed_javascript()
-    end
-end
 
 """
     metadata(x, key::Symbol)

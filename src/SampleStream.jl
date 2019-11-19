@@ -71,7 +71,7 @@ const DEFAULT_BLOCKSIZE=4096
 function Base.write(sink::SampleSink, source::SampleSource, duration::Quantity;
                     blocksize=-1)
     sr = samplerate(sink)
-    frames = trunc(Int, inseconds(duration) * sr)
+    frames = trunc(Int, inseconds(duration, sr) * sr)
     n = write(sink, source, frames; blocksize=blocksize)
 
     # if we completed the operation return back the original duration so the
