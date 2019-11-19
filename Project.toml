@@ -29,6 +29,15 @@ Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 Compat = "34da2185-b29b-5c13-b0c7-acf172513d20"
 SampledSignals = "bd7594eb-a658-542f-9e75-4c4d8908c167"
 TreeViews = "a2a6695c-b41b-5b7d-aed9-dbfdeacea5d7"
+IntervalSets = "8197267c-284f-5f27-9208-e0e47529a953"
 
 [targets]
-test = ["DSP", "FileIO", "FixedPointNumbers", "LibSndFile", "Unitful", "Compat", "SampledSignals", "TreeViews"]
+test = ["DSP",
+        "FileIO",
+        "FixedPointNumbers",
+        "LibSndFile",
+        "Unitful",
+        "Compat",
+        "SampledSignals",
+        "TreeViews",
+        "IntervalSets"]
