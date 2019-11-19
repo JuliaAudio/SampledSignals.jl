@@ -20,6 +20,7 @@ FixedPointNumbers = "0.6.1"
 IntervalSets = "0.3.2"
 Unitful = "0.17.0"
 julia = "1"
+TreeViews = "0.3"
 
 [extras]
 DSP = "717857b8-e6f2-59f4-9121-6e50c889abd2"
