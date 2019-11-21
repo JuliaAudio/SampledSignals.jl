@@ -262,6 +262,10 @@ import FFTW
         quot = buf1 ./ buf2
         @test quot == SampleBuf(arr1 ./ arr2, TEST_SR)
         @test typeof(quot) == typeof(buf1)
+
+        sqr = buf1 .^ 2
+        @test sqr == SampleBuf(arr1 .^ 2, TEST_SR)
+        @test typeof(sqr) == typeof(buf1)
     end
 
     @testset "Arithmetic with constants gives SampleBufs" begin
