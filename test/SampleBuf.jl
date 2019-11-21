@@ -1,13 +1,8 @@
-using Compat.Test
-using Compat: undef, range
+using Test
 using SampledSignals
 using Unitful
 using DSP
-if VERSION >= v"0.7.0-DEV"
-    import FFTW
-else
-    import Compat.FFTW
-end
+import FFTW
 
 @testset "SampleBuf Tests" begin
     TEST_SR = 48000

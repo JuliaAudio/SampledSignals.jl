@@ -1,5 +1,5 @@
 using SampledSignals
-using Compat.Test
+using Test
 using DSP
 using FixedPointNumbers
 using FileIO: File, Stream, @format_str
