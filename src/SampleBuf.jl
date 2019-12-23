@@ -290,21 +290,21 @@ FFTW.ifft(buf::SpectrumBuf) = SampleBuf(FFTW.ifft(buf.data), nframes(buf)/sample
 
 # does a per-channel convolution on SampleBufs
 for buftype in (:SampleBuf, :SpectrumBuf)
-    @eval function DSP.conv(b1::$buftype{T, 1}, b2::$buftype{T, 1}) where {T}
+    @eval function DSP.conv(b1::$buftype{T1, 1}, b2::$buftype{T2, 1}) where {T1, T2}
         if !isapprox(samplerate(b1), samplerate(b2))
             error("Resampling convolution not yet supported")
         end
         $buftype(conv(b1.data, b2.data), samplerate(b1))
     end
 
-    @eval function DSP.conv(b1::$buftype{T, N1}, b2::$buftype{T, N2}) where {T, N1, N2}
+    @eval function DSP.conv(b1::$buftype{T1, N1}, b2::$buftype{T2, N2}) where {T1, T2, N1, N2}
         if !isapprox(samplerate(b1), samplerate(b2))
             error("Resampling convolution not yet supported")
         end
         if nchannels(b1) != nchannels(b2)
             error("Broadcasting convolution not yet supported")
         end
-        out = $buftype(T, samplerate(b1), nframes(b1)+nframes(b2)-1, nchannels(b1))
+        out = $buftype(promote_type(T1, T2), samplerate(b1), nframes(b1)+nframes(b2)-1, nchannels(b1))
         for ch in 1:nchannels(b1)
             out[:, ch] = conv(b1.data[:, ch], b2.data[:, ch])
         end
@@ -312,17 +312,17 @@ for buftype in (:SampleBuf, :SpectrumBuf)
         out
     end
 
-    @eval function DSP.conv(b1::$buftype{T, 1}, b2::StridedVector{T}) where {T}
+    @eval function DSP.conv(b1::$buftype{T1, 1}, b2::StridedVector{T2}) where {T1, T2}
         $buftype(conv(b1.data, b2), samplerate(b1))
     end
 
-    @eval DSP.conv(b1::StridedVector{T}, b2::$buftype{T, 1}) where {T} = conv(b2, b1)
+    @eval DSP.conv(b1::StridedVector{T1}, b2::$buftype{T2, 1}) where {T1, T2} = conv(b2, b1)
 
-    @eval function DSP.conv(b1::$buftype{T, 2}, b2::StridedMatrix{T}) where {T}
+    @eval function DSP.conv(b1::$buftype{T1, 2}, b2::StridedMatrix{T2}) where {T1, T2}
         if nchannels(b1) != nchannels(b2)
             error("Broadcasting convolution not yet supported")
         end
-        out = $buftype(T, samplerate(b1), nframes(b1)+nframes(b2)-1, nchannels(b1))
+        out = $buftype(promote_type(T1, T2), samplerate(b1), nframes(b1)+nframes(b2)-1, nchannels(b1))
         for ch in 1:nchannels(b1)
             out[:, ch] = conv(b1.data[:, ch], b2[:, ch])
         end
@@ -330,5 +330,5 @@ for buftype in (:SampleBuf, :SpectrumBuf)
         out
     end
 
-    @eval DSP.conv(b1::StridedMatrix{T}, b2::$buftype{T, 2}) where {T} = conv(b2, b1)
+    @eval DSP.conv(b1::StridedMatrix{T1}, b2::$buftype{T2, 2}) where {T1, T2} = conv(b2, b1)
 end

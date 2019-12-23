@@ -375,11 +375,23 @@ import FFTW
     @testset "1D SampleBufs and SpectrumBufs can be convolved" begin
         arr1 = rand(TEST_T, 8)
         arr2 = rand(TEST_T, 10)
+        @assert TEST_T == Float32
+        arr3 = rand(Float64, 8)
+
         for T in (SampleBuf, SpectrumBuf)
-            result = T(conv(arr1, arr2), TEST_SR)
-            @test conv(T(arr1, TEST_SR), T(arr2, TEST_SR)) == result
-            @test conv(T(arr1, TEST_SR), arr2) == result
-            @test conv(arr1, T(arr2, TEST_SR)) == result
+            result1 = T(conv(arr1, arr2), TEST_SR)
+            @test conv(T(arr1, TEST_SR), T(arr2, TEST_SR)) == result1
+            @test conv(T(arr1, TEST_SR), arr2) == result1
+            @test conv(arr1, T(arr2, TEST_SR)) == result1
+
+            # test with eltype conversions
+            result2 = T(conv(arr1, arr3), TEST_SR)
+            @test conv(T(arr1, TEST_SR), T(arr3, TEST_SR)) == result2
+            @test eltype(conv(T(arr1, TEST_SR), T(arr3, TEST_SR))) == eltype(result2)
+            @test conv(T(arr1, TEST_SR), arr3) == result2
+            @test eltype(conv(T(arr1, TEST_SR), arr3)) == eltype(result2)
+            @test conv(arr1, T(arr3, TEST_SR)) == result2
+            @test eltype(conv(arr1, T(arr3, TEST_SR))) == eltype(result2)
         end
     end
 
@@ -518,4 +530,31 @@ import FFTW
         display(TextDisplay(iobuf), buf)
         @test String(take!(iobuf)) == expected
     end
+
+    # it's not clear how promotion should work - usually promotion is done in
+    # terms of types, but we also want to promote between values with different
+    # samplerates. Defining promotion rules in terms of AbstractArray seems
+    # problematic when both arguments are SampleBufs but with different
+    # sampling rates.
+
+    # for me this seems to come up most often in the context of convolving
+    # Float32 samplebufs (from loading files) with Float64 filters, which
+    # triggers promotion, which fails. so for now we just add more `conv`
+    # methods
+    # @testset "SampleBufs and Arrays can be combined via promotion" begin
+    #     buf = SampleBuf(rand(10), 48000)
+    #     arr = rand(Int, 10)
+    #     res1, res2 = promote(buf, arr)
+    #     @test samplerate(res1) == samplerate(res2) == 48000
+    #     @test res1.data == buf.data
+    #     @test res2.data ≈ arr
+    #     @test eltype(res1) == eltype(res2) == Float64
+    #
+    #     buf = SampleBuf(rand(Int, 10), 48000)
+    #     arr = rand(10)
+    #     res1, res2 = promote(buf, arr)
+    #     @test res1.data ≈ buf.data
+    #     @test res2.data == arr
+    #     @test eltype(res1) == eltype(res2) == Float64
+    # end
 end
