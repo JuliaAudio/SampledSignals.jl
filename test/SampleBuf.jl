@@ -244,8 +244,8 @@ import FFTW
         buf1 = SampleBuf(arr1, TEST_SR)
         buf2 = SampleBuf(arr2, TEST_SR)
 
-        sum = buf1 + buf2
-        @test sum == SampleBuf(arr1 + arr2, TEST_SR)
+        sum = buf1 .+ buf2
+        @test sum == SampleBuf(arr1 .+ arr2, TEST_SR)
         @test typeof(sum) == typeof(buf1)
         sum = buf1 .+ buf2
         @test sum == SampleBuf(arr1 .+ arr2, TEST_SR)
@@ -253,8 +253,8 @@ import FFTW
         prod = buf1 .* buf2
         @test prod == SampleBuf(arr1 .* arr2, TEST_SR)
         @test typeof(prod) == typeof(buf1)
-        diff = buf1 - buf2
-        @test diff == SampleBuf(arr1 - arr2, TEST_SR)
+        diff = buf1 .- buf2
+        @test diff == SampleBuf(arr1 .- arr2, TEST_SR)
         @test typeof(diff) == typeof(buf1)
         diff = buf1 .- buf2
         @test diff == SampleBuf(arr1 .- arr2, TEST_SR)
