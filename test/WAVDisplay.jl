@@ -9,7 +9,7 @@
         seekstart(io)
         readbuf = loadwav(io)
         @test reinterpret.(readbuf) == buf
-        @test samplerate(readbuf) == 48000
+        @test framerate(readbuf) == 48000
         @test eltype(readbuf) == Fixed{Int16, 15}
     end
 
@@ -20,7 +20,7 @@
         seek(io, 0)
         readbuf = loadwav(io)
         @test readbuf == buf
-        @test samplerate(readbuf) == 48000
+        @test framerate(readbuf) == 48000
         @test eltype(readbuf) == Fixed{Int16, 15}
     end
 
@@ -31,7 +31,7 @@
         seekstart(io)
         readbuf = loadwav(io)
         @test readbuf == PCM16Sample.(buf)
-        @test samplerate(readbuf) == 48000
+        @test framerate(readbuf) == 48000
         @test eltype(readbuf) == Fixed{Int16, 15}
     end
 
@@ -44,7 +44,7 @@
         readbuf = loadwav(io)
         # convert 32-bit int buf to float, then to 16-bit, for testing
         @test readbuf == PCM16Sample.(Float32.(buf))
-        @test samplerate(readbuf) == 48000
+        @test framerate(readbuf) == 48000
         @test eltype(readbuf) == Fixed{Int16, 15}
     end
 end

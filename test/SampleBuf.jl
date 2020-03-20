@@ -16,12 +16,12 @@ end
 
     @testset "Supports audio interface" begin
         tbuf = Buf(zeros(TEST_T, 64, 2))
-        @test samplerate(tbuf) == TEST_SR
+        @test framerate(tbuf) == TEST_SR
         @test nchannels(tbuf) == 2
         @test nframes(tbuf) == 64
         @test isapprox(domain(tbuf), ((0:63)/TEST_SR))
-        ret = samplerate!(tbuf, 24000)
-        @test samplerate(tbuf) == 24000
+        ret = framerate!(tbuf, 24000)
+        @test framerate(tbuf) == 24000
         @test ret === tbuf
     end
 
@@ -73,9 +73,9 @@ end
         buf = SampleBuf(arr, TEST_SR)
         # linear indexing gives you a mono buffer
         slice = buf[6:12]
-        @test samplerate(slice) == TEST_SR
+        @test framerate(slice) == TEST_SR
         @test slice == SampleBuf(TEST_T[6:12;], TEST_SR)
-        @test samplerate(buf[:]) == TEST_SR
+        @test framerate(buf[:]) == TEST_SR
         @test buf[:] == SampleBuf(arr[:], TEST_SR)
     end
 
@@ -83,17 +83,17 @@ end
         arr = TEST_T[1:8 9:16]
         buf = SampleBuf(arr, TEST_SR)
         slice = buf[3:6, 1:2]
-        @test samplerate(slice) == TEST_SR
+        @test framerate(slice) == TEST_SR
         @test slice == SampleBuf(TEST_T[3:6 11:14], TEST_SR)
         # make sure it works with a bare colon
         slice = buf[3:6, :]
-        @test samplerate(slice) == TEST_SR
+        @test framerate(slice) == TEST_SR
         @test slice == SampleBuf(TEST_T[3:6 11:14], TEST_SR)
         slice = buf[:, 1:2]
-        @test samplerate(slice) == TEST_SR
+        @test framerate(slice) == TEST_SR
         @test slice == SampleBuf(TEST_T[1:8 9:16], TEST_SR)
         slice = buf[:, :]
-        @test samplerate(slice) == TEST_SR
+        @test framerate(slice) == TEST_SR
         @test slice == SampleBuf(TEST_T[1:8 9:16], TEST_SR)
     end
 
@@ -101,9 +101,9 @@ end
         arr = TEST_T[1:8 9:16]
         buf = SampleBuf(arr, TEST_SR)
         slice = buf[6, 1:2]
-        @test samplerate(slice) == TEST_SR
+        @test framerate(slice) == TEST_SR
         @test slice == SampleBuf(TEST_T[6 14], TEST_SR)
-        @test samplerate(slice) == TEST_SR
+        @test framerate(slice) == TEST_SR
         slice = buf[3:6, 1]
         @test slice == SampleBuf(TEST_T[3:6;], TEST_SR)
     end
@@ -113,17 +113,17 @@ end
         buf = SampleBuf(arr, TEST_SR)
         # linear indexing gives you a mono buffer
         slice = buf[5..11]
-        @test samplerate(slice) == TEST_SR
+        @test framerate(slice) == TEST_SR
         @test slice == SampleBuf(arr[6:12], TEST_SR)
         slice = buf[1..5, 1]
-        @test samplerate(slice) == TEST_SR
+        @test framerate(slice) == TEST_SR
         @test slice == SampleBuf(arr[2:6, 1], TEST_SR)
         slice = buf[2, 1:2]
-        @test samplerate(slice) == TEST_SR
+        @test framerate(slice) == TEST_SR
         # 0.5 array indexing drops scalar indices, so we use 2:2 instead of 2
         @test slice == SampleBuf(arr[2:2, 1:2], TEST_SR)
         slice = buf[1..5, 1:2]
-        @test samplerate(slice) == TEST_SR
+        @test framerate(slice) == TEST_SR
         @test slice == SampleBuf(arr[2:6, 1:2], TEST_SR)
         # indexing the channels by seconds doesn't make sense
         @test_throws ArgumentError buf[2..6,0..1]
@@ -151,7 +151,7 @@ end
         @test nchannels(buf) == 2
         @test nframes(buf) == 100
         @test eltype(buf) == Float32
-        @test samplerate(buf) == TEST_SR
+        @test framerate(buf) == TEST_SR
     end
 
     @testset "Can be created with a length in seconds" begin
@@ -159,20 +159,20 @@ end
         @test nchannels(buf) == 2
         @test nframes(buf) == TEST_SR/2
         @test eltype(buf) == Float32
-        @test samplerate(buf) == TEST_SR
+        @test framerate(buf) == TEST_SR
 
         buf = SampleBuf(Float32, TEST_SR, 0.5s)
         @test nchannels(buf) == 1
         @test nframes(buf) == TEST_SR/2
         @test eltype(buf) == Float32
-        @test samplerate(buf) == TEST_SR
+        @test framerate(buf) == TEST_SR
     end
 
     @testset "Can be created without units" begin
         buf = SampleBuf(Float32, 48000, 100, 2)
-        @test samplerate(buf) == 48000
+        @test framerate(buf) == 48000
         buf = SampleBuf(Array{Float32}(undef, 100, 2), 48000)
-        @test samplerate(buf) == 48000
+        @test framerate(buf) == 48000
     end
 
     @testset "sub references the original instead of copying" begin
@@ -360,7 +360,7 @@ end
         spec = FFTW.fft(buf)
         @test isa(spec, SpectrumBuf)
         @test eltype(spec) == Complex{TEST_T}
-        @test samplerate(spec) == 512/TEST_SR
+        @test framerate(spec) == 512/TEST_SR
         @test nchannels(spec) == 1
         @test spec == SpectrumBuf(FFTW.fft(arr), 512/TEST_SR)
         buf2 = FFTW.ifft(spec)
@@ -368,7 +368,7 @@ end
         # back to real time signals with ifft
         @test isa(buf2, SampleBuf)
         @test eltype(buf2) == Complex{TEST_T}
-        @test samplerate(buf2) == TEST_SR
+        @test framerate(buf2) == TEST_SR
         @test nchannels(buf2) == 1
         @test isapprox(buf2, buf)
     end

@@ -22,10 +22,10 @@ SinSource(eltype, samplerate, freq::Real) = SinSource(eltype, samplerate, [freq]
 
 Base.eltype(::SinSource{T}) where T = T
 SignalBase.nchannels(source::SinSource) = length(source.freqs)
-samplerate(source::SinSource) = source.samplerate
+SignalBase.framerate(source::SinSource) = source.samplerate
 
 function unsafe_read!(source::SinSource, buf::Array, frameoffset, framecount)
-    inc = 2pi / samplerate(source)
+    inc = 2pi / framerate(source)
     for ch in 1:nchannels(buf)
         f = source.freqs[ch]
         ph = source.phases[ch]

@@ -5,8 +5,9 @@ module SampledSignals
 
 using IntervalSets
 
-using SignalBase
-export nframes, nchannels
+import SignalBase
+import SignalBase: nframes, nchannels, framerate
+export nframes, nchannels, framerate, framerate!
 
 export AbstractSampleBuf, SampleBuf, SpectrumBuf
 export SampleSource, SampleSink
@@ -16,7 +17,6 @@ export SampleBufSource, SampleBufSink
 export SinSource
 export ClosedInterval, ..
 # general methods for types in SampledSignals
-export samplerate, samplerate!
 export domain, channelptr, blocksize, metadata
 export mix!, mix, mono!, mono
 # re-export the useful units

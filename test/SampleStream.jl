@@ -173,7 +173,7 @@ include("support/util.jl")
 
     @testset "Partial SampleBufs can be written to sinks specifying frames" begin
         sink = DummyStereoSink()
-        buf = SampleBuf(rand(10, 2), samplerate(sink))
+        buf = SampleBuf(rand(10, 2), framerate(sink))
         write(sink, buf, 5)
         @test sink.buf == buf.data[1:5, :]
     end
@@ -187,8 +187,8 @@ include("support/util.jl")
 
     @testset "Partial SampleBufs can be written to sinks specifying duration" begin
         sink = DummyStereoSink()
-        buf = SampleBuf(rand(10, 2), samplerate(sink))
-        t = 5/samplerate(sink) * s
+        buf = SampleBuf(rand(10, 2), framerate(sink))
+        t = 5/framerate(sink) * s
         write(sink, buf, t)
         @test sink.buf == buf.data[1:5, :]
     end
@@ -196,7 +196,7 @@ include("support/util.jl")
     @testset "Partial Arrays can be written to sinks specifying duration" begin
         sink = DummyStereoSink()
         buf = rand(10, 2)
-        t = 5/samplerate(sink) * s
+        t = 5/framerate(sink) * s
         write(sink, buf, t)
         @test sink.buf == buf[1:5, :]
     end
@@ -227,7 +227,7 @@ include("support/util.jl")
     @testset "read can read in seconds" begin
         data = rand(20, 2)
         source = DummySource(data)
-        t = 5/samplerate(source) * s
+        t = 5/framerate(source) * s
         buf = read(source, t)
         @test buf.data == data[1:5, :]
     end
@@ -244,7 +244,7 @@ include("support/util.jl")
     @testset "can read! into SampleBuf specifying frames" begin
         data = rand(8, 2)
         source = DummySource(data)
-        buf = SampleBuf(zeros(8, 2), samplerate(source))
+        buf = SampleBuf(zeros(8, 2), framerate(source))
         @test read!(source, buf, 5) == 5
         @test buf.data[1:5, :] == data[1:5, :]
         @test buf.data[6:8, :] == zeros(3, 2)
@@ -254,7 +254,7 @@ include("support/util.jl")
         data = rand(8, 2)
         source = DummySource(data)
         buf = zeros(8, 2)
-        t = 5/samplerate(source) * s
+        t = 5/framerate(source) * s
         @test read!(source, buf, t) == t
         @test buf[1:5, :] == data[1:5, :]
         @test buf[6:8, :] == zeros(3, 2)
@@ -263,8 +263,8 @@ include("support/util.jl")
     @testset "can read! into SampleBuf specifying time" begin
         data = rand(8, 2)
         source = DummySource(data)
-        buf = SampleBuf(zeros(8, 2), samplerate(source))
-        t = 5/samplerate(source) * s
+        buf = SampleBuf(zeros(8, 2), framerate(source))
+        t = 5/framerate(source) * s
         @test read!(source, buf, t) == t
         @test buf.data[1:5, :] == data[1:5, :]
         @test buf.data[6:8, :] == zeros(3, 2)
@@ -281,7 +281,7 @@ include("support/util.jl")
     @testset "can read! into SampleBuf without specifying frames" begin
         data = rand(8, 2)
         source = DummySource(data)
-        buf = SampleBuf(rand(5, 2), samplerate(source))
+        buf = SampleBuf(rand(5, 2), framerate(source))
         @test read!(source, buf) == 5
         @test buf.data == data[1:5, :]
     end
@@ -298,7 +298,7 @@ include("support/util.jl")
     @testset "can read! into too-long SampleBuf without specifying frames" begin
         data = rand(8, 2)
         source = DummySource(data)
-        buf = SampleBuf(zeros(10, 2), samplerate(source))
+        buf = SampleBuf(zeros(10, 2), framerate(source))
         @test read!(source, buf) == 8
         @test buf[1:8, :] == data
         @test buf[9:10, :] == zeros(2, 2)
@@ -406,7 +406,7 @@ include("support/util.jl")
 
     @testset "Writing source to sink goes blockwise" begin
         source = BlockedSampleSource(32)
-        sink = DummySampleSink(eltype(source), samplerate(source), nchannels(source))
+        sink = DummySampleSink(eltype(source), framerate(source), nchannels(source))
         write(sink, source)
         @test size(sink.buf, 1) == 32
         for ch in 1:nchannels(source), i in 1:16

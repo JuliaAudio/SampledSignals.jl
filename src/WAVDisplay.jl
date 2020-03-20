@@ -49,7 +49,7 @@ function wavwrite(io::IO, buf::SampleBuf{<:Union{Int16, SAMPLE_TYPE, AbstractFlo
     nbits = 16
     nchans = nchannels(buf)
     blockalign = 2 * nchans
-    sr = round(UInt32, float(samplerate(buf)))
+    sr = round(UInt32, float(framerate(buf)))
     bps = sr * blockalign
     datalength::UInt32 = nframes(buf) * blockalign
 

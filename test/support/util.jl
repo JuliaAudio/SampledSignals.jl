@@ -1,4 +1,6 @@
-import SampledSignals: blocksize, samplerate, nchannels, unsafe_read!, unsafe_write
+import SignalBase
+import SignalBase: framerate, nchannels
+import SampledSignals: blocksize, unsafe_read!, unsafe_write
 import Base: eltype
 
 mutable struct DummySampleSource{T} <: SampleSource
@@ -7,8 +9,8 @@ mutable struct DummySampleSource{T} <: SampleSource
 end
 
 DummySampleSource(sr, buf::Array{T}) where T = DummySampleSource{T}(sr, buf)
-samplerate(source::DummySampleSource) = source.samplerate
-nchannels(source::DummySampleSource) = size(source.buf, 2)
+SignalBase.framerate(source::DummySampleSource) = source.samplerate
+SignalBase.nchannels(source::DummySampleSource) = size(source.buf, 2)
 Base.eltype(source::DummySampleSource{T}) where T = T
 
 function unsafe_read!(src::DummySampleSource, buf::Array, frameoffset, framecount)
@@ -31,8 +33,8 @@ end
 DummySampleSink(eltype, samplerate, channels) =
     DummySampleSink{eltype}(samplerate, Array{eltype}(undef, 0, channels))
 
-samplerate(sink::DummySampleSink) = sink.samplerate
-nchannels(sink::DummySampleSink) = size(sink.buf, 2)
+SignalBase.framerate(sink::DummySampleSink) = sink.samplerate
+SignalBase.nchannels(sink::DummySampleSink) = size(sink.buf, 2)
 Base.eltype(sink::DummySampleSink{T}) where T = T
 
 function SampledSignals.unsafe_write(sink::DummySampleSink, buf::Array,
@@ -64,9 +66,9 @@ mutable struct BlockedSampleSource <: SampleSource
 end
 
 blocksize(::BlockedSampleSource) = 16
-samplerate(::BlockedSampleSource) = 48.0
+SignalBase.framerate(::BlockedSampleSource) = 48.0
 eltype(::BlockedSampleSource) = Float32
-nchannels(::BlockedSampleSource) = 2
+SignalBase.nchannels(::BlockedSampleSource) = 2
 
 function unsafe_read!(src::BlockedSampleSource, buf::Array, frameoffset, framecount)
     @test framecount == blocksize(src)

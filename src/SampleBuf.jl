@@ -54,14 +54,15 @@ SignalBase.nchannels(buf::AbstractSampleBuf{T, 2}) where {T} = size(buf.data, 2)
 SignalBase.nchannels(buf::AbstractSampleBuf{T, 1}) where {T} = 1
 SignalBase.sampletype(buf::AbstractSampleBuf) = eltype(buf.data)
 
-# audio methods
-samplerate(buf::AbstractSampleBuf) = buf.samplerate
-
-function samplerate!(buf::AbstractSampleBuf, sr)
+# change this to SignalBase.framerate! once it is defined there
+function framerate!(buf::AbstractSampleBuf, sr)
     buf.samplerate = sr
-
     buf
 end
+
+# audio methods
+@deprecate samplerate(buf) SignalBase.framerate(buf)
+@deprecate samplerate!(buf, sr) framerate!(buf, sr)
 
 # define audio methods on raw buffers as well
 SignalBase.nframes(arr::AbstractArray) = size(arr, 1)
@@ -69,9 +70,9 @@ SignalBase.nchannels(arr::AbstractArray) = size(arr, 2)
 
 # it's important to define Base.similar so that range-indexing returns the
 # right type, instead of just a bare array
-Base.similar(buf::SampleBuf, ::Type{T}, dims::Dims) where {T} = SampleBuf(Array{T}(undef, dims), samplerate(buf))
-Base.similar(buf::SpectrumBuf, ::Type{T}, dims::Dims) where {T} = SpectrumBuf(Array{T}(undef, dims), samplerate(buf))
-domain(buf::AbstractSampleBuf) = range(0.0, stop=(nframes(buf)-1)/samplerate(buf), length=nframes(buf))
+Base.similar(buf::SampleBuf, ::Type{T}, dims::Dims) where {T} = SampleBuf(Array{T}(undef, dims), framerate(buf))
+Base.similar(buf::SpectrumBuf, ::Type{T}, dims::Dims) where {T} = SpectrumBuf(Array{T}(undef, dims), framerate(buf))
+domain(buf::AbstractSampleBuf) = range(0.0, stop=(nframes(buf)-1)/framerate(buf), length=nframes(buf))
 
 # There's got to be a better way to define these functions, but the dispatch
 # and broadcast behavior for AbstractArrays is complex and has subtle differences
@@ -103,7 +104,7 @@ for btype in (:SampleBuf, :SpectrumBuf)
         @eval Base.BroadcastStyle(::Type{$btype{T,N}}) where {T,N} = Broadcast.ArrayStyle{$btype{T,N}}()
         @eval function Base.similar(bc::Broadcast.Broadcasted{Broadcast.ArrayStyle{$btype{T,N}}}, ::Type{ElType}) where {T,N,ElType}
             A = find_buf(bc)
-            $btype(Array{ElType}(undef, length.(axes(bc))), samplerate(A))
+            $btype(Array{ElType}(undef, length.(axes(bc))), framerate(A))
         end
 
     else
@@ -111,50 +112,50 @@ for btype in (:SampleBuf, :SpectrumBuf)
         # define non-broadcasting arithmetic
         for op in (:+, :-)
             @eval function $op(A1::$btype, A2::$btype)
-                if !isapprox(samplerate(A1), samplerate(A2))
+                if !isapprox(framerate(A1), framerate(A2))
                     error("samplerate-converting arithmetic not supported yet")
                 end
-                $btype($op(A1.data, A2.data), samplerate(A1))
+                $btype($op(A1.data, A2.data), framerate(A1))
             end
             @eval function $op(A1::$btype, A2::ArrayIsh)
-                $btype($op(A1.data, A2), samplerate(A1))
+                $btype($op(A1.data, A2), framerate(A1))
             end
             @eval function $op(A1::ArrayIsh, A2::$btype)
-                $btype($op(A1, A2.data), samplerate(A2))
+                $btype($op(A1, A2.data), framerate(A2))
             end
         end
 
         # define non-broadcast scalar arithmetic
         for op in (:+, :-, :*, :/)
             @eval function $op(A1::$btype, a2::Number)
-                $btype($op(A1.data, a2), samplerate(A1))
+                $btype($op(A1.data, a2), framerate(A1))
             end
             @eval function $op(a1::Number, A2::$btype)
-                $btype($op(a1, A2.data), samplerate(A2))
+                $btype($op(a1, A2.data), framerate(A2))
             end
         end
 
         # define broadcasting application
         @eval function broadcast(op, A1::$btype, A2::$btype)
-            if !isapprox(samplerate(A1), samplerate(A2))
+            if !isapprox(framerate(A1), framerate(A2))
                 error("samplerate-converting arithmetic not supported yet")
             end
-            $btype(broadcast(op, A1.data, A2.data), samplerate(A1))
+            $btype(broadcast(op, A1.data, A2.data), framerate(A1))
         end
         @eval function broadcast(op, A1::$btype, A2::ArrayIsh)
-            $btype(broadcast(op, A1.data, A2), samplerate(A1))
+            $btype(broadcast(op, A1.data, A2), framerate(A1))
         end
         @eval function broadcast(op, A1::ArrayIsh, A2::$btype)
-            $btype(broadcast(op, A1, A2.data), samplerate(A2))
+            $btype(broadcast(op, A1, A2.data), framerate(A2))
         end
         @eval function broadcast(op, a1::Number, A2::$btype)
-            $btype(broadcast(op, a1, A2.data), samplerate(A2))
+            $btype(broadcast(op, a1, A2.data), framerate(A2))
         end
         @eval function broadcast(op, A1::$btype, a2::Number)
-            $btype(broadcast(op, A1.data, a2), samplerate(A1))
+            $btype(broadcast(op, A1.data, a2), framerate(A1))
         end
         @eval function broadcast(op, A1::$btype)
-            $btype(broadcast(op, A1.data), samplerate(A1))
+            $btype(broadcast(op, A1.data), framerate(A1))
         end
 
     end # if VERSION
@@ -174,10 +175,10 @@ const ticks = ['▁','▂','▃','▄','▅','▆','▇','█']
 # and there's a 3-arg version defined in show.jl
 function show(io::IO, ::MIME"text/plain", buf::AbstractSampleBuf)
     println(io, "$(nframes(buf))-frame, $(nchannels(buf))-channel $(typename(buf))")
-    len = nframes(buf) / samplerate(buf)
+    len = nframes(buf) / framerate(buf)
     ustring = unitname(buf)
     srstring = srname(buf)
-    print(io, "$(len)$ustring sampled at $(samplerate(buf))$srstring")
+    print(io, "$(len)$ustring sampled at $(framerate(buf))$srstring")
     nframes(buf) > 0 && showchannels(io, buf)
 end
 
@@ -281,11 +282,11 @@ function toindex end
 
 toindex(buf::SampleBuf, t::Number) = t
 toindex(buf::SampleBuf, t::FrameQuant) = inframes(Int, t) + 1
-toindex(buf::SampleBuf, t::Unitful.Time) = inframes(Int, t, samplerate(buf)) + 1
+toindex(buf::SampleBuf, t::Unitful.Time) = inframes(Int, t, framerate(buf)) + 1
 toindex(buf::SampleBuf, t::Unitful.AbstractQuantity) = throw(Unitful.DimensionError(t, s))
 toindex(buf::SpectrumBuf, f::Number) = f
 toindex(buf::SpectrumBuf, f::FrameQuant) = inframes(Int, f) + 1
-toindex(buf::SpectrumBuf, f::Unitful.Frequency) = inframes(Int, f, samplerate(buf)) + 1
+toindex(buf::SpectrumBuf, f::Unitful.Frequency) = inframes(Int, f, framerate(buf)) + 1
 toindex(buf::SpectrumBuf, f::Unitful.AbstractQuantity) = throw(Unitful.DimensionError(f, Hz))
 
 # indexing by vectors of Quantities not yet supported
@@ -315,29 +316,29 @@ end
 # equality
 import Base.==
 ==(buf1::AbstractSampleBuf, buf2::AbstractSampleBuf) =
-    samplerate(buf1) == samplerate(buf2) &&
+    framerate(buf1) == framerate(buf2) &&
     buf1.data == buf2.data
 
-FFTW.fft(buf::SampleBuf) = SpectrumBuf(FFTW.fft(buf.data), nframes(buf)/samplerate(buf))
-FFTW.ifft(buf::SpectrumBuf) = SampleBuf(FFTW.ifft(buf.data), nframes(buf)/samplerate(buf))
+FFTW.fft(buf::SampleBuf) = SpectrumBuf(FFTW.fft(buf.data), nframes(buf)/framerate(buf))
+FFTW.ifft(buf::SpectrumBuf) = SampleBuf(FFTW.ifft(buf.data), nframes(buf)/framerate(buf))
 
 # does a per-channel convolution on SampleBufs
 for buftype in (:SampleBuf, :SpectrumBuf)
     @eval function DSP.conv(b1::$buftype{T, 1}, b2::$buftype{T, 1}) where {T}
-        if !isapprox(samplerate(b1), samplerate(b2))
+        if !isapprox(framerate(b1), framerate(b2))
             error("Resampling convolution not yet supported")
         end
-        $buftype(conv(b1.data, b2.data), samplerate(b1))
+        $buftype(conv(b1.data, b2.data), framerate(b1))
     end
 
     @eval function DSP.conv(b1::$buftype{T, N1}, b2::$buftype{T, N2}) where {T, N1, N2}
-        if !isapprox(samplerate(b1), samplerate(b2))
+        if !isapprox(framerate(b1), framerate(b2))
             error("Resampling convolution not yet supported")
         end
         if nchannels(b1) != nchannels(b2)
             error("Broadcasting convolution not yet supported")
         end
-        out = $buftype(T, samplerate(b1), nframes(b1)+nframes(b2)-1, nchannels(b1))
+        out = $buftype(T, framerate(b1), nframes(b1)+nframes(b2)-1, nchannels(b1))
         for ch in 1:nchannels(b1)
             out[:, ch] = conv(b1.data[:, ch], b2.data[:, ch])
         end
@@ -346,7 +347,7 @@ for buftype in (:SampleBuf, :SpectrumBuf)
     end
 
     @eval function DSP.conv(b1::$buftype{T, 1}, b2::StridedVector{T}) where {T}
-        $buftype(conv(b1.data, b2), samplerate(b1))
+        $buftype(conv(b1.data, b2), framerate(b1))
     end
 
     @eval DSP.conv(b1::StridedVector{T}, b2::$buftype{T, 1}) where {T} = conv(b2, b1)
@@ -355,7 +356,7 @@ for buftype in (:SampleBuf, :SpectrumBuf)
         if nchannels(b1) != nchannels(b2)
             error("Broadcasting convolution not yet supported")
         end
-        out = $buftype(T, samplerate(b1), nframes(b1)+nframes(b2)-1, nchannels(b1))
+        out = $buftype(T, framerate(b1), nframes(b1)+nframes(b2)-1, nchannels(b1))
         for ch in 1:nchannels(b1)
             out[:, ch] = conv(b1.data[:, ch], b2[:, ch])
         end

@@ -12,18 +12,18 @@ import Compat: undef
     @testset "supports audio interface" begin
         data = rand(DEFAULT_T, (64, 2))
         source = DummySource(data)
-        @test samplerate(source) == DEFAULT_SR
+        @test framerate(source) == DEFAULT_SR
         @test nchannels(source) == 2
         sink = DummyStereoSink()
-        @test samplerate(sink) == DEFAULT_SR
+        @test framerate(sink) == DEFAULT_SR
         @test nchannels(sink) == 2
         @test eltype(source) == DEFAULT_T
     end
 
     @testset "can be created with non-unit sampling rate" begin
         sink = DummySampleSink(Float32, 48000, 2)
-        @test samplerate(sink) == 48000
+        @test framerate(sink) == 48000
         source = DummySampleSource(48000, Array{Float32}(undef, 16, 2))
-        @test samplerate(source) == 48000
+        @test framerate(source) == 48000
     end
 end
