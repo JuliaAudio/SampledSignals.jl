@@ -256,7 +256,7 @@ function UpMixSink(wrapped::SampleSink, blocksize=DEFAULT_BLOCKSIZE)
 end
 
 samplerate(sink::UpMixSink) = samplerate(sink.wrapped)
-nchannels(sink::UpMixSink) = 1
+SignalBase.nchannels(sink::UpMixSink) = 1
 Base.eltype(sink::UpMixSink) = eltype(sink.wrapped)
 blocksize(sink::UpMixSink) = size(sink.buf, 1)
 
@@ -296,7 +296,7 @@ function DownMixSink(wrapped::SampleSink, channels, blocksize=DEFAULT_BLOCKSIZE)
 end
 
 samplerate(sink::DownMixSink) = samplerate(sink.wrapped)
-nchannels(sink::DownMixSink) = sink.channels
+SignalBase.nchannels(sink::DownMixSink) = sink.channels
 Base.eltype(sink::DownMixSink) = eltype(sink.wrapped)
 blocksize(sink::DownMixSink) = size(sink.buf, 1)
 
@@ -340,7 +340,7 @@ function ReformatSink(wrapped::SampleSink, T, blocksize=DEFAULT_BLOCKSIZE)
 end
 
 samplerate(sink::ReformatSink) = samplerate(sink.wrapped)
-nchannels(sink::ReformatSink) = nchannels(sink.wrapped)
+SignalBase.nchannels(sink::ReformatSink) = nchannels(sink.wrapped)
 Base.eltype(sink::ReformatSink) = sink.typ
 blocksize(sink::ReformatSink) = nframes(sink.buf)
 
@@ -385,7 +385,7 @@ function ResampleSink(wrapped::SampleSink, sr, blocksize=DEFAULT_BLOCKSIZE)
 end
 
 samplerate(sink::ResampleSink) = sink.samplerate
-nchannels(sink::ResampleSink) = nchannels(sink.wrapped)
+SignalBase.nchannels(sink::ResampleSink) = nchannels(sink.wrapped)
 Base.eltype(sink::ResampleSink) = eltype(sink.wrapped)
 # TODO: implement blocksize for this
 
@@ -428,7 +428,7 @@ end
 SampleBufSource(buf::SampleBuf) = SampleBufSource(buf, 0)
 
 samplerate(source::SampleBufSource) = samplerate(source.buf)
-nchannels(source::SampleBufSource) = nchannels(source.buf)
+SignalBase.nchannels(source::SampleBufSource) = nchannels(source.buf)
 Base.eltype(source::SampleBufSource) = eltype(source.buf)
 
 function unsafe_read!(source::SampleBufSource, buf::Array, frameoffset, framecount)
@@ -451,7 +451,7 @@ end
 SampleBufSink(buf::SampleBuf) = SampleBufSink(buf, 0)
 
 samplerate(sink::SampleBufSink) = samplerate(sink.buf)
-nchannels(sink::SampleBufSink) = nchannels(sink.buf)
+SignalBase.nchannels(sink::SampleBufSink) = nchannels(sink.buf)
 Base.eltype(sink::SampleBufSink) = eltype(sink.buf)
 
 function unsafe_write(sink::SampleBufSink, buf::Array, frameoffset, framecount)

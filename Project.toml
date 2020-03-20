@@ -9,6 +9,7 @@ FFTW = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
 FixedPointNumbers = "53c48c17-4a7d-5ca2-90c5-79b7896eea93"
 IntervalSets = "8197267c-284f-5f27-9208-e0e47529a953"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+SignalBase = "00c44e92-20f5-44bc-8f45-a1dcef76ba38"
 TreeViews = "a2a6695c-b41b-5b7d-aed9-dbfdeacea5d7"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 

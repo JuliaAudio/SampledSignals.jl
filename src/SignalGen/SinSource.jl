@@ -21,7 +21,7 @@ end
 SinSource(eltype, samplerate, freq::Real) = SinSource(eltype, samplerate, [freq])
 
 Base.eltype(::SinSource{T}) where T = T
-nchannels(source::SinSource) = length(source.freqs)
+SignalBase.nchannels(source::SinSource) = length(source.freqs)
 samplerate(source::SinSource) = source.samplerate
 
 function unsafe_read!(source::SinSource, buf::Array, frameoffset, framecount)

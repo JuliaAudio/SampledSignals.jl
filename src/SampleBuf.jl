@@ -47,11 +47,15 @@ SpectrumBuf(T::Type, sr, len::Quantity, ch) =
 # channel - a set of samples running in parallel
 # frame - a collection of samples from each channel that were sampled simultaneously
 
+# SignalBase methods
+SignalBase.nframes(buf::AbstractSampleBuf) = size(buf.data, 1)
+SignalBase.framerate(buf::AbstractSampleBuf) = buf.samplerate
+SignalBase.nchannels(buf::AbstractSampleBuf{T, 2}) where {T} = size(buf.data, 2)
+SignalBase.nchannels(buf::AbstractSampleBuf{T, 1}) where {T} = 1
+SignalBase.sampletype(buf::AbstractSampleBuf) = eltype(buf.data)
+
 # audio methods
 samplerate(buf::AbstractSampleBuf) = buf.samplerate
-nchannels(buf::AbstractSampleBuf{T, 2}) where {T} = size(buf.data, 2)
-nchannels(buf::AbstractSampleBuf{T, 1}) where {T} = 1
-nframes(buf::AbstractSampleBuf) = size(buf.data, 1)
 
 function samplerate!(buf::AbstractSampleBuf, sr)
     buf.samplerate = sr
@@ -60,8 +64,8 @@ function samplerate!(buf::AbstractSampleBuf, sr)
 end
 
 # define audio methods on raw buffers as well
-nframes(arr::AbstractArray) = size(arr, 1)
-nchannels(arr::AbstractArray) = size(arr, 2)
+SignalBase.nframes(arr::AbstractArray) = size(arr, 1)
+SignalBase.nchannels(arr::AbstractArray) = size(arr, 2)
 
 # it's important to define Base.similar so that range-indexing returns the
 # right type, instead of just a bare array
