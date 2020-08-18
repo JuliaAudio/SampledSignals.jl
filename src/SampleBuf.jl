@@ -1,3 +1,5 @@
+using Base.Broadcast: Broadcasted, ArrayStyle
+
 abstract type AbstractSampleBuf{T, N} <: AbstractArray{T, N} end
 
 """
@@ -48,11 +50,36 @@ SpectrumBuf(T::Type, sr, len::Quantity, ch) =
 # frame - a collection of samples from each channel that were sampled simultaneously
 
 # audio methods
+"""
+    samplerate(x)
+
+Returns the sampling rate of `x`
+"""
 samplerate(buf::AbstractSampleBuf) = buf.samplerate
+
+"""
+    nchannels(x)
+
+Returns the number of channels in the buffer or stream `x`.
+"""
 nchannels(buf::AbstractSampleBuf{T, 2}) where {T} = size(buf.data, 2)
 nchannels(buf::AbstractSampleBuf{T, 1}) where {T} = 1
+
+"""
+    nframes(x)
+
+Returns the length of `x` in frames (time instants). Each frame may have
+multiple channels.
+"""
 nframes(buf::AbstractSampleBuf) = size(buf.data, 1)
 
+"""
+    samplerate!(buf, 44100)
+
+Set the samplerate of `buf` without modifying the audio. In effect this speeds
+up or slows down the signal, assuming it's played back at the original
+samplerate.
+"""
 function samplerate!(buf::AbstractSampleBuf, sr)
     buf.samplerate = sr
 
@@ -67,95 +94,38 @@ nchannels(arr::AbstractArray) = size(arr, 2)
 # right type, instead of just a bare array
 Base.similar(buf::SampleBuf, ::Type{T}, dims::Dims) where {T} = SampleBuf(Array{T}(undef, dims), samplerate(buf))
 Base.similar(buf::SpectrumBuf, ::Type{T}, dims::Dims) where {T} = SpectrumBuf(Array{T}(undef, dims), samplerate(buf))
+
+"""
+    domain(buf)
+
+Returns the range of time (for `SampleBuf`s) or frequency (for `SpectrumBuf`s)
+corresponding to each sample of `buf`.
+"""
 domain(buf::AbstractSampleBuf) = range(0.0, stop=(nframes(buf)-1)/samplerate(buf), length=nframes(buf))
 
-# There's got to be a better way to define these functions, but the dispatch
-# and broadcast behavior for AbstractArrays is complex and has subtle differences
-# between Julia versions, so we basically just override functions here as they
-# come up as problems
-import Base: +, -, *, /
-import Base.broadcast
-
-const ArrayIsh = Union{Array, SubArray, Compat.LinRange, StepRangeLen}
-
-
-# Broadcasting in Julia 0.7
-# `find_buf` has borrowed from https://docs.julialang.org/en/latest/manual/interfaces/#Selecting-an-appropriate-output-array-1
-if VERSION >= v"0.7.0-DEV-4936" # Julia PR 26891
-    find_buf(args::Tuple) = find_buf(find_buf(args[1]), Base.tail(args))
-    find_buf(x) = x
-end # if VERSION
-
-
-for btype in (:SampleBuf, :SpectrumBuf)
-
-    if VERSION >= v"0.7.0-DEV-4936" # Julia PR 26891
-
-        @eval find_buf(bc::Base.Broadcast.Broadcasted{Broadcast.ArrayStyle{$btype{T,N}}}) where {T,N} = find_buf(bc.args)
-        @eval find_buf(::$btype, args::Tuple{$btype}) = args[1]
-        @eval find_buf(::Any, args::Tuple{$btype}) = args[1]
-        @eval find_buf(a::$btype, rest) = a
-
-        @eval Base.BroadcastStyle(::Type{$btype{T,N}}) where {T,N} = Broadcast.ArrayStyle{$btype{T,N}}()
-        @eval function Base.similar(bc::Broadcast.Broadcasted{Broadcast.ArrayStyle{$btype{T,N}}}, ::Type{ElType}) where {T,N,ElType}
-            A = find_buf(bc)
-            $btype(Array{ElType}(undef, length.(axes(bc))), samplerate(A))
+# inherit the samplerate from the first argument. TODO: we should probably
+# throw an error if there are multiple SampleBufs with different sample rates.
+for B in (SampleBuf, SpectrumBuf)
+    @eval Base.BroadcastStyle(::Type{<:$B}) = ArrayStyle{$B}()
+    @eval function Base.similar(bc::Broadcasted{ArrayStyle{$B}}, ::Type{T}) where T
+        srs = find_srs(bc)
+        @assert length(srs) >= 1
+        if any(!=(first(srs)), srs)
+            throw(ArgumentError("All samplerates in a broadcasting expression must match"))
         end
+        $B(similar(Array{T}, axes(bc)), first(srs))
+    end
+end
 
-    else
+# to see more about customizing broadcasting see this:
+# https://docs.julialang.org/en/latest/manual/interfaces/#Selecting-an-appropriate-output-array-1
 
-        # define non-broadcasting arithmetic
-        for op in (:+, :-)
-            @eval function $op(A1::$btype, A2::$btype)
-                if !isapprox(samplerate(A1), samplerate(A2))
-                    error("samplerate-converting arithmetic not supported yet")
-                end
-                $btype($op(A1.data, A2.data), samplerate(A1))
-            end
-            @eval function $op(A1::$btype, A2::ArrayIsh)
-                $btype($op(A1.data, A2), samplerate(A1))
-            end
-            @eval function $op(A1::ArrayIsh, A2::$btype)
-                $btype($op(A1, A2.data), samplerate(A2))
-            end
-        end
-
-        # define non-broadcast scalar arithmetic
-        for op in (:+, :-, :*, :/)
-            @eval function $op(A1::$btype, a2::Number)
-                $btype($op(A1.data, a2), samplerate(A1))
-            end
-            @eval function $op(a1::Number, A2::$btype)
-                $btype($op(a1, A2.data), samplerate(A2))
-            end
-        end
-
-        # define broadcasting application
-        @eval function broadcast(op, A1::$btype, A2::$btype)
-            if !isapprox(samplerate(A1), samplerate(A2))
-                error("samplerate-converting arithmetic not supported yet")
-            end
-            $btype(broadcast(op, A1.data, A2.data), samplerate(A1))
-        end
-        @eval function broadcast(op, A1::$btype, A2::ArrayIsh)
-            $btype(broadcast(op, A1.data, A2), samplerate(A1))
-        end
-        @eval function broadcast(op, A1::ArrayIsh, A2::$btype)
-            $btype(broadcast(op, A1, A2.data), samplerate(A2))
-        end
-        @eval function broadcast(op, a1::Number, A2::$btype)
-            $btype(broadcast(op, a1, A2.data), samplerate(A2))
-        end
-        @eval function broadcast(op, A1::$btype, a2::Number)
-            $btype(broadcast(op, A1.data, a2), samplerate(A1))
-        end
-        @eval function broadcast(op, A1::$btype)
-            $btype(broadcast(op, A1.data), samplerate(A1))
-        end
-
-    end # if VERSION
-
-end # for btype
+find_srs(bc::Broadcasted) = find_srs(bc.args)
+find_srs(args::Tuple) = (find_srs(first(args))...,
+                         find_srs(Base.tail(args))...)
+find_srs(buf::AbstractSampleBuf) = (samplerate(buf),)
+find_srs(::Tuple{}) = ()
+find_srs(::Any) = ()
 
 typename(::SampleBuf{T, N}) where {T, N} = "SampleBuf{$T, $N}"
 unitname(::SampleBuf) = "s"
@@ -166,6 +136,7 @@ srname(::SpectrumBuf) = "s"
 
 # from @mbauman's Sparklines.jl package
 const ticks = ['▁','▂','▃','▄','▅','▆','▇','█']
+
 # 3-arg version (with explicit mimetype) is needed because we subtype AbstractArray,
 # and there's a 3-arg version defined in show.jl
 function show(io::IO, ::MIME"text/plain", buf::AbstractSampleBuf)
@@ -185,7 +156,7 @@ function showchannels(io::IO, buf::AbstractSampleBuf, widthchars=80)
     for blk in 1:nblocks
         i = (blk-1)*blockwidth + 1
         n = min(blockwidth, nframes(buf)-i+1)
-        peaks = Compat.maximum(abs.(float.(buf[(1:n) .+ i .- 1, :])), dims=1)
+        peaks = maximum(abs.(float.(buf[(1:n) .+ i .- 1, :])), dims=1)
         # clamp to -60dB, 0dB
         peaks = clamp.(20log10.(peaks), -60.0, 0.0)
         idxs = trunc.(Int, (peaks.+60)/60 * (length(ticks)-1)) .+ 1
@@ -319,21 +290,21 @@ FFTW.ifft(buf::SpectrumBuf) = SampleBuf(FFTW.ifft(buf.data), nframes(buf)/sample
 
 # does a per-channel convolution on SampleBufs
 for buftype in (:SampleBuf, :SpectrumBuf)
-    @eval function DSP.conv(b1::$buftype{T, 1}, b2::$buftype{T, 1}) where {T}
+    @eval function DSP.conv(b1::$buftype{T1, 1}, b2::$buftype{T2, 1}) where {T1, T2}
         if !isapprox(samplerate(b1), samplerate(b2))
             error("Resampling convolution not yet supported")
         end
         $buftype(conv(b1.data, b2.data), samplerate(b1))
     end
 
-    @eval function DSP.conv(b1::$buftype{T, N1}, b2::$buftype{T, N2}) where {T, N1, N2}
+    @eval function DSP.conv(b1::$buftype{T1, N1}, b2::$buftype{T2, N2}) where {T1, T2, N1, N2}
         if !isapprox(samplerate(b1), samplerate(b2))
             error("Resampling convolution not yet supported")
         end
         if nchannels(b1) != nchannels(b2)
             error("Broadcasting convolution not yet supported")
         end
-        out = $buftype(T, samplerate(b1), nframes(b1)+nframes(b2)-1, nchannels(b1))
+        out = $buftype(promote_type(T1, T2), samplerate(b1), nframes(b1)+nframes(b2)-1, nchannels(b1))
         for ch in 1:nchannels(b1)
             out[:, ch] = conv(b1.data[:, ch], b2.data[:, ch])
         end
@@ -341,17 +312,17 @@ for buftype in (:SampleBuf, :SpectrumBuf)
         out
     end
 
-    @eval function DSP.conv(b1::$buftype{T, 1}, b2::StridedVector{T}) where {T}
+    @eval function DSP.conv(b1::$buftype{T1, 1}, b2::StridedVector{T2}) where {T1, T2}
         $buftype(conv(b1.data, b2), samplerate(b1))
     end
 
-    @eval DSP.conv(b1::StridedVector{T}, b2::$buftype{T, 1}) where {T} = conv(b2, b1)
+    @eval DSP.conv(b1::StridedVector{T1}, b2::$buftype{T2, 1}) where {T1, T2} = conv(b2, b1)
 
-    @eval function DSP.conv(b1::$buftype{T, 2}, b2::StridedMatrix{T}) where {T}
+    @eval function DSP.conv(b1::$buftype{T1, 2}, b2::StridedMatrix{T2}) where {T1, T2}
         if nchannels(b1) != nchannels(b2)
             error("Broadcasting convolution not yet supported")
         end
-        out = $buftype(T, samplerate(b1), nframes(b1)+nframes(b2)-1, nchannels(b1))
+        out = $buftype(promote_type(T1, T2), samplerate(b1), nframes(b1)+nframes(b2)-1, nchannels(b1))
         for ch in 1:nchannels(b1)
             out[:, ch] = conv(b1.data[:, ch], b2[:, ch])
         end
@@ -359,5 +330,5 @@ for buftype in (:SampleBuf, :SpectrumBuf)
         out
     end
 
-    @eval DSP.conv(b1::StridedMatrix{T}, b2::$buftype{T, 2}) where {T} = conv(b2, b1)
+    @eval DSP.conv(b1::StridedMatrix{T1}, b2::$buftype{T2, 2}) where {T1, T2} = conv(b2, b1)
 end

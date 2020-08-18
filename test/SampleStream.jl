@@ -1,5 +1,4 @@
-using Compat.Test
-import Compat: undef
+using Test
 using SampledSignals
 using DSP
 include("support/util.jl")

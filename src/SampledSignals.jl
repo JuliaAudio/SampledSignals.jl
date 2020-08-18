@@ -1,6 +1,3 @@
-# precompile is now the default
-VERSION < v"0.7.0-rc2" && __precompile__()
-
 module SampledSignals
 
 using IntervalSets
@@ -25,20 +22,12 @@ using Unitful
 using Unitful: ns, ms, µs, s, Hz, kHz, MHz, GHz, THz
 using FixedPointNumbers
 using DSP
-using Compat
-using Compat: AbstractRange, undef, range
-using Compat.Random: randstring
-using Compat.Base64: base64encode
+using Random: randstring
+using Base64: base64encode
 using TreeViews: TreeViews
 
-if VERSION >= v"0.7.0-DEV"
-    using LinearAlgebra: mul!
-    import FFTW
-else
-    const mul! = A_mul_B!
-    import Compat.FFTW
-end
-
+using LinearAlgebra: mul!
+import FFTW
 import Base: show
 
 const PCM8Sample = Fixed{Int8, 7}
@@ -53,7 +42,6 @@ include("SampleBuf.jl")
 include("SampleStream.jl")
 include("SignalGen/SinSource.jl")
 include("WAVDisplay.jl")
-include("deprecated.jl")
 
 """
     metadata(x, key::Symbol)
