@@ -36,4 +36,3 @@
         @test_throws ErrorException inHz(441frames)
     end
 end
-
