@@ -1,6 +1,6 @@
 using Compat.Test
-import Compat: undef
-using SampledSignals
+import Compat:undef
+using ..SampledSignals
 using DSP
 include("support/util.jl")
 
@@ -52,8 +52,8 @@ include("support/util.jl")
         sr2 = 9000
 
         data1 = rand(Float32, 64, 2)
-        ratio = sr2//sr1
-        data2 = mapslices(c->filt(FIRFilter(resample_filter(ratio), ratio), c),
+        ratio = sr2 // sr1
+        data2 = mapslices(c -> filt(FIRFilter(resample_filter(ratio), ratio), c),
                           data1,
                           dims=1)
 
@@ -69,8 +69,8 @@ include("support/util.jl")
         sr2 = 48000
 
         data1 = rand(Float32, 64, 2)
-        ratio = sr2//sr1
-        data2 = mapslices(c->filt(FIRFilter(resample_filter(ratio), ratio), c),
+        ratio = sr2 // sr1
+        data2 = mapslices(c -> filt(FIRFilter(resample_filter(ratio), ratio), c),
                           data1,
                           dims=1)
 
@@ -85,7 +85,7 @@ include("support/util.jl")
         sr1 = 48000
         data1 = rand(Float32, 64, 1) .- 0.5
         sr2 = 44100
-        ratio = sr2//sr1
+        ratio = sr2 // sr1
         data2 = map(PCM16Sample, hcat(
             filt(FIRFilter(resample_filter(ratio), ratio), vec(data1)),
             filt(FIRFilter(resample_filter(ratio), ratio), vec(data1))
@@ -147,7 +147,7 @@ include("support/util.jl")
         sink = DummySampleSink(Float32, 48000, 2)
         duration = 1.0s
         t = write(sink, source, duration, blocksize=8)
-        @test t == (64/48000)
+        @test t == (64 / 48000)
         @test sink.buf == data
     end
 
@@ -188,7 +188,7 @@ include("support/util.jl")
     @testset "Partial SampleBufs can be written to sinks specifying duration" begin
         sink = DummyStereoSink()
         buf = SampleBuf(rand(10, 2), samplerate(sink))
-        t = 5/samplerate(sink) * s
+        t = 5 / samplerate(sink) * s
         write(sink, buf, t)
         @test sink.buf == buf.data[1:5, :]
     end
@@ -196,7 +196,7 @@ include("support/util.jl")
     @testset "Partial Arrays can be written to sinks specifying duration" begin
         sink = DummyStereoSink()
         buf = rand(10, 2)
-        t = 5/samplerate(sink) * s
+        t = 5 / samplerate(sink) * s
         write(sink, buf, t)
         @test sink.buf == buf[1:5, :]
     end
@@ -227,7 +227,7 @@ include("support/util.jl")
     @testset "read can read in seconds" begin
         data = rand(20, 2)
         source = DummySource(data)
-        t = 5/samplerate(source) * s
+        t = 5 / samplerate(source) * s
         buf = read(source, t)
         @test buf.data == data[1:5, :]
     end
@@ -254,7 +254,7 @@ include("support/util.jl")
         data = rand(8, 2)
         source = DummySource(data)
         buf = zeros(8, 2)
-        t = 5/samplerate(source) * s
+        t = 5 / samplerate(source) * s
         @test read!(source, buf, t) == t
         @test buf[1:5, :] == data[1:5, :]
         @test buf[6:8, :] == zeros(3, 2)
@@ -264,7 +264,7 @@ include("support/util.jl")
         data = rand(8, 2)
         source = DummySource(data)
         buf = SampleBuf(zeros(8, 2), samplerate(source))
-        t = 5/samplerate(source) * s
+        t = 5 / samplerate(source) * s
         @test read!(source, buf, t) == t
         @test buf.data[1:5, :] == data[1:5, :]
         @test buf.data[6:8, :] == zeros(3, 2)
@@ -410,10 +410,10 @@ include("support/util.jl")
         write(sink, source)
         @test size(sink.buf, 1) == 32
         for ch in 1:nchannels(source), i in 1:16
-            @test sink.buf[i, ch] == i * ch
-        end
+    @test sink.buf[i, ch] == i * ch
+end
         for ch in 1:nchannels(source), i in 17:32
-            @test sink.buf[i, ch] == (i-16) * ch
-        end
+    @test sink.buf[i, ch] == (i - 16) * ch
+end
     end
 end

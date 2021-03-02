@@ -1,4 +1,5 @@
-using SampledSignals
+include("../src/SampledSignals.jl")
+using .SampledSignals
 using Compat.Test
 using DSP
 using FixedPointNumbers

@@ -1,6 +1,6 @@
 name = "SampledSignals"
 uuid = "bd7594eb-a658-542f-9e75-4c4d8908c167"
-version = "2.1.0"
+version = "2.2.0"
 
 [deps]
 Compat = "34da2185-b29b-5c13-b0c7-acf172513d20"
@@ -13,11 +13,11 @@ TreeViews = "a2a6695c-b41b-5b7d-aed9-dbfdeacea5d7"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [compat]
-Compat = "2"
+Compat = "2, 3"
 DSP = "0.6.1"
 FFTW = "1.1.0"
 FixedPointNumbers = "0.6.1"
-IntervalSets = "0.3.2"
+IntervalSets = "0.5.2"
 Unitful = "0.17.0"
 julia = "1"
 TreeViews = "0.3"

@@ -1,6 +1,6 @@
 using Compat.Test
 using Compat: undef, range
-using SampledSignals
+using ..SampledSignals
 using Unitful
 using DSP
 if VERSION >= v"0.7.0-DEV"
@@ -19,7 +19,7 @@ end
         @test samplerate(tbuf) == TEST_SR
         @test nchannels(tbuf) == 2
         @test nframes(tbuf) == 64
-        @test isapprox(domain(tbuf), ((0:63)/TEST_SR))
+        @test isapprox(domain(tbuf), ((0:63) / TEST_SR))
         ret = samplerate!(tbuf, 24000)
         @test samplerate(tbuf) == 24000
         @test ret === tbuf
@@ -42,10 +42,10 @@ end
         arr3 = arr1[:, 1]
         buf1 = SampleBuf(arr1, TEST_SR)
         buf2 = SampleBuf(arr1, TEST_SR)
-        buf3 = SampleBuf(arr1, TEST_SR+1)
+        buf3 = SampleBuf(arr1, TEST_SR + 1)
         buf4 = SampleBuf(arr2, TEST_SR)
         buf5 = SampleBuf(arr3, TEST_SR)
-        buf6 = SampleBuf(arr1, 1/TEST_SR)
+        buf6 = SampleBuf(arr1, 1 / TEST_SR)
         @test buf1 == buf2
         @test buf2 != buf3
         @test buf2 != buf4
@@ -142,8 +142,8 @@ end
         arr = rand(Float64, 10, 4)
         buf = SampleBuf(arr, TEST_SR)
         for ch in 1:4
-            @test unsafe_load(channelptr(buf, ch)) == arr[1, ch]
-        end
+    @test unsafe_load(channelptr(buf, ch)) == arr[1, ch]
+end
     end
 
     @testset "Nice syntax for creating buffers" begin
@@ -157,13 +157,13 @@ end
     @testset "Can be created with a length in seconds" begin
         buf = SampleBuf(Float32, TEST_SR, 0.5s, 2)
         @test nchannels(buf) == 2
-        @test nframes(buf) == TEST_SR/2
+        @test nframes(buf) == TEST_SR / 2
         @test eltype(buf) == Float32
         @test samplerate(buf) == TEST_SR
 
         buf = SampleBuf(Float32, TEST_SR, 0.5s)
         @test nchannels(buf) == 1
-        @test nframes(buf) == TEST_SR/2
+        @test nframes(buf) == TEST_SR / 2
         @test eltype(buf) == Float32
         @test samplerate(buf) == TEST_SR
     end
@@ -187,14 +187,14 @@ end
     end
 
     @testset "Invalid units throw an error" begin
-        arr = rand(TEST_T, (round(Int, 0.01*TEST_SR), 2))
+        arr = rand(TEST_T, (round(Int, 0.01 * TEST_SR), 2))
         buf = SampleBuf(arr, TEST_SR)
         @test_throws Unitful.DimensionError buf[1Hz]
     end
 
     @testset "SampleBufs can be indexed in seconds" begin
         # array with 10ms of audio
-        arr = rand(TEST_T, (round(Int, 0.01*TEST_SR), 2))
+        arr = rand(TEST_T, (round(Int, 0.01 * TEST_SR), 2))
         buf = SampleBuf(arr, TEST_SR)
         @test buf[0.0s] == arr[1]
         @test buf[0.005s] == arr[241]
@@ -210,7 +210,7 @@ end
 
     @testset "SampleBufs can be indexed in unitful frames" begin
         # array with 10ms of audio
-        arr = rand(TEST_T, (round(Int, 0.01*TEST_SR), 2))
+        arr = rand(TEST_T, (round(Int, 0.01 * TEST_SR), 2))
         buf = SampleBuf(arr, TEST_SR)
         @test buf[0frames] == arr[1]
         @test buf[240frames] == arr[241]
@@ -360,9 +360,9 @@ end
         spec = FFTW.fft(buf)
         @test isa(spec, SpectrumBuf)
         @test eltype(spec) == Complex{TEST_T}
-        @test samplerate(spec) == 512/TEST_SR
+        @test samplerate(spec) == 512 / TEST_SR
         @test nchannels(spec) == 1
-        @test spec == SpectrumBuf(FFTW.fft(arr), 512/TEST_SR)
+        @test spec == SpectrumBuf(FFTW.fft(arr), 512 / TEST_SR)
         buf2 = FFTW.ifft(spec)
         # TODO: real time signals should become symmetric spectra, and then
         # back to real time signals with ifft
@@ -377,24 +377,24 @@ end
         arr1 = rand(TEST_T, 8)
         arr2 = rand(TEST_T, 10)
         for T in (SampleBuf, SpectrumBuf)
-            result = T(conv(arr1, arr2), TEST_SR)
-            @test conv(T(arr1, TEST_SR), T(arr2, TEST_SR)) == result
-            @test conv(T(arr1, TEST_SR), arr2) == result
-            @test conv(arr1, T(arr2, TEST_SR)) == result
-        end
+    result = T(conv(arr1, arr2), TEST_SR)
+    @test conv(T(arr1, TEST_SR), T(arr2, TEST_SR)) == result
+    @test conv(T(arr1, TEST_SR), arr2) == result
+    @test conv(arr1, T(arr2, TEST_SR)) == result
+end
     end
 
     @testset "2D SampleBufs and SpectrumBufs can be convolved" begin
         arr1 = rand(TEST_T, 8, 2)
         arr2 = rand(TEST_T, 10, 2)
         for T in (SampleBuf, SpectrumBuf)
-            result = T(
+    result = T(
                     hcat(conv(arr1[:, 1], arr2[:, 1]), conv(arr1[:, 2], arr2[:, 2])),
                     TEST_SR)
-            @test conv(T(arr1, TEST_SR), T(arr2, TEST_SR)) == result
-            @test conv(T(arr1, TEST_SR), arr2) == result
-            @test conv(arr1, T(arr2, TEST_SR)) == result
-        end
+    @test conv(T(arr1, TEST_SR), T(arr2, TEST_SR)) == result
+    @test conv(T(arr1, TEST_SR), arr2) == result
+    @test conv(arr1, T(arr2, TEST_SR)) == result
+end
     end
 
     @testset "Arrays support mix" begin
@@ -404,7 +404,7 @@ end
                      0 0.5]
         out = mix(arr, mixmatrix)
         @test isapprox(out[:, 1], arr[:, 1])
-        @test isapprox(out[:, 2], 0.5(arr[:, 2]+arr[:, 3]))
+        @test isapprox(out[:, 2], 0.5(arr[:, 2] + arr[:, 3]))
     end
 
 
@@ -414,12 +414,12 @@ end
                      0 0.5
                      0 0.5]
         for T in (SampleBuf, SpectrumBuf)
-            buf = T(arr, TEST_SR)
-            out = mix(buf, mixmatrix)
-            @test isa(out, T)
-            @test isapprox(out[:, 1], T(arr[:, 1], TEST_SR))
-            @test isapprox(out[:, 2], T(0.5(arr[:, 2]+arr[:, 3]), TEST_SR))
-        end
+    buf = T(arr, TEST_SR)
+    out = mix(buf, mixmatrix)
+    @test isa(out, T)
+    @test isapprox(out[:, 1], T(arr[:, 1], TEST_SR))
+    @test isapprox(out[:, 2], T(0.5(arr[:, 2] + arr[:, 3]), TEST_SR))
+end
     end
 
     @testset "Arrays support mix!" begin
@@ -430,7 +430,7 @@ end
                      0 0.5]
         mix!(out, arr, mixmatrix)
         @test isapprox(out[:, 1], arr[:, 1])
-        @test isapprox(out[:, 2], 0.5(arr[:, 2]+arr[:, 3]))
+        @test isapprox(out[:, 2], 0.5(arr[:, 2] + arr[:, 3]))
     end
 
 
@@ -441,11 +441,11 @@ end
                      0 0.5
                      0 0.5]
         for T in (SampleBuf, SpectrumBuf)
-            buf = T(arr, TEST_SR)
-            out = mix(buf, mixmatrix)
-            @test isa(out, T)
-            @test out == T(arr * mixmatrix, TEST_SR)
-        end
+    buf = T(arr, TEST_SR)
+    out = mix(buf, mixmatrix)
+    @test isa(out, T)
+    @test out == T(arr * mixmatrix, TEST_SR)
+end
     end
 
     @testset "Arrays support mono" begin
@@ -456,11 +456,11 @@ end
     @testset "SampleBufs and SpectrumBufs support mono" begin
         arr = rand(TEST_T, 8, 2)
         for T in (SampleBuf, SpectrumBuf)
-            buf = T(arr, TEST_SR)
-            out = mono(buf)
-            @test isa(out, T)
-            @test isapprox(out, 0.5(buf[:, 1] + buf[:, 2]))
-        end
+    buf = T(arr, TEST_SR)
+    out = mono(buf)
+    @test isa(out, T)
+    @test isapprox(out, 0.5(buf[:, 1] + buf[:, 2]))
+end
     end
 
     @testset "Arrays support mono!" begin
@@ -473,11 +473,11 @@ end
     @testset "SampleBufs and SpectrumBufs support mono!" begin
         arr = rand(TEST_T, 8, 2)
         for T in (SampleBuf, SpectrumBuf)
-            buf = T(arr, TEST_SR)
-            out = T(TEST_T, TEST_SR, 8)
-            mono!(out, buf)
-            @test isapprox(out, 0.5(buf[:, 1] + buf[:, 2]))
-        end
+    buf = T(arr, TEST_SR)
+    out = T(TEST_T, TEST_SR, 8)
+    mono!(out, buf)
+    @test isapprox(out, 0.5(buf[:, 1] + buf[:, 2]))
+end
     end
 
     @testset "mono! works with 1D and 2D output vector" begin
@@ -492,7 +492,7 @@ end
 
     @testset "multichannel buf prints prettily" begin
         t = collect(range(0, stop=2pi, length=300))
-        buf = SampleBuf([cos.(t) sin.(t)]*0.2, 48000)
+        buf = SampleBuf([cos.(t) sin.(t)] * 0.2, 48000)
         expected = """300-frame, 2-channel SampleBuf{Float64, 2}
                    0.00625s sampled at 48000.0Hz
                    ▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▃▃▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▃▃▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆
@@ -503,7 +503,7 @@ end
     end
     @testset "1D buf prints prettily" begin
         t = collect(range(0, stop=2pi, length=300))
-        buf = SampleBuf(cos.(t)*0.2, 48000)
+        buf = SampleBuf(cos.(t) * 0.2, 48000)
         expected = """300-frame, 1-channel SampleBuf{Float64, 1}
                    0.00625s sampled at 48000.0Hz
                    ▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▃▃▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▃▃▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆"""
