@@ -3,43 +3,32 @@ uuid = "bd7594eb-a658-542f-9e75-4c4d8908c167"
 version = "2.2.0"
 
 [deps]
-Compat = "34da2185-b29b-5c13-b0c7-acf172513d20"
 DSP = "717857b8-e6f2-59f4-9121-6e50c889abd2"
 FFTW = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
 FixedPointNumbers = "53c48c17-4a7d-5ca2-90c5-79b7896eea93"
 IntervalSets = "8197267c-284f-5f27-9208-e0e47529a953"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 TreeViews = "a2a6695c-b41b-5b7d-aed9-dbfdeacea5d7"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [compat]
-Compat = "2, 3"
-DSP = "0.6.1"
-FFTW = "1.1.0"
-FixedPointNumbers = "0.6.1"
+DSP = "0.6.10"
+FFTW = "1.3.2"
+FixedPointNumbers = "0.8.4"
 IntervalSets = "0.5.2"
-Unitful = "0.17.0"
-julia = "1"
 TreeViews = "0.3"
+Unitful = "1.6.0"
+julia = "1.5"
 
 [extras]
 DSP = "717857b8-e6f2-59f4-9121-6e50c889abd2"
 FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
 FixedPointNumbers = "53c48c17-4a7d-5ca2-90c5-79b7896eea93"
-# LibSndFile = "b13ce0c6-77b0-50c6-a2db-140568b8d1a5"
-Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
-Compat = "34da2185-b29b-5c13-b0c7-acf172513d20"
+IntervalSets = "8197267c-284f-5f27-9208-e0e47529a953"
 SampledSignals = "bd7594eb-a658-542f-9e75-4c4d8908c167"
 TreeViews = "a2a6695c-b41b-5b7d-aed9-dbfdeacea5d7"
-IntervalSets = "8197267c-284f-5f27-9208-e0e47529a953"
+Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [targets]
-test = ["DSP",
-        "FileIO",
-        "FixedPointNumbers",
-        # "LibSndFile",
-        "Unitful",
-        "Compat",
-        "SampledSignals",
-        "TreeViews",
-        "IntervalSets"]
+test = ["DSP", "FileIO", "FixedPointNumbers", "Unitful", "SampledSignals", "TreeViews", "IntervalSets"]

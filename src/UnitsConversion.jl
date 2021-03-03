@@ -1,4 +1,4 @@
-const frames = Hz*s
+const frames = Hz * s
 const FrameQuant = DimensionlessQuantity
 
 """
@@ -24,11 +24,11 @@ inframes(::Type{T}, frame::FrameQuant, rate=nothing) where T <: Integer =
     round(T, ustrip(uconvert(frames, frame)))
 inframes(frame::FrameQuant, rate=nothing) = ustrip(uconvert(frames, frame))
 inframes(::Type{T}, time::Unitful.Time, rate) where T <: Integer =
-    round(T, inseconds(time)*inHz(rate))
-inframes(time::Unitful.Time, rate) = inseconds(time)*inHz(rate)
+    round(T, inseconds(time) * inHz(rate))
+inframes(time::Unitful.Time, rate) = inseconds(time) * inHz(rate)
 inframes(::Type{T}, freq::Unitful.Frequency, rate) where T <: Integer =
-    round(T, inHz(freq)*inseconds(rate))
-inframes(freq::Unitful.Frequency, rate) = inHz(freq)*inseconds(rate)
+    round(T, inHz(freq) * inseconds(rate))
+inframes(freq::Unitful.Frequency, rate) = inHz(freq) * inseconds(rate)
 inframes(::Type, frame::Unitful.AbstractQuantity) = error("Unknown sample rate")
 inframes(frame::Unitful.AbstractQuantity) = error("Unknown sample rate")
 inframes(::Type{T}, frame::Real) where T = T(frame)
@@ -77,13 +77,10 @@ julia> inseconds(441frames, 44100Hz)
 0.01
 
 """
-inseconds(x::Unitful.Time, rate=nothing) = ustrip(uconvert(s,x))
+inseconds(x::Unitful.Time, rate=nothing) = ustrip(uconvert(s, x))
 inseconds(x::FrameQuant) = error("Unknown sample rate")
 # assume we have a time buffer with sample rate in hz
 inseconds(x::FrameQuant, rate) = inseconds(inframes(x) / rate)
 inseconds(x::Real, rate) = x
 inseconds(x::Real) = x
 
-# inseconds(x, rate::Quantity) = inseconds(x,inHz(rate))
-# inseconds(x::FrameQuant, rate::Real) = (ustrip(x) / rate)
-# inseconds(x::Quantity, rate::Real) = ustrip(uconvert(s,x))

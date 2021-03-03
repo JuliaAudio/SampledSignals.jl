@@ -1,6 +1,6 @@
 include("../src/SampledSignals.jl")
 using .SampledSignals
-using Compat.Test
+using Test
 using DSP
 using FixedPointNumbers
 using FileIO: File, Stream, @format_str
@@ -16,6 +16,6 @@ include("support/util.jl")
               "SampleBuf.jl",
               "SampleStream.jl",
               "SinSource.jl",
-              # "WAVDisplay.jl"
+               "UnitsConversionTests.jl"
               ])
 end
