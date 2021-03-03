@@ -1,4 +1,5 @@
 using Test
+include("support/util.jl")
 
 @testset "DummySampleStream Tests" begin
     DEFAULT_SR = 48000

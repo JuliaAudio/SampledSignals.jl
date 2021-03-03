@@ -1,6 +1,6 @@
 using Test
 using ..SampledSignals
-using ..SampledSignals:samplerate, nchannels, nframes, domain, samplerate!, mono!, SampleBuf, mix, DummySampleSource, DummyStereoSink
+using ..SampledSignals:samplerate, nchannels, nframes, domain, samplerate!, mono!, SampleBuf, mix
 using DSP
 include("support/util.jl")
 
