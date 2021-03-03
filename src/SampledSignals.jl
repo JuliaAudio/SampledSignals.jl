@@ -24,7 +24,6 @@ using FixedPointNumbers
 using DSP
 using Random:randstring
 using Base64:base64encode
-using TreeViews:TreeViews
 
 using LinearAlgebra:mul!
 import FFTW
