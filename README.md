@@ -22,12 +22,12 @@ Because these buffer and stream types are sample-rate and channel-count aware, t
 
 #### Methods
 
-* `samplerate`
-* `samplerate!`
-* `nchannels`
-* `nframes`
-* `domain`
-* `channelptr`
+- `samplerate`
+- `samplerate!`
+- `nchannels`
+- `nframes`
+- `domain`
+- `channelptr`
 
 ### SampleSource
 
@@ -35,9 +35,9 @@ Because these buffer and stream types are sample-rate and channel-count aware, t
 
 #### Methods
 
-* `samplerate`
-* `nchannels`
-* `blocksize`
+- `samplerate`
+- `nchannels`
+- `blocksize`
 
 ### SampleSink
 
@@ -45,9 +45,9 @@ Because these buffer and stream types are sample-rate and channel-count aware, t
 
 #### Methods
 
-* `samplerate`
-* `nchannels`
-* `blocksize`
+- `samplerate`
+- `nchannels`
+- `blocksize`
 
 ## Stream Read/Write Semantics
 
@@ -164,11 +164,11 @@ When we take a slice of a SampleBuf (e.g. take the span from 1s to 3s of a 10s a
 
 To run the SampledSignals tests you need Gumbo, but installing both Gumbo and Juno causes issues that prevent you from running the tests on 0.6. Here are the details:
 
-* AbstractTrees < v0.1.0 is not compatible with Julia v0.6
-* Gumbo 0.3.0 (latest) requires AbstractTrees >= v0.0.4
-* ASTInterpreter requires AbstractTrees between v0.0.4 and v0.1.0
-    * this limitation isn't in the REQUIRE in the repo, but was added to METADATA
-* ASTInterpreter is required by Atom and Gallium
+- AbstractTrees < v0.1.0 is not compatible with Julia v0.6
+- Gumbo 0.3.0 (latest) requires AbstractTrees >= v0.0.4
+- ASTInterpreter requires AbstractTrees between v0.0.4 and v0.1.0
+  - this limitation isn't in the REQUIRE in the repo, but was added to METADATA
+- ASTInterpreter is required by Atom and Gallium
 
 ### Solution:
 
