@@ -1,5 +1,6 @@
 using Test
 using ..SampledSignals
+using ..SampledSignals:samplerate, nchannels, nframes, domain, samplerate!, mono!, SampleBuf, mix
 using Unitful
 using DSP
 import FFTW
