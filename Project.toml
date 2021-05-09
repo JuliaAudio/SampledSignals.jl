@@ -25,14 +25,8 @@ Unitful = "0.17.0"
 julia = "1"
 
 [extras]
-Compat = "34da2185-b29b-5c13-b0c7-acf172513d20"
-DSP = "717857b8-e6f2-59f4-9121-6e50c889abd2"
 FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
-FixedPointNumbers = "53c48c17-4a7d-5ca2-90c5-79b7896eea93"
-IntervalSets = "8197267c-284f-5f27-9208-e0e47529a953"
-SampledSignals = "bd7594eb-a658-542f-9e75-4c4d8908c167"
-TreeViews = "a2a6695c-b41b-5b7d-aed9-dbfdeacea5d7"
-Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["DSP", "FileIO", "FixedPointNumbers", "Unitful", "Compat", "SampledSignals", "TreeViews", "IntervalSets"]
+test = ["Test", "FileIO"]
