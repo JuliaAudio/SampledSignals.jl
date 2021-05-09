@@ -1,7 +1,6 @@
 # SampledSignals
 
-[![Build Status](https://travis-ci.org/JuliaAudio/SampledSignals.jl.svg?branch=master)](https://travis-ci.org/JuliaAudio/SampledSignals.jl)
-[![Build status](https://ci.appveyor.com/api/projects/status/qioy8vjpwg51s77p/branch/master?svg=true)](https://ci.appveyor.com/project/ssfrr/sampledsignals-jl/branch/master)
+[![Tests](https://github.com/JuliaAudio/SampledSignals.jl/actions/workflows/Tests.yml/badge.svg?branch=master)](https://github.com/JuliaAudio/SampledSignals.jl/actions/workflows/Tests.yml)
 [![codecov.io](http://codecov.io/github/JuliaAudio/SampledSignals.jl/coverage.svg?branch=master)](http://codecov.io/github/JuliaAudio/SampledSignals.jl?branch=master)
 
 **Dev Note: Currently the master branch of SampledSignals requires the master branch of LibSndFile for its tests.**
