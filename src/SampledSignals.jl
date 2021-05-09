@@ -27,8 +27,8 @@ using FixedPointNumbers
 using DSP
 using Compat
 using Compat: AbstractRange, undef, range
-using Compat.Random: randstring
-using Compat.Base64: base64encode
+using Random: randstring
+using Base64: base64encode
 using TreeViews: TreeViews
 
 if VERSION >= v"0.7.0-DEV"

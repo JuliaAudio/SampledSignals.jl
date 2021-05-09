@@ -1,4 +1,4 @@
-using Compat.Test
+using Test
 import Compat: undef
 
 @testset "DummySampleStream Tests" begin
