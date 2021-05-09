@@ -3,8 +3,6 @@
 [![Tests](https://github.com/JuliaAudio/SampledSignals.jl/actions/workflows/Tests.yml/badge.svg?branch=master)](https://github.com/JuliaAudio/SampledSignals.jl/actions/workflows/Tests.yml)
 [![codecov.io](http://codecov.io/github/JuliaAudio/SampledSignals.jl/coverage.svg?branch=master)](http://codecov.io/github/JuliaAudio/SampledSignals.jl?branch=master)
 
-**Dev Note: Currently the master branch of SampledSignals requires the master branch of LibSndFile for its tests.**
-
 SampledSignals is a collection of types intended to be used on multichannel sampled signals like audio or radio data, EEG signals, etc., to provide better interoperability between packages that read data from files or streams, DSP packages, and output and display packages.
 
 SampledSignals provides several types to stream and store sampled data: `SampleBuf`, `SpectrumBuf`, `SampleSource`, `SampleSink` which make use of [IntervalSets](https://github.com/JuliaMath/IntervalSets.jl) that can be used to represent contiguous ranges using a convenient `a..b` syntax, this feature is copied mostly from the [AxisArrays](https://github.com/mbauman/AxisArrays.jl) package, which also inspired much of the implementation of this package.
@@ -158,17 +156,3 @@ Currently for real-valued indices like time we are just rounding to the nearest 
 ### Relative vs. Absolute indexing
 
 When we take a slice of a SampleBuf (e.g. take the span from 1s to 3s of a 10s audio buffer), what is the indexing domain of the result? Specifically, is it 1s-3s, or is it 0s-2s? For time-domain signals I can see wanting indexing relative to the beginning of the buffer, but in frequency-domain buffers it seems you usually want to keep the frequency information. Keeping track of the time information could also be useful if you split out a signal for processing and then want to re-combine things at the end.
-
-## AbstractTrees troubleshooting
-
-To run the SampledSignals tests you need Gumbo, but installing both Gumbo and Juno causes issues that prevent you from running the tests on 0.6. Here are the details:
-
-* AbstractTrees < v0.1.0 is not compatible with Julia v0.6
-* Gumbo 0.3.0 (latest) requires AbstractTrees >= v0.0.4
-* ASTInterpreter requires AbstractTrees between v0.0.4 and v0.1.0
-    * this limitation isn't in the REQUIRE in the repo, but was added to METADATA
-* ASTInterpreter is required by Atom and Gallium
-
-### Solution:
-
-Run `Pkg.checkout("ASTInterpreter")` and `Pkg.resolve()` until a new version is tagged. The ASTInterpreter tests don't pass, but it gets things working enough to get AbstractTrees back to 0.1.0 and the SampledSignals tests runnable.
