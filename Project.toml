@@ -3,6 +3,7 @@ uuid = "bd7594eb-a658-542f-9e75-4c4d8908c167"
 version = "2.1.1"
 
 [deps]
+Base64 = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 Compat = "34da2185-b29b-5c13-b0c7-acf172513d20"
 DSP = "717857b8-e6f2-59f4-9121-6e50c889abd2"
 FFTW = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
