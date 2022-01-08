@@ -404,7 +404,7 @@ end
                      0 0.5]
         out = mix(arr, mixmatrix)
         @test isapprox(out[:, 1], arr[:, 1])
-        @test isapprox(out[:, 2], 0.5(arr[:, 2]+arr[:, 3]))
+        @test isapprox(out[:, 2], TEST_T(0.5) * (arr[:, 2]+arr[:, 3]))
     end
 
 
@@ -418,7 +418,7 @@ end
             out = mix(buf, mixmatrix)
             @test isa(out, T)
             @test isapprox(out[:, 1], T(arr[:, 1], TEST_SR))
-            @test isapprox(out[:, 2], T(0.5(arr[:, 2]+arr[:, 3]), TEST_SR))
+            @test isapprox(out[:, 2], T(TEST_T(0.5) * (arr[:, 2]+arr[:, 3]), TEST_SR))
         end
     end
 
@@ -430,7 +430,7 @@ end
                      0 0.5]
         mix!(out, arr, mixmatrix)
         @test isapprox(out[:, 1], arr[:, 1])
-        @test isapprox(out[:, 2], 0.5(arr[:, 2]+arr[:, 3]))
+        @test isapprox(out[:, 2], TEST_T(0.5) * (arr[:, 2]+arr[:, 3]))
     end
 
 
@@ -444,13 +444,13 @@ end
             buf = T(arr, TEST_SR)
             out = mix(buf, mixmatrix)
             @test isa(out, T)
-            @test out == T(arr * mixmatrix, TEST_SR)
+            @test isapprox(out, T(arr * mixmatrix, TEST_SR))
         end
     end
 
     @testset "Arrays support mono" begin
         arr = rand(TEST_T, 8, 2)
-        @test isapprox(mono(arr), 0.5(arr[:, 1] + arr[:, 2]))
+        @test isapprox(mono(arr), TEST_T(0.5) * (arr[:, 1] + arr[:, 2]))
     end
 
     @testset "SampleBufs and SpectrumBufs support mono" begin
@@ -459,7 +459,7 @@ end
             buf = T(arr, TEST_SR)
             out = mono(buf)
             @test isa(out, T)
-            @test isapprox(out, 0.5(buf[:, 1] + buf[:, 2]))
+            @test isapprox(out, TEST_T(0.5) * (buf[:, 1] + buf[:, 2]))
         end
     end
 
@@ -467,7 +467,7 @@ end
         arr = rand(TEST_T, 8, 2)
         out = zeros(TEST_T, 8)
         mono!(out, arr)
-        @test isapprox(out, 0.5(arr[:, 1] + arr[:, 2]))
+        @test isapprox(out, TEST_T(0.5) * (arr[:, 1] + arr[:, 2]))
     end
 
     @testset "SampleBufs and SpectrumBufs support mono!" begin
@@ -476,7 +476,7 @@ end
             buf = T(arr, TEST_SR)
             out = T(TEST_T, TEST_SR, 8)
             mono!(out, buf)
-            @test isapprox(out, 0.5(buf[:, 1] + buf[:, 2]))
+            @test isapprox(out, TEST_T(0.5) * (buf[:, 1] + buf[:, 2]))
         end
     end
 
@@ -486,8 +486,8 @@ end
         out2 = zeros(TEST_T, 8, 1)
         mono!(out1, arr)
         mono!(out2, arr)
-        @test isapprox(out1, 0.5(arr[:, 1] + arr[:, 2]))
-        @test isapprox(out2, 0.5(arr[:, 1] + arr[:, 2]))
+        @test isapprox(out1, TEST_T(0.5) * (arr[:, 1] + arr[:, 2]))
+        @test isapprox(out2, TEST_T(0.5) * (arr[:, 1] + arr[:, 2]))
     end
 
     @testset "multichannel buf prints prettily" begin
