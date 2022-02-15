@@ -13,7 +13,6 @@ jobs:
     timeout-minutes: 30
     name: ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} 
     runs-on: ${{ matrix.os }}
-    continue-on-error: ${{ matrix.experimental }}
     strategy:
       fail-fast: false
       matrix:
