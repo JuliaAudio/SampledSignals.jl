@@ -24,15 +24,13 @@ jobs:
           - '1.4'
           - '1.5'
           - '1'
+          - 'nightly'
         os:
           - ubuntu-latest
           - macOS-latest
           - windows-latest
         arch:
           - x64
-        include:
-          - version: "nightly"
-            experimental: true
   
     steps:
       - uses: actions/checkout@v2
