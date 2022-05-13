@@ -72,7 +72,7 @@ SampledSignals adds the `domain` function for `SampleBuf`s, which gives you the 
 
 ```julia
 spec = fft(buf)
-plot(domain(spec), abs(spec))
+plot(domain(spec), abs.(spec.data))
 ```
 
 and see the magnitude spectrum plotted against actual frequencies.
