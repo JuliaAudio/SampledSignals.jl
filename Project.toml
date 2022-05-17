@@ -15,7 +15,7 @@ TreeViews = "a2a6695c-b41b-5b7d-aed9-dbfdeacea5d7"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [compat]
-Compat = "2, 3"
+Compat = "2, 3, 4"
 DSP = "0.6.1, 0.7"
 FFTW = "1.1.0"
 FixedPointNumbers = "0.6.1, 0.7, 0.8"
