@@ -499,8 +499,9 @@ end
                    ▃▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▂▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▃"""
         iobuf = IOBuffer()
         display(TextDisplay(iobuf), buf)
-        @test String(take!(iobuf)) == expected
+        @test strip(String(take!(iobuf)),'\n') == expected
     end
+
     @testset "1D buf prints prettily" begin
         t = collect(range(0, stop=2pi, length=300))
         buf = SampleBuf(cos.(t)*0.2, 48000)
@@ -509,14 +510,15 @@ end
                    ▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▃▃▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▅▅▅▅▅▅▄▄▃▃▄▄▅▅▅▅▅▅▆▆▆▆▆▆▆▆▆▆"""
         iobuf = IOBuffer()
         display(TextDisplay(iobuf), buf)
-        @test String(take!(iobuf)) == expected
+        @test strip(String(take!(iobuf)),'\n') == expected
     end
+
     @testset "zero-length buf prints prettily" begin
         buf = SampleBuf(Float64, 48000, 0, 2)
         expected = """0-frame, 2-channel SampleBuf{Float64, 2}
                    0.0s sampled at 48000.0Hz"""
         iobuf = IOBuffer()
         display(TextDisplay(iobuf), buf)
-        @test String(take!(iobuf)) == expected
+        @test strip(String(take!(iobuf)),'\n') == expected
     end
 end
