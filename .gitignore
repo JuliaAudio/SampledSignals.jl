@@ -3,5 +3,8 @@
 *.jl.mem
 coverage
 *~
+.DS_Store
+LocalPreferences.toml
 Manifest.toml
 test/Manifest.toml
+settings.json
