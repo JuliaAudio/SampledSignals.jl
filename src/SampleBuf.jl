@@ -8,13 +8,15 @@ buffer will be an MxC matrix. So a 1-second stereo audio buffer sampled at
 44100Hz with 32-bit floating-point samples in the time domain would have the
 type SampleBuf{Float32, 2}.
 """
-mutable struct SampleBuf{T, N} <: AbstractSampleBuf{T, N}
-    data::Array{T, N}
+mutable struct SampleBuf{T, N, D} <: AbstractSampleBuf{T, N}
+    data::D
     samplerate::Float64
+    SampleBuf{T,N,D}(data::AbstractArray{T,N}, sr::Real) where {T,N,D} = new{T,N,D}(data,sr)
 end
 
 # define constructor so conversion is applied to `sr`
-SampleBuf(arr::Array{T, N}, sr::Real) where {T, N} = SampleBuf{T, N}(arr, sr)
+SampleBuf(arr::D, sr::Real) where {T, N, D<:AbstractArray{T,N}} =
+    SampleBuf{T,N,D}(arr, sr)
 
 """
 Represents a multi-channel regularly-sampled buffer representing the frequency-
@@ -24,13 +26,15 @@ C-channel buffer will be an MxC matrix. So a 1-second stereo audio buffer
 sampled at 44100Hz with 32-bit floating-point samples in the time domain would
 have the type SampleBuf{Float32, 2}.
 """
-mutable struct SpectrumBuf{T, N} <: AbstractSampleBuf{T, N}
-    data::Array{T, N}
+mutable struct SpectrumBuf{T, N, D} <: AbstractSampleBuf{T, N}
+    data::D
     samplerate::Float64
+    SpectrumBuf{T,N,D}(data::AbstractArray{T,N}, sr::Real) where {T,N,D} = new{T,N,D}(data,sr)
 end
 
 # define constructor so conversion is applied to `sr`
-SpectrumBuf(arr::Array{T, N}, sr::Real) where {T, N} = SpectrumBuf{T, N}(arr, sr)
+SpectrumBuf(arr::D, sr::Real) where {T, N, D<:AbstractArray{T,N}} =
+    SpectrumBuf{T,N,D}(arr, sr)
 
 SampleBuf(T::Type, sr, dims...) = SampleBuf(Array{T}(undef, dims...), sr)
 SpectrumBuf(T::Type, sr, dims...) = SpectrumBuf(Array{T}(undef, dims...), sr)
@@ -91,13 +95,13 @@ for btype in (:SampleBuf, :SpectrumBuf)
 
     if VERSION >= v"0.7.0-DEV-4936" # Julia PR 26891
 
-        @eval find_buf(bc::Base.Broadcast.Broadcasted{Broadcast.ArrayStyle{$btype{T,N}}}) where {T,N} = find_buf(bc.args)
+        @eval find_buf(bc::Base.Broadcast.Broadcasted{Broadcast.ArrayStyle{$btype{T,N,D}}}) where {T,N,D} = find_buf(bc.args)
         @eval find_buf(::$btype, args::Tuple{$btype}) = args[1]
         @eval find_buf(::Any, args::Tuple{$btype}) = args[1]
         @eval find_buf(a::$btype, rest) = a
 
-        @eval Base.BroadcastStyle(::Type{$btype{T,N}}) where {T,N} = Broadcast.ArrayStyle{$btype{T,N}}()
-        @eval function Base.similar(bc::Broadcast.Broadcasted{Broadcast.ArrayStyle{$btype{T,N}}}, ::Type{ElType}) where {T,N,ElType}
+        @eval Base.BroadcastStyle(::Type{$btype{T,N,D}}) where {T,N,D} = Broadcast.ArrayStyle{$btype{T,N,D}}()
+        @eval function Base.similar(bc::Broadcast.Broadcasted{Broadcast.ArrayStyle{$btype{T,N,D}}}, ::Type{ElType}) where {T,N,D,ElType}
             A = find_buf(bc)
             $btype(Array{ElType}(undef, length.(axes(bc))), samplerate(A))
         end
